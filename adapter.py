@@ -64,6 +64,7 @@ MAPPING = {
     "kommun_kod":      "kommunkod",
     "lan_kod":         "lankod",
     "rostberattigade": "antalRostberattigade",
+    "turnout":         "valdeltagandeVallokal",
     # partiröster (giltiga, påverkar mandat)
     "party_list_path": "rostfordelning.rosterPaverkaMandat.partiRoster",
     "party_code_key":  "partiforkortning",
@@ -142,6 +143,7 @@ def rows_from_blob(obj, kommun_lookup):
             continue
         lankod = zpad2(dig(rec, MAPPING["lan_kod"]))
         kkod = str(dig(rec, MAPPING["kommun_kod"]) or "").strip()
+        turnout = dig(rec, MAPPING["turnout"])
         rows.append({
             "distrikt_kod": str(dig(rec, MAPPING["district_code"]) or "").strip(),
             "distrikt_namn": dig(rec, MAPPING["district_name"]) or "",
@@ -149,6 +151,7 @@ def rows_from_blob(obj, kommun_lookup):
             "kommun_namn": kommun_lookup.get(kkod, kkod),   # fallback: koden
             "lan_namn": LAN_NAMN.get(lankod, lankod),
             "rost_berattigade": to_int(dig(rec, MAPPING["rostberattigade"])),
+            "_turnout": turnout,   # valdeltagande (till kovariater), skrivs ej i distrikt.csv
             **extract_votes(rec),
         })
     raknade = to_int(dig(obj, MAPPING["raknade"]))
@@ -237,6 +240,7 @@ def main():
                     help="Delsträng som väljer rätt json inuti varje zip (default: rostfordelning)")
     ap.add_argument("--kommuner", help="CSV kommun_kod,kommun_namn för läsbara kommunnamn (valfri)")
     ap.add_argument("--status-out", help="Skriv 'X av Y valdistrikt räknade' till denna fil (valfri)")
+    ap.add_argument("--covariates-out", help="Skriv distrikt_kod,turnout (valdeltagande ur filen) hit (valfri)")
     ap.add_argument("--inspect", metavar="FILE")
     ap.add_argument("--sample-json", metavar="FILE")
     args = ap.parse_args()
@@ -268,6 +272,15 @@ def main():
         sys.exit("Inga distrikt extraherade. Kör --inspect och kontrollera --json-filter / MAPPING.")
 
     write_csv(rows, args.out)
+    if args.covariates_out:
+        Path(args.covariates_out).parent.mkdir(parents=True, exist_ok=True)
+        with open(args.covariates_out, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["distrikt_kod", "turnout"])
+            for r in rows:
+                t = r.get("_turnout")
+                if r["distrikt_kod"] and t is not None:
+                    w.writerow([r["distrikt_kod"], t])
     if args.status_out and tot_s:
         Path(args.status_out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.status_out).write_text(f"{tot_r} av {tot_s} valdistrikt räknade",

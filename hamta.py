@@ -55,6 +55,7 @@ from pathlib import Path
 BASE_VAL = "https://resultat.val.se/resultatfiler/val2026/"
 BASE_GENREP = "https://resultat.val.se/resultatfiler/genrep2026/"
 INDEX_NAME = "index.md5"
+CERT_URL = "https://resultat.val.se/keys/val-sign-crt.pem"
 
 HERE = Path(__file__).resolve().parent
 CACHE = HERE / ".cache"
@@ -143,6 +144,46 @@ def flat(relpath):
 # ------------------------------------------------------------------
 # state (nedladdade checksummor)
 # ------------------------------------------------------------------
+def ensure_pubkey():
+    """Ladda ner Valmyndighetens certifikat och ta fram publik nyckel (en gång)."""
+    CACHE.mkdir(parents=True, exist_ok=True)
+    pub = CACHE / "val-pub.pem"
+    if pub.exists():
+        return pub
+    cert = CACHE / "val-sign-crt.pem"
+    cert.write_bytes(http_get(CERT_URL))
+    subprocess.run(["openssl", "x509", "-pubkey", "-noout", "-in", str(cert)],
+                   check=True, stdout=open(pub, "wb"))
+    return pub
+
+
+def verify_zip(zip_path, json_filter="rostfordelning"):
+    """Verifiera signaturen för json:erna i zippen mot Valmyndighetens nyckel.
+    Returnerar True om alla matchande json validerar, annars False."""
+    import tempfile
+    pub = ensure_pubkey()
+    ok_any = False
+    with zipfile.ZipFile(zip_path) as z:
+        names = z.namelist()
+        for name in names:
+            low = name.lower()
+            if not (low.endswith(".json") and json_filter in low):
+                continue
+            sig = name[:-5] + "_sign.sha256"
+            if sig not in names:
+                log(f"  ! saknar signaturfil för {name}"); return False
+            with tempfile.TemporaryDirectory() as td:
+                jp = Path(td) / "d.json"; sp = Path(td) / "d.sig"
+                jp.write_bytes(z.read(name)); sp.write_bytes(z.read(sig))
+                r = subprocess.run(["openssl", "dgst", "-sha256", "-verify", str(pub),
+                                    "-signature", str(sp), str(jp)],
+                                   capture_output=True, text=True)
+                if "Verified OK" not in (r.stdout + r.stderr):
+                    log(f"  ! signaturverifiering MISSLYCKADES för {name}"); return False
+                ok_any = True
+    return ok_any
+
+
 def load_state():
     if STATE.exists():
         import json
@@ -185,6 +226,14 @@ def one_cycle(args):
             log(f"  ! checksumma fel för {relpath} (fick {got[:8]}…, väntade {md5[:8]}…) – hoppar")
             tmp.unlink(missing_ok=True)
             continue
+        if args.verify:
+            try:
+                if not verify_zip(tmp):
+                    log(f"  ! signatur underkänd för {relpath} – hoppar")
+                    tmp.unlink(missing_ok=True); continue
+            except FileNotFoundError:
+                log("  ! openssl saknas – kan inte verifiera signatur. Installera openssl "
+                    "eller kör utan --verify."); tmp.unlink(missing_ok=True); continue
         tmp.replace(local)
         state[relpath] = md5
         changed.append(relpath)
@@ -204,11 +253,15 @@ def one_cycle(args):
         adapter_cmd += ["--status-out", args.status_file]
     if args.kommuner and Path(args.kommuner).exists():
         adapter_cmd += ["--kommuner", args.kommuner]
+    # valdeltagande ur filen -> live-kovariater (används om ingen riktig scb.csv finns)
+    live_cov = str(Path(args.districts_out).parent / "scb_live.csv")
+    adapter_cmd += ["--covariates-out", live_cov]
     run(adapter_cmd)
 
     # build: distrikt.csv (+ valfria filer) -> public/index.html
     cmd = [sys.executable, str(HERE / "build.py"), "--districts", args.districts_out, "--out", args.out]
-    for flag, path in [("--covariates", args.covariates), ("--history", args.history), ("--geojson", args.geojson)]:
+    covariates = args.covariates if Path(args.covariates).exists() else (live_cov if Path(live_cov).exists() else None)
+    for flag, path in [("--covariates", covariates), ("--history", args.history), ("--geojson", args.geojson)]:
         if path and Path(path).exists():
             cmd += [flag, path]
     if args.status_file and Path(args.status_file).exists():
@@ -261,6 +314,7 @@ def main():
     ap.add_argument("--status-file", default="data/status.txt")
     ap.add_argument("--live", action="store_true")
     ap.add_argument("--deploy", action="store_true", help="Deploya till Netlify (kräver env-variabler)")
+    ap.add_argument("--verify", action="store_true", help="Signaturverifiera filerna (kräver openssl)")
     ap.add_argument("--force", action="store_true", help="Bygg om även utan ändringar")
     ap.add_argument("--genrep", action="store_true", help="Använd genrep2026 (generalrepetition)")
     ap.add_argument("--loop", type=int, metavar="SEK", help="Kör om och om, med SEK sekunders paus")

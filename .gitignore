@@ -1,0 +1,7 @@
+public/
+.cache/
+data/distrikt.csv
+data/scb_live.csv
+data/status.txt
+__pycache__/
+.DS_Store
