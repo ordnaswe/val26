@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Valdistrikt – analysvyer</title>
+<style>
+  :root{
+    --paper:#f6f6f3;--ink:#171a1c;--muted:#6a7075;--faint:#9aa0a4;
+    --hair:#dcdcd6;--hair2:#e8e8e3;--panel:#fffffe;--focus:#1e5bb8;
+    --over:#2a9d8f;--under:#e07a5f;--star:#e0a400;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;
+    line-height:1.45;font-variant-numeric:tabular-nums;padding:18px;max-width:960px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;letter-spacing:-.01em;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:13px;margin:0}
+  .note{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#7a5a00;
+    background:#fbf3d8;border:1px solid #efe3b0;padding:3px 9px;border-radius:999px;margin:8px 0 14px}
+  .note.live{color:#0a5b3a;background:#e4f4ec;border-color:#bfe6d3}
+  .note b{font-weight:600}
+  select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--hair);
+    border-radius:8px;background:var(--panel);color:var(--ink)}
+  .geobar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px}
+  .group{display:flex;flex-direction:column;gap:5px}
+  .group>span{font-size:11px;color:var(--muted)}
+  .mapwrap{position:relative;background:var(--panel);border:1px solid var(--hair);
+    border-radius:12px;padding:6px;margin-bottom:8px}
+  #mapSvg{display:block;width:100%;height:auto;cursor:grab;touch-action:none;background:#fbfbf9;border-radius:8px}
+  #mapSvg.grabbing{cursor:grabbing}
+  .zoomctl{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:4}
+  .zoomctl button{width:30px;height:30px;border:1px solid var(--hair);background:var(--panel);
+    border-radius:7px;font-size:16px;cursor:pointer;color:var(--ink);line-height:1}
+  .zoomctl button:active{background:var(--hair2)}
+  .maphint{font-size:12px;color:var(--faint);margin:2px 2px 0}
+  .maplegend{display:flex;flex-wrap:wrap;gap:8px 12px;margin:8px 2px 0;font-size:11px;color:var(--muted)}
+  .maplegend span{display:inline-flex;align-items:center;gap:4px}
+  .swatch{width:10px;height:10px;border-radius:2px;display:inline-block}
+  .lanlabel{font-size:12px;font-weight:600;fill:var(--muted)}
+  .komlabel{font-size:9px;fill:var(--faint)}
+  .tile{cursor:pointer}
+  .blockbg{fill:transparent}.blockbg.sel{fill:#eef4ff}
+  .partybar{display:flex;align-items:center;gap:10px;margin:14px 0 12px}
+  .partybar span{font-size:11px;color:var(--muted)}
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--hair);margin-bottom:16px;flex-wrap:wrap}
+  .tabs button{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;
+    font-size:14px;padding:9px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
+  .panelview{display:none}.panelview.active{display:block}
+  .toolbar{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;align-items:flex-end}
+  .seg{display:flex;border:1px solid var(--hair);border-radius:8px;overflow:hidden;background:var(--panel)}
+  .seg button{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;
+    font-size:12px;padding:6px 10px;cursor:pointer;border-right:1px solid var(--hair2)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+  .chartwrap{position:relative;background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:6px}
+  svg.chart{display:block;width:100%;height:auto;touch-action:none}
+  .dot{cursor:pointer;transition:cx .5s cubic-bezier(.2,.7,.2,1),cy .5s cubic-bezier(.2,.7,.2,1)}
+  .axis text{fill:var(--faint);font-size:11px}
+  .gridline{stroke:var(--hair2);shape-rendering:crispEdges}
+  .axtitle{fill:var(--muted);font-size:12px}
+  .fit{stroke-width:2;fill:none}
+  .readout{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--hair2);font-size:13px}
+  .stat{display:flex;flex-direction:column}.stat .k{color:var(--muted);font-size:11px}
+  .stat .v{font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .12s;background:var(--ink);
+    color:#fff;font-size:12px;line-height:1.5;padding:8px 10px;border-radius:8px;max-width:230px;z-index:6;transform:translate(-50%,-115%)}
+  .tip b{font-weight:600}.tip .row{color:#c9cdd0}
+  .caption{color:var(--faint);font-size:12px;margin-top:14px}
+  .legend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-top:10px}
+  .legbar{height:12px;width:180px;border-radius:3px;background:linear-gradient(90deg,var(--under),#efefe9,var(--over))}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--hair2);white-space:nowrap}
+  th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}
+  th{color:var(--muted);font-weight:500;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--paper)}
+  th[aria-sort]{color:var(--ink);font-weight:600}
+  tbody tr:hover{background:#fbfbf9}
+  .starbtn{appearance:none;border:0;background:transparent;cursor:pointer;font-size:15px;color:var(--faint);padding:0 2px}
+  .starbtn.on{color:var(--star)}
+  .search{width:100%;max-width:280px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;margin-bottom:12px;background:var(--panel)}
+  .tablescroll{max-height:440px;overflow:auto;border:1px solid var(--hair);border-radius:12px}
+  .pos{color:var(--over);font-weight:600}.neg{color:var(--under);font-weight:600}
+  .cards{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:640px){.cards{grid-template-columns:1fr 1fr}}
+  .card{background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:14px}
+  .card h3{margin:0 0 2px;font-size:15px}.card .k2{color:var(--muted);font-size:12px;margin-bottom:10px}
+  .barrow{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12px}
+  .barrow .lab{width:26px;color:var(--muted)}
+  .barrow .track{flex:1;background:var(--hair2);border-radius:3px;height:9px;overflow:hidden}
+  .barrow .fill{height:100%}.barrow .val{width:88px;text-align:right;color:var(--muted)}
+  .empty{color:var(--faint);font-size:13px;padding:20px;text-align:center;border:1px dashed var(--hair);border-radius:12px}
+  .simrow{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:2px 0}
+  .remove{appearance:none;border:0;background:transparent;color:var(--under);cursor:pointer;font-size:12px}
+  .scopetag{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+  <h1 id="pageTitle">Valdistrikt – analysvyer</h1>
+  <p class="sub">Kartan väljer geografi; valet filtrerar all data nedan.</p>
+  <div class="note" id="dataNote"></div>
+
+  <div class="geobar">
+    <div class="group"><span>Län</span><select id="lanSel"></select></div>
+    <div class="group"><span>Kommun</span><select id="komSel"></select></div>
+    <div class="group"><span>&nbsp;</span><button id="resetGeo" style="font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--panel);cursor:pointer">Hela riket</button></div>
+    <div class="scopetag" id="scopeTag" style="margin-left:auto"></div>
+  </div>
+
+  <div id="mapModes" class="seg" style="margin-bottom:8px;width:max-content"></div>
+  <div class="mapwrap">
+    <svg id="mapSvg" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="zoomctl">
+      <button id="zin" title="Zooma in">+</button>
+      <button id="zout" title="Zooma ut">−</button>
+      <button id="zreset" title="Återställ" style="font-size:12px">⤢</button>
+    </div>
+    <div class="tip" id="tipM"></div>
+  </div>
+  <div class="maphint">Dra för att panorera, rulla eller +/− för att zooma. Klicka på en kommun för att filtrera.</div>
+  <div class="maplegend" id="mapLegend"></div>
+
+  <div class="partybar">
+    <span>Parti</span><select id="party"></select>
+    <span id="watchcount" style="margin-left:auto"></span>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="scatter">Samband</button>
+    <button role="tab" aria-selected="false" data-tab="resid">Avvikelse</button>
+    <button role="tab" aria-selected="false" data-tab="hist">Historik</button>
+    <button role="tab" aria-selected="false" data-tab="table">Tabell</button>
+    <button role="tab" aria-selected="false" data-tab="watch">Bevakning</button>
+  </div>
+
+  <section class="panelview active" id="view-scatter">
+    <div class="toolbar">
+      <div class="group"><span>Vad punkten mäter (y)</span>
+        <div class="seg" id="ymode">
+          <button data-v="share" aria-pressed="true">Andel i valet</button>
+          <button data-v="change">Förändring sedan förra valet</button>
+        </div></div>
+      <div class="group"><span>Jämför mot (x)</span>
+        <select id="xvar"></select></div>
+    </div>
+    <div class="chartwrap"><svg id="scatterSvg" class="chart" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet"></svg><div class="tip" id="tipS"></div></div>
+    <div class="readout">
+      <div class="stat"><span class="k">Korrelation (r)</span><span class="v" id="r">–</span></div>
+      <div class="stat"><span class="k">Förklaringsgrad (R²)</span><span class="v" id="r2">–</span></div>
+      <div class="stat"><span class="k">Lutning</span><span class="v" id="slope">–</span></div>
+      <div class="stat"><span class="k">Antal distrikt</span><span class="v" id="n">–</span></div>
+    </div>
+    <p class="caption" id="capS"></p>
+  </section>
+
+  <section class="panelview" id="view-resid">
+    <p class="sub" style="margin-bottom:10px">Hur mycket <b id="residParty"></b> över- eller underpresterar mot vad en modell (inkomst, utbildning, utländsk bakgrund) förutsäger, i valt område.</p>
+    <div class="chartwrap"><svg id="residSvg" class="chart" viewBox="0 0 800 480" preserveAspectRatio="xMidYMid meet"></svg><div class="tip" id="tipR"></div></div>
+    <div class="legend"><span>Underpresterar</span><div class="legbar"></div><span>Överpresterar</span></div>
+    <p class="caption" id="capR"></p>
+  </section>
+
+  <section class="panelview" id="view-hist">
+    <p class="sub" style="margin-bottom:10px">Partiernas andel över tid i valt område (röstviktat). Valt parti är markerat; bevakade distrikt visas som tunna linjer.</p>
+    <div class="chartwrap"><svg id="histSvg" class="chart" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid meet"></svg><div class="tip" id="tipH"></div></div>
+    <p class="caption" id="capH"></p>
+  </section>
+
+  <section class="panelview" id="view-table">
+    <input class="search" id="search" placeholder="Sök distrikt eller kommun…">
+    <div class="tablescroll"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+    <p class="caption">Klicka på en kolumnrubrik för att sortera. Stjärnan lägger distriktet i bevakning.</p>
+  </section>
+
+  <section class="panelview" id="view-watch"><div id="watchBody"></div></section>
+
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+(function(){
+  "use strict";
+  const DATA=JSON.parse(document.getElementById("data").textContent);
+  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  const NS="http://www.w3.org/2000/svg";
+  const el=(n,a)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+
+  const PARTIES=DATA.parties;                       // [{id,namn,color}]
+  const PC=Object.fromEntries(PARTIES.map(p=>[p.id,p.color]));
+  const dist=DATA.districts;                        // each: {i,namn,kommun,lan,rost,<cov>,shares,changes,series,pred,resid,top}
+  const ELYEARS=DATA.elyears;
+  const COVKEYS=DATA.covKeys;                        // ["income","edu",...]
+  const COVMETA=DATA.cov;                            // {key:{mean,sd,lab,fmt,unit}}
+  const LAN_ORDER=DATA.lanOrder;
+  const KOM2LAN={}, KOMMUNER=[];
+  for(const d of dist){ if(!(d.kommun in KOM2LAN)){KOM2LAN[d.kommun]=d.lan;KOMMUNER.push(d.kommun);} }
+
+  // page title + data provenance note
+  document.getElementById("pageTitle").textContent=DATA.meta.title||"Valdistrikt – analysvyer";
+  const note=document.getElementById("dataNote");
+  note.innerHTML=`<b>${DATA.meta.source_label}</b>${DATA.meta.status?" · "+DATA.meta.status:""}`;
+  if(DATA.meta.live)note.classList.add("live");
+
+  const fmtCov=(key,v)=>{const m=COVMETA[key];if(v==null)return "–";
+    if(m.unit==="tkr")return Math.round(v)+" tkr"; if(m.unit==="år")return v.toFixed(0)+" år"; return v.toFixed(0)+"%";};
+
+  const state={party:PARTIES[0].id,ymode:"share",xvar:COVKEYS[0],sortKey:"resid",sortDir:-1,geo:{lan:null,kommun:null}};
+  const watch=new Set();
+  function scope(){return dist.filter(d=>(!state.geo.lan||d.lan===state.geo.lan)&&(!state.geo.kommun||d.kommun===state.geo.kommun));}
+
+  // party + x-var selects
+  const psel=document.getElementById("party");
+  PARTIES.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.id+" – "+p.namn;psel.appendChild(o);});
+  psel.value=state.party;psel.addEventListener("change",e=>{state.party=e.target.value;renderAll();});
+  const xsel=document.getElementById("xvar");
+  COVKEYS.forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=COVMETA[k].lab;xsel.appendChild(o);});
+  xsel.value=state.xvar;xsel.addEventListener("change",e=>{state.xvar=e.target.value;renderScatter();});
+
+  const lanSel=document.getElementById("lanSel"),komSel=document.getElementById("komSel");
+  function fillLan(){lanSel.innerHTML="";const o=document.createElement("option");o.value="";o.textContent="Alla län";lanSel.appendChild(o);
+    LAN_ORDER.forEach(l=>{const x=document.createElement("option");x.value=l;x.textContent=l;lanSel.appendChild(x);});lanSel.value=state.geo.lan||"";}
+  function fillKom(){komSel.innerHTML="";const o=document.createElement("option");o.value="";o.textContent="Alla kommuner";komSel.appendChild(o);
+    KOMMUNER.filter(k=>!state.geo.lan||KOM2LAN[k]===state.geo.lan).sort((a,b)=>a.localeCompare(b,"sv"))
+      .forEach(k=>{const x=document.createElement("option");x.value=k;x.textContent=k;komSel.appendChild(x);});komSel.value=state.geo.kommun||"";}
+  fillLan();fillKom();
+  lanSel.addEventListener("change",()=>{state.geo.lan=lanSel.value||null;state.geo.kommun=null;fillKom();zoomToScope();renderAll();});
+  komSel.addEventListener("change",()=>{state.geo.kommun=komSel.value||null;if(state.geo.kommun)state.geo.lan=KOM2LAN[state.geo.kommun];fillLan();fillKom();zoomToScope();renderAll();});
+  document.getElementById("resetGeo").addEventListener("click",()=>{state.geo={lan:null,kommun:null};fillLan();fillKom();resetZoom();renderAll();});
+  function syncGeo(){document.getElementById("scopeTag").textContent=
+      (state.geo.kommun||state.geo.lan||"Hela riket")+" · "+scope().length+" distrikt";}
+
+  // similarity z-score from precomputed mean/sd
+  const z=(d,c)=>(d[c]-COVMETA[c].mean)/(COVMETA[c].sd||1);
+
+  // ================= KARTA (cartogram) =================
+  const mapSvg=document.getElementById("mapSvg"),tipM=document.getElementById("tipM");
+  const MAPW=760,TILE=13,GAP=2.5,BLOCKGAP=16,LANGAP=8,LABELH=13,LANLABELH=18;
+  const GEOW=DATA.geoW||760,GEOH=DATA.geoH||500;
+  let mapMode=DATA.meta.hasGeo?"carto":"tiles";
+  let layout=null;
+  function space(){ if(mapMode==="tiles"){ if(!layout)buildLayout(); return {w:MAPW,h:layout.totalH}; } return {w:GEOW,h:GEOH}; }
+  function buildLayout(){
+    const blocks=[],lanLabels=[];let y=6;
+    for(const lan of LAN_ORDER){
+      const koms=KOMMUNER.filter(k=>KOM2LAN[k]===lan).sort((a,b)=>a.localeCompare(b,"sv"));
+      if(!koms.length)continue;
+      lanLabels.push({lan,x:6,y:y+12});y+=LANLABELH;
+      let x=6,rowH=0;
+      for(const k of koms){
+        const tiles=dist.filter(d=>d.kommun===k);
+        const cols=Math.ceil(Math.sqrt(tiles.length)),rows=Math.ceil(tiles.length/cols);
+        const w=cols*(TILE+GAP),h=rows*(TILE+GAP)+LABELH;
+        if(x+w>MAPW-6){x=6;y+=rowH+BLOCKGAP;rowH=0;}
+        const placed=tiles.map((d,idx)=>({d,tx:x+(idx%cols)*(TILE+GAP),ty:y+LABELH+Math.floor(idx/cols)*(TILE+GAP)}));
+        blocks.push({kommun:k,lan,x,y,w,h,tiles:placed});x+=w+BLOCKGAP;rowH=Math.max(rowH,h);
+      }
+      y+=rowH+LANGAP;
+    }
+    layout={blocks,lanLabels,totalH:y+6};
+  }
+  let vb={x:0,y:0,w:MAPW,h:200};
+  function applyVB(){mapSvg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+    const s=space(),aspect=s.h/s.w;mapSvg.style.height=Math.min(560,Math.max(150,s.w*aspect*(mapMode==="tiles"?0.62:0.72)))+"px";}
+  function resetZoom(){const s=space();vb={x:0,y:0,w:s.w,h:s.h};applyVB();}
+  function zoomToScope(){
+    if(mapMode==="tiles"){
+      let bs=layout.blocks;
+      if(state.geo.kommun)bs=bs.filter(b=>b.kommun===state.geo.kommun);
+      else if(state.geo.lan)bs=bs.filter(b=>b.lan===state.geo.lan);
+      if(!bs.length){resetZoom();return;}
+      let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+      for(const b of bs){x0=Math.min(x0,b.x);y0=Math.min(y0,b.y);x1=Math.max(x1,b.x+b.w);y1=Math.max(y1,b.y+b.h);}
+      const pad=14;vb={x:x0-pad,y:y0-pad,w:Math.max(x1-x0+2*pad,120),h:Math.max(y1-y0+2*pad,80)};applyVB();return;
+    }
+    const ds=scope();if(!ds.length){resetZoom();return;}
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    for(const d of ds){
+      if(mapMode==="carto"&&d.dor){x0=Math.min(x0,d.dor.x-d.dor.r);y0=Math.min(y0,d.dor.y-d.dor.r);x1=Math.max(x1,d.dor.x+d.dor.r);y1=Math.max(y1,d.dor.y+d.dor.r);}
+      else if(d.poly)for(const pt of d.poly){x0=Math.min(x0,pt[0]);y0=Math.min(y0,pt[1]);x1=Math.max(x1,pt[0]);y1=Math.max(y1,pt[1]);}
+    }
+    if(x0>x1){resetZoom();return;}
+    const pad=Math.max(x1-x0,y1-y0)*0.08+6;vb={x:x0-pad,y:y0-pad,w:(x1-x0)+2*pad,h:(y1-y0)+2*pad};applyVB();
+  }
+  function renderMap(){
+    applyVB();mapSvg.textContent="";
+    if(mapMode==="tiles"){renderTiles();return;}
+    const inScope=d=>(!state.geo.lan||d.lan===state.geo.lan)&&(!state.geo.kommun||d.kommun===state.geo.kommun);
+    if(mapMode==="geo"){
+      for(const d of dist){ if(!d.poly)continue;
+        let p="";d.poly.forEach((pt,i)=>{p+=(i?"L":"M")+pt[0]+" "+pt[1]+" ";});p+="Z";
+        const path=el("path",{d:p,fill:PC[d.top]||"#bbb","fill-opacity":inScope(d)?0.92:0.14,
+          stroke:watch.has(d.i)?"#171a1c":"#ffffff","stroke-width":watch.has(d.i)?1.2:0.4,"stroke-opacity":watch.has(d.i)?1:0.6});
+        path.__d=d;path.__kom=d.kommun;mapSvg.appendChild(path);
+      }
+    }else{ // carto (Dorling)
+      for(const d of dist){ if(!d.dor)continue;
+        const c=el("circle",{cx:d.dor.x,cy:d.dor.y,r:d.dor.r,fill:PC[d.top]||"#bbb",
+          "fill-opacity":inScope(d)?0.9:0.14,stroke:watch.has(d.i)?"#171a1c":"#ffffff",
+          "stroke-width":watch.has(d.i)?1.5:0.4,"stroke-opacity":watch.has(d.i)?1:0.7});
+        c.__d=d;c.__kom=d.kommun;mapSvg.appendChild(c);
+      }
+    }
+  }
+  function renderTiles(){
+    if(!layout)buildLayout();
+    for(const l of layout.lanLabels){const t=el("text",{class:"lanlabel",x:l.x,y:l.y});t.textContent=l.lan;mapSvg.appendChild(t);}
+    for(const b of layout.blocks){
+      const inScope=(!state.geo.lan||b.lan===state.geo.lan)&&(!state.geo.kommun||b.kommun===state.geo.kommun);
+      const sel=(state.geo.kommun===b.kommun);
+      mapSvg.appendChild(el("rect",{class:"blockbg"+(sel?" sel":""),x:b.x-3,y:b.y-2,width:b.w+2,height:b.h+2,rx:5}));
+      const kl=el("text",{class:"komlabel",x:b.x,y:b.y+9});kl.textContent=b.kommun;mapSvg.appendChild(kl);
+      for(const t of b.tiles){
+        const r=el("rect",{class:"tile",x:t.tx,y:t.ty,width:TILE,height:TILE,rx:2,fill:PC[t.d.top]||"#bbb",
+          "fill-opacity":inScope?(watch.has(t.d.i)?1:0.9):0.16,
+          stroke:watch.has(t.d.i)?"#171a1c":"none","stroke-width":watch.has(t.d.i)?1.5:0});
+        r.__d=t.d;r.__kom=b.kommun;mapSvg.appendChild(r);
+      }
+    }
+  }
+  let dragging=false,moved=false,last=null;
+  mapSvg.addEventListener("pointerdown",e=>{dragging=true;moved=false;last={x:e.clientX,y:e.clientY};mapSvg.classList.add("grabbing");mapSvg.setPointerCapture(e.pointerId);});
+  mapSvg.addEventListener("pointermove",e=>{
+    if(dragging){const dx=e.clientX-last.x,dy=e.clientY-last.y;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;
+      const sc=vb.w/mapSvg.clientWidth;vb.x-=dx*sc;vb.y-=dy*sc;last={x:e.clientX,y:e.clientY};mapSvg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);tipM.style.opacity=0;return;}
+    const t=e.target;if(t&&t.__d){const d=t.__d;
+      tipM.innerHTML=`<b>${d.namn}</b><br><span class="row">Största: ${d.top} (${d.shares[d.top].toFixed(1)}%)</span><br><span class="row">${(d.rost||0).toLocaleString("sv-SE")} röstberättigade</span>`;
+      tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(e.clientX-w.left)+"px";tipM.style.top=(e.clientY-w.top)+"px";}
+    else tipM.style.opacity=0;
+  });
+  mapSvg.addEventListener("pointerup",e=>{dragging=false;mapSvg.classList.remove("grabbing");
+    if(!moved){const t=e.target;if(t&&t.__kom){state.geo.kommun=t.__kom;state.geo.lan=KOM2LAN[t.__kom];fillLan();fillKom();zoomToScope();renderAll();}}});
+  mapSvg.addEventListener("pointerleave",()=>{tipM.style.opacity=0;});
+  mapSvg.addEventListener("wheel",e=>{e.preventDefault();
+    const rect=mapSvg.getBoundingClientRect();
+    const mx=vb.x+(e.clientX-rect.left)/rect.width*vb.w,my=vb.y+(e.clientY-rect.top)/rect.height*vb.h;
+    const f=e.deltaY<0?0.85:1.18,mw=space().w*1.3,nw=clamp(vb.w*f,60,mw),nh=vb.h*(nw/vb.w);
+    vb.x=mx-(mx-vb.x)*(nw/vb.w);vb.y=my-(my-vb.y)*(nh/vb.h);vb.w=nw;vb.h=nh;applyVB();
+  },{passive:false});
+  function zoomBtn(f){const cx=vb.x+vb.w/2,cy=vb.y+vb.h/2,nw=clamp(vb.w*f,60,space().w*1.3),nh=vb.h*(nw/vb.w);
+    vb.x=cx-nw/2;vb.y=cy-nh/2;vb.w=nw;vb.h=nh;applyVB();}
+  document.getElementById("zin").addEventListener("click",()=>zoomBtn(0.8));
+  document.getElementById("zout").addEventListener("click",()=>zoomBtn(1.25));
+  document.getElementById("zreset").addEventListener("click",()=>{state.geo={lan:null,kommun:null};fillLan();fillKom();resetZoom();renderAll();});
+  document.getElementById("mapLegend").innerHTML=PARTIES.map(p=>`<span><i class="swatch" style="background:${p.color}"></i>${p.id}</span>`).join("");
+  (function(){
+    const box=document.getElementById("mapModes");if(!box)return;
+    const modes=DATA.meta.hasGeo?[["carto","Kartogram"],["geo","Geografi"],["tiles","Rutnät"]]:[["tiles","Rutnät"]];
+    if(modes.length<2){box.style.display="none";return;}
+    box.innerHTML=modes.map(([v,l])=>`<button data-m="${v}" aria-pressed="${v===mapMode}">${l}</button>`).join("");
+    box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+      box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
+      b.setAttribute("aria-pressed","true");mapMode=b.dataset.m;zoomToScope();renderMap();}));
+  })();
+
+  // ================= tabs =================
+  const tabButtons=[...document.querySelectorAll('.tabs button')];
+  tabButtons.forEach(b=>b.addEventListener("click",()=>{
+    tabButtons.forEach(x=>x.setAttribute("aria-selected",x===b?"true":"false"));
+    document.querySelectorAll(".panelview").forEach(v=>v.classList.remove("active"));
+    document.getElementById("view-"+b.dataset.tab).classList.add("active");renderAll();}));
+
+  // ================= SAMBAND =================
+  const sSvg=document.getElementById("scatterSvg"),tipS=document.getElementById("tipS");
+  const W=800,H=520,Mg={l:62,r:22,t:20,b:52},pw=W-Mg.l-Mg.r,ph=H-Mg.t-Mg.b;
+  const extent=v=>{let a=Infinity,b=-Infinity;for(const x of v){if(x<a)a=x;if(x>b)b=x;}const p=(b-a)*0.06||1;return[a-p,b+p];};
+  function ols(pts){const n=pts.length;let sx=0,sy=0;for(const p of pts){sx+=p.x;sy+=p.y;}const mx=sx/n,my=sy/n;
+    let sxx=0,sxy=0,syy=0;for(const p of pts){const dx=p.x-mx,dy=p.y-my;sxx+=dx*dx;sxy+=dx*dy;syy+=dy*dy;}
+    return{slope:sxy/sxx,intercept:my-sxy/sxx*mx,r:sxy/Math.sqrt(sxx*syy)};}
+  function moveTip(tip,svg,ev){const w=svg.parentElement.getBoundingClientRect();tip.style.left=(ev.clientX-w.left)+"px";tip.style.top=(ev.clientY-w.top)+"px";}
+  function renderScatter(){
+    const P=PARTIES.find(p=>p.id===state.party),Xkey=state.xvar,Xm=COVMETA[Xkey],data=scope();
+    const yget=state.ymode==="share"?(d=>d.shares[state.party]):(d=>d.changes[state.party]);
+    const pts=data.filter(d=>d[Xkey]!=null).map(d=>({d,x:d[Xkey],y:yget(d)}));
+    sSvg.textContent="";
+    if(pts.length<3){const t=el("text",{x:W/2,y:H/2,"text-anchor":"middle",fill:"#9aa0a4"});t.textContent="För få distrikt i valt område.";sSvg.appendChild(t);
+      ["r","r2","slope"].forEach(id=>document.getElementById(id).textContent="–");document.getElementById("n").textContent=pts.length;document.getElementById("capS").textContent="";return;}
+    const [x0,x1]=extent(pts.map(p=>p.x));let[y0,y1]=extent(pts.map(p=>p.y));
+    if(state.ymode==="change"){const m=Math.max(Math.abs(y0),Math.abs(y1));y0=-m;y1=m;}
+    const sx=v=>Mg.l+(v-x0)/(x1-x0)*pw,sy=v=>Mg.t+ph-(v-y0)/(y1-y0)*ph,rr=v=>3+Math.sqrt((v||1000)/2600)*7;
+    const g=el("g",{class:"axis"});
+    for(let i=0;i<=5;i++){const yv=y0+(y1-y0)*i/5,y=sy(yv);g.appendChild(el("line",{class:"gridline",x1:Mg.l,x2:Mg.l+pw,y1:y,y2:y}));
+      const t=el("text",{x:Mg.l-8,y:y+3,"text-anchor":"end"});t.textContent=state.ymode==="change"?(yv>0?"+":"")+yv.toFixed(1):yv.toFixed(0)+"%";g.appendChild(t);}
+    if(state.ymode==="change")g.appendChild(el("line",{x1:Mg.l,x2:Mg.l+pw,y1:sy(0),y2:sy(0),stroke:"#c3c4be","stroke-dasharray":"2 3"}));
+    for(let i=0;i<=5;i++){const xv=x0+(x1-x0)*i/5;const t=el("text",{x:sx(xv),y:Mg.t+ph+18,"text-anchor":"middle"});t.textContent=Math.round(xv);g.appendChild(t);}
+    sSvg.appendChild(g);
+    const xt=el("text",{class:"axtitle",x:Mg.l+pw/2,y:H-10,"text-anchor":"middle"});xt.textContent=Xm.lab;sSvg.appendChild(xt);
+    const yt=el("text",{class:"axtitle",x:-(Mg.t+ph/2),y:16,"text-anchor":"middle",transform:"rotate(-90)"});
+    yt.textContent=state.ymode==="share"?P.id+" andel (%)":P.id+" förändring (procentenheter)";sSvg.appendChild(yt);
+    const gd=el("g",{});
+    for(const p of pts){const on=watch.has(p.d.i);
+      const c=el("circle",{class:"dot",cx:sx(p.x),cy:sy(p.y),r:rr(p.d.rost),fill:P.color,
+        "fill-opacity":on?0.85:0.36,stroke:on?"#171a1c":P.color,"stroke-opacity":on?1:0.5,"stroke-width":on?1.8:0.6});
+      c.addEventListener("pointerenter",ev=>{tipS.innerHTML=tipHtml(p.d,P,Xkey);tipS.style.opacity=1;moveTip(tipS,sSvg,ev);});
+      c.addEventListener("pointermove",ev=>moveTip(tipS,sSvg,ev));
+      c.addEventListener("pointerleave",()=>tipS.style.opacity=0);
+      c.addEventListener("click",()=>toggleWatch(p.d.i));gd.appendChild(c);}
+    sSvg.appendChild(gd);
+    const {slope,intercept,r}=ols(pts);
+    sSvg.appendChild(el("line",{class:"fit",x1:sx(x0),y1:sy(slope*x0+intercept),x2:sx(x1),y2:sy(slope*x1+intercept),stroke:"#171a1c","stroke-opacity":0.85}));
+    document.getElementById("r").textContent=(r>=0?"+":"")+r.toFixed(2);
+    document.getElementById("r2").textContent=(r*r).toFixed(2);
+    document.getElementById("slope").textContent=(slope>=0?"+":"")+slope.toFixed(2)+"/"+(Xm.unit||"enh");
+    document.getElementById("n").textContent=pts.length;
+    const styrka=Math.abs(r)>0.6?"starkt":Math.abs(r)>0.3?"måttligt":"svagt";
+    document.getElementById("capS").textContent=`${P.namn}s ${state.ymode==="share"?"andel":"förändring"} ${r>0?"stiger":"faller"} med ${Xm.lab.toLowerCase()} – ${styrka} samband. Klicka på en punkt för att bevaka.`;
+  }
+  function tipHtml(d,P,Xkey){return `<b>${d.namn}</b><br><span class="row">${P.id}: ${d.shares[state.party].toFixed(1)}% (${d.changes[state.party]>=0?"+":""}${d.changes[state.party].toFixed(1)})</span><br><span class="row">${COVMETA[Xkey].lab.split(" (")[0]}: ${fmtCov(Xkey,d[Xkey])}</span><br><span class="row">Röstberättigade: ${(d.rost||0).toLocaleString("sv-SE")}</span>`;}
+  document.querySelectorAll("#ymode button").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll("#ymode button").forEach(x=>x.setAttribute("aria-pressed","false"));b.setAttribute("aria-pressed","true");state.ymode=b.dataset.v;renderScatter();}));
+
+  // ================= AVVIKELSE =================
+  const rSvg=document.getElementById("residSvg"),tipR=document.getElementById("tipR"),RB=6;
+  function divColor(t){const hex=c=>[parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)];
+    const to=a=>"#"+a.map(x=>Math.round(x).toString(16).padStart(2,"0")).join("");
+    const lerp=(a,b,f)=>a.map((x,i)=>x+(b[i]-x)*f),m=hex("#efefe9");
+    return t<0?to(lerp(m,hex("#e07a5f"),Math.min(1,-t))):to(lerp(m,hex("#2a9d8f"),Math.min(1,t)));}
+  function renderResid(){
+    const P=PARTIES.find(p=>p.id===state.party),data=scope().filter(d=>d.income!=null&&d.edu!=null&&d.resid);
+    document.getElementById("residParty").textContent=P.namn;rSvg.textContent="";
+    if(data.length<6){const t=el("text",{x:400,y:240,"text-anchor":"middle",fill:"#9aa0a4"});t.textContent="För få distrikt med kovariater i valt område.";rSvg.appendChild(t);document.getElementById("capR").textContent="";return;}
+    const incs=data.map(d=>d.income),edus=data.map(d=>d.edu);
+    const i0=Math.min(...incs),i1=Math.max(...incs),e0=Math.min(...edus),e1=Math.max(...edus);
+    const bIdx=(v,a,b)=>clamp(Math.floor((v-a)/((b-a)||1)*RB),0,RB-1);
+    const cells=Array.from({length:RB},()=>Array.from({length:RB},()=>({sum:0,n:0,watch:0})));
+    data.forEach(d=>{const c=cells[bIdx(d.edu,e0,e1)][bIdx(d.income,i0,i1)];c.sum+=d.resid[P.id];c.n++;if(watch.has(d.i))c.watch++;});
+    let maxAbs=0.1;for(const row of cells)for(const c of row)if(c.n)maxAbs=Math.max(maxAbs,Math.abs(c.sum/c.n));
+    const m={l:64,r:16,t:14,b:52},W2=800,H2=480,pw2=W2-m.l-m.r,ph2=H2-m.t-m.b,cw=pw2/RB,chh=ph2/RB;
+    for(let by=0;by<RB;by++)for(let bx=0;bx<RB;bx++){
+      const c=cells[by][bx],x=m.l+bx*cw,y=m.t+(RB-1-by)*chh,avg=c.n?c.sum/c.n:0;
+      const rect=el("rect",{x:x+1.5,y:y+1.5,width:cw-3,height:chh-3,rx:3,fill:c.n?divColor(avg/maxAbs):"#f4f4f0",stroke:c.watch?"#171a1c":"#e6e6e0","stroke-width":c.watch?2:1});
+      rect.addEventListener("pointerenter",ev=>{tipR.innerHTML=`<b>${c.n} distrikt</b><br><span class="row">Inkomst ${Math.round(i0+(i1-i0)*bx/RB)}–${Math.round(i0+(i1-i0)*(bx+1)/RB)}</span><br><span class="row">Eftergymn. ${(e0+(e1-e0)*by/RB).toFixed(0)}–${(e0+(e1-e0)*(by+1)/RB).toFixed(0)}%</span><br><span class="row">Snittavvikelse: ${c.n?(avg>=0?"+":"")+avg.toFixed(1)+" %-e":"–"}</span>`;tipR.style.opacity=1;moveTip(tipR,rSvg,ev);});
+      rect.addEventListener("pointermove",ev=>moveTip(tipR,rSvg,ev));rect.addEventListener("pointerleave",()=>tipR.style.opacity=0);
+      rSvg.appendChild(rect);
+      if(c.n){const t=el("text",{x:x+cw/2,y:y+chh/2+4,"text-anchor":"middle","font-size":11,fill:Math.abs(avg/maxAbs)>0.55?"#fff":"#5a5f63"});t.textContent=(avg>=0?"+":"")+avg.toFixed(1);rSvg.appendChild(t);}
+    }
+    const ax=el("text",{class:"axtitle",x:m.l+pw2/2,y:H2-14,"text-anchor":"middle"});ax.textContent=COVMETA.income.lab+" →";rSvg.appendChild(ax);
+    const ay=el("text",{class:"axtitle",x:-(m.t+ph2/2),y:16,"text-anchor":"middle",transform:"rotate(-90)"});ay.textContent=COVMETA.edu.lab+" →";rSvg.appendChild(ay);
+    document.getElementById("capR").textContent=`Positiv siffra = ${P.namn} får fler procentenheter än modellen väntar sig i den distriktstypen. Bevakade rutor inramade.`;
+  }
+
+  // ================= HISTORIK =================
+  const hSvg=document.getElementById("histSvg");
+  function aggSeries(data){const out={};for(const p of PARTIES)out[p.id]=ELYEARS.map(()=>({s:0,w:0}));
+    for(const d of data)for(const p of PARTIES)d.series[p.id].forEach((v,t)=>{if(v!=null){out[p.id][t].s+=v*(d.rost||1);out[p.id][t].w+=(d.rost||1);}});
+    const res={};for(const p of PARTIES)res[p.id]=out[p.id].map(o=>o.w?o.s/o.w:null);return res;}
+  function renderHist(){
+    const P=PARTIES.find(p=>p.id===state.party),data=scope();hSvg.textContent="";
+    if(!data.length){const t=el("text",{x:400,y:230,"text-anchor":"middle",fill:"#9aa0a4"});t.textContent="Inga distrikt i valt område.";hSvg.appendChild(t);document.getElementById("capH").textContent="";return;}
+    const agg=aggSeries(data);
+    const W2=800,H2=460,m={l:52,r:120,t:20,b:44},pw2=W2-m.l-m.r,ph2=H2-m.t-m.b;
+    let ymax=0;for(const p of PARTIES)for(const v of agg[p.id])if(v!=null)ymax=Math.max(ymax,v);ymax=Math.ceil(ymax/5)*5+2;
+    const nX=ELYEARS.length;
+    const sx=t=>m.l+(nX>1?t/(nX-1):0.5)*pw2,sy=v=>m.t+ph2-v/ymax*ph2;
+    const g=el("g",{class:"axis"});
+    for(let i=0;i<=5;i++){const yv=ymax*i/5,y=sy(yv);g.appendChild(el("line",{class:"gridline",x1:m.l,x2:m.l+pw2,y1:y,y2:y}));
+      const t=el("text",{x:m.l-8,y:y+3,"text-anchor":"end"});t.textContent=yv.toFixed(0)+"%";g.appendChild(t);}
+    ELYEARS.forEach((yr,t)=>{const tx=el("text",{x:sx(t),y:m.t+ph2+20,"text-anchor":"middle"});tx.textContent=yr;g.appendChild(tx);});
+    hSvg.appendChild(g);
+    const line=(ser,stroke,op,wdt)=>{let pts="",started=false;ser.forEach((v,t)=>{if(v==null)return;pts+=(started?" ":"")+sx(t)+","+sy(v);started=true;});
+      if(pts)hSvg.appendChild(el("polyline",{points:pts,fill:"none",stroke,"stroke-opacity":op,"stroke-width":wdt}));};
+    for(const idx of watch){const d=dist[idx];if(!data.includes(d))continue;line(d.series[P.id],P.color,0.28,1);}
+    for(const p of PARTIES){const sel=p.id===state.party;line(agg[p.id],p.color,sel?1:0.35,sel?3:1.4);
+      const lastV=[...agg[p.id]].reverse().find(v=>v!=null);
+      if(lastV!=null){const lab=el("text",{x:m.l+pw2+8,y:sy(lastV)+4,"font-size":sel?13:11,fill:p.color,"font-weight":sel?"700":"400"});lab.textContent=`${p.id} ${lastV.toFixed(1)}%`;hSvg.appendChild(lab);}
+      if(sel)agg[p.id].forEach((v,t)=>{if(v!=null)hSvg.appendChild(el("circle",{cx:sx(t),cy:sy(v),r:3.5,fill:p.color}));});
+    }
+    const fv=agg[P.id].find(v=>v!=null),lv=[...agg[P.id]].reverse().find(v=>v!=null);
+    if(fv!=null&&lv!=null)document.getElementById("capH").textContent=`${P.namn}: ${fv.toFixed(1)}% (${ELYEARS[0]}) → ${lv.toFixed(1)}% (${ELYEARS[ELYEARS.length-1]}), ${(lv-fv)>=0?"+":""}${(lv-fv).toFixed(1)} %-e i valt område.`;
+  }
+  function sparkline(ser,color){
+    const vals=ser.filter(v=>v!=null);if(vals.length<2)return "";
+    const w=120,h=26,pad=2;let mn=Math.min(...vals),mx=Math.max(...vals);const rng=(mx-mn)||1;
+    const pts=ser.map((v,t)=>v==null?null:`${pad+t/(ser.length-1)*(w-2*pad)},${h-pad-(v-mn)/rng*(h-2*pad)}`).filter(Boolean).join(" ");
+    const lastV=vals[vals.length-1];
+    return `<svg width="${w}" height="${h}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6"/><circle cx="${pad+(w-2*pad)}" cy="${h-pad-(lastV-mn)/rng*(h-2*pad)}" r="2.4" fill="${color}"/></svg>`;
+  }
+
+  // ================= TABELL =================
+  const COLS=[{k:"star",lab:"",sortable:false},{k:"namn",lab:"Distrikt"},{k:"kommun",lab:"Kommun"},
+    {k:"rost",lab:"Röstber."},{k:"share",lab:"Andel"},{k:"change",lab:"Förändr."},{k:"predv",lab:"Förväntat"},{k:"resid",lab:"Avvikelse"}];
+  const thead=document.querySelector("#tbl thead"),tbody=document.querySelector("#tbl tbody");
+  function valOf(d,k){if(k==="share")return d.shares[state.party];if(k==="change")return d.changes[state.party];
+    if(k==="predv")return d.pred?d.pred[state.party]:null;if(k==="resid")return d.resid?d.resid[state.party]:null;return d[k];}
+  function renderTable(){
+    thead.innerHTML="";const tr=document.createElement("tr");
+    for(const c of COLS){const th=document.createElement("th");th.textContent=c.lab;
+      if(c.sortable!==false){th.addEventListener("click",()=>{if(state.sortKey===c.k)state.sortDir*=-1;else{state.sortKey=c.k;state.sortDir=(c.k==="namn"||c.k==="kommun")?1:-1;}renderTable();});
+        if(state.sortKey===c.k)th.setAttribute("aria-sort",state.sortDir>0?"ascending":"descending");}
+      tr.appendChild(th);}thead.appendChild(tr);
+    const q=(document.getElementById("search").value||"").toLowerCase();
+    let rows=scope().filter(d=>!q||d.namn.toLowerCase().includes(q)||d.kommun.toLowerCase().includes(q));
+    rows.sort((a,b)=>{let va=valOf(a,state.sortKey),vb=valOf(b,state.sortKey);
+      if(va==null)va=-1e9;if(vb==null)vb=-1e9;
+      if(typeof va==="string")return va.localeCompare(vb,"sv")*state.sortDir;return(va-vb)*state.sortDir;});
+    rows=rows.slice(0,200);tbody.innerHTML="";
+    for(const d of rows){const tr=document.createElement("tr"),rv=d.resid?d.resid[state.party]:null,pv=d.pred?d.pred[state.party]:null;
+      tr.innerHTML=`<td><button class="starbtn ${watch.has(d.i)?"on":""}" data-i="${d.i}">${watch.has(d.i)?"★":"☆"}</button></td>`+
+        `<td>${d.namn}</td><td>${d.kommun}</td><td>${(d.rost||0).toLocaleString("sv-SE")}</td>`+
+        `<td>${d.shares[state.party].toFixed(1)}%</td>`+
+        `<td class="${d.changes[state.party]>=0?"pos":"neg"}">${d.changes[state.party]>=0?"+":""}${d.changes[state.party].toFixed(1)}</td>`+
+        `<td>${pv==null?"–":pv.toFixed(1)+"%"}</td>`+
+        `<td class="${rv==null?"":rv>=0?"pos":"neg"}">${rv==null?"–":(rv>=0?"+":"")+rv.toFixed(1)}</td>`;tbody.appendChild(tr);}
+    tbody.querySelectorAll(".starbtn").forEach(b=>b.addEventListener("click",()=>toggleWatch(+b.dataset.i)));
+  }
+  document.getElementById("search").addEventListener("input",renderTable);
+
+  // ================= BEVAKNING =================
+  function nearest(d,k){const arr=dist.filter(o=>o.i!==d.i).map(o=>{let s=0;for(const c of COVKEYS){if(o[c]==null||d[c]==null)continue;const dz=z(o,c)-z(d,c);s+=dz*dz;}return{o,dd:Math.sqrt(s)};});
+    arr.sort((a,b)=>a.dd-b.dd);return arr.slice(0,k).map(x=>x.o);}
+  function renderWatch(){
+    const body=document.getElementById("watchBody");
+    if(watch.size===0){body.innerHTML=`<div class="empty">Inga bevakade distrikt än. Klicka på en punkt i Samband, en ruta i kartan, eller stjärnan i Tabell.</div>`;return;}
+    const P=PARTIES.find(p=>p.id===state.party);
+    const cards=[...watch].map(i=>dist[i]).sort((a,b)=>((b.resid?b.resid[P.id]:0)-(a.resid?a.resid[P.id]:0)));
+    let html=`<div class="cards">`;
+    for(const d of cards){const rv=d.resid?d.resid[P.id]:null,pv=d.pred?d.pred[P.id]:null;let bars="";
+      for(const p of [...PARTIES].sort((a,b)=>d.shares[b.id]-d.shares[a.id])){const s=d.shares[p.id];
+        bars+=`<div class="barrow"><span class="lab">${p.id}</span><span class="track"><span class="fill" style="width:${Math.min(100,s*2.2)}%;background:${p.color}"></span></span><span class="val">${s.toFixed(1)}% (${d.changes[p.id]>=0?"+":""}${d.changes[p.id].toFixed(1)})</span></div>`;}
+      const sims=nearest(d,4).map(o=>`<div class="simrow"><span>${o.namn}</span><span>${o.shares[P.id].toFixed(1)}%</span></div>`).join("");
+      const covLine=COVKEYS.map(c=>fmtCov(c,d[c])).join(" · ");
+      const spark=sparkline(d.series[P.id],P.color);
+      html+=`<div class="card"><h3>${d.namn} <button class="remove" data-i="${d.i}">ta bort</button></h3>
+        <div class="k2">${d.kommun} · ${covLine}</div>
+        <div class="k2" style="margin-bottom:8px"><b>${P.id} avvikelse mot modell:</b> ${rv==null?"–":`<span class="${rv>=0?"pos":"neg"}">${rv>=0?"+":""}${rv.toFixed(1)} %-e</span> (förväntat ${pv.toFixed(1)}%)`}</div>
+        ${spark?`<div class="k2" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">${P.id} historik ${spark}</div>`:""}
+        ${bars}<div class="k2" style="margin-top:10px">Mest lika distrikt (demografiskt), ${P.id}-andel:</div>${sims}</div>`;}
+    html+=`</div>`;body.innerHTML=html;
+    body.querySelectorAll(".remove").forEach(b=>b.addEventListener("click",()=>toggleWatch(+b.dataset.i)));
+  }
+
+  // ---- orchestration ----
+  function toggleWatch(i){if(watch.has(i))watch.delete(i);else watch.add(i);renderAll();}
+  function renderAll(){
+    document.getElementById("watchcount").textContent=watch.size?watch.size+" bevakade":"";
+    syncGeo();renderMap();
+    const active=document.querySelector(".tabs button[aria-selected='true']").dataset.tab;
+    if(active==="scatter")renderScatter();else if(active==="resid")renderResid();
+    else if(active==="hist")renderHist();
+    else if(active==="table")renderTable();else if(active==="watch")renderWatch();
+  }
+  buildLayout();resetZoom();renderAll();
+})();
+</script>
+</body>
+</html>

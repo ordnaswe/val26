@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+hamta.py — hämtar Valmyndighetens resultatfiler och bygger om sajten.
+
+Ett varv: jämför index.md5 mot lokal cache -> ladda ner ENBART ändrade zip ->
+verifiera checksumma -> kör adapter.py (zip -> distrikt.csv) -> build.py
+(-> public/index.html) -> (valfritt) deploya till Netlify.
+
+VIKTIGT OM URL:ER OCH FILNAMN
+-----------------------------
+Bas-URL och index nedan är satta efter Valmyndighetens tekniska beskrivning,
+men kunde inte verifieras när detta skrevs. Bekräfta först med --list, som
+skriver ut de verkliga filnamnen ur index.md5:
+
+    python3 hamta.py --list
+
+Välj sedan vilka filer du vill följa med --pattern (delsträng som matchar
+filnamnen, t.ex. röstfördelning för riksdagen). Kör med --list tills mönstret
+träffar rätt filer.
+
+VALNATTSDRIFT
+-------------
+GitHub Actions-cron är grov (minst ~5 min, ofta fördröjd) och saknar beständig
+cache -> laddar om stora filer varje varv. För minutsnabb valnattsdrift kör
+hellre detta på en liten VPS i en loop:
+
+    while true; do python3 hamta.py --deploy; sleep 90; done
+    # eller: python3 hamta.py --loop 90 --deploy
+
+TEST UTAN NÄT
+-------------
+    python3 hamta.py --index-file ./index.md5 --base-dir ./zips --pattern rostfordelning
+
+Endast Python-standardbibliotek.
+(Full signaturverifiering mot _sign.sha256 + Valmyndighetens certifikat är ett
+ytterligare steg; här verifieras md5 mot index.md5, vilket är den dokumenterade
+integritetskontrollen.)
+"""
+
+import argparse
+import hashlib
+import os
+import shutil
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+# --- bekräftat mot val.se (teknisk beskrivning, uppd. 24 aug 2026) ---
+# Filerna finns publicerade forst under rostrakningen; fore dess svarar
+# servern 404. Simuleringsfilerna (genrep) raderas mellan simuleringsveckorna.
+BASE_VAL = "https://resultat.val.se/resultatfiler/val2026/"
+BASE_GENREP = "https://resultat.val.se/resultatfiler/genrep2026/"
+INDEX_NAME = "index.md5"
+
+HERE = Path(__file__).resolve().parent
+CACHE = HERE / ".cache"
+ZIPDIR = CACHE / "zips"
+STATE = CACHE / "state.json"
+
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+# ------------------------------------------------------------------
+# Nedladdning med backoff (respekterar Retry-After / 429 / 5xx)
+# ------------------------------------------------------------------
+def http_get(url, tries=5):
+    delay = 2.0
+    for attempt in range(1, tries + 1):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "valdistrikt-hamtare/1.0"})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503, 504) and attempt < tries:
+                wait = float(e.headers.get("Retry-After", delay))
+                log(f"HTTP {e.code} på {url} – väntar {wait:.0f}s (försök {attempt}/{tries})")
+                time.sleep(wait); delay *= 2; continue
+            raise
+        except urllib.error.URLError as e:
+            if attempt < tries:
+                log(f"Nätfel {e} – väntar {delay:.0f}s"); time.sleep(delay); delay *= 2; continue
+            raise
+    raise RuntimeError(f"Kunde inte hämta {url}")
+
+
+# ------------------------------------------------------------------
+# index.md5
+# ------------------------------------------------------------------
+def parse_index(text):
+    """Rader: '<md5> <relativ sökväg>', t.ex.
+       '721f...  ./p/rd/Val_2026_preliminar_00_RD.zip'.
+       Returnerar {relativ_sökväg: md5} med './'-prefix borttaget."""
+    out = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        md5 = next((p for p in parts if len(p) == 32 and all(c in "0123456789abcdef" for c in p.lower())), None)
+        rel = next((p for p in parts if p != md5), None)
+        if md5 and rel:
+            out[rel.lstrip("./")] = md5.lower()
+    return out
+
+
+def get_index(args):
+    if args.index_file:
+        return parse_index(Path(args.index_file).read_text(encoding="utf-8", errors="replace"))
+    base = BASE_GENREP if args.genrep else BASE_VAL
+    return parse_index(http_get(base + INDEX_NAME).decode("utf-8", "replace"))
+
+
+def md5_of(path):
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def fetch_zip(relpath, args, dest):
+    """Hämta en zip till dest. relpath är den relativa sökvägen ur index.md5."""
+    if args.base_dir:
+        # lokalt test: filen ligger platt (utan underkataloger) i base_dir
+        src = Path(args.base_dir) / Path(relpath).name
+        shutil.copyfile(src, dest)
+    else:
+        base = BASE_GENREP if args.genrep else BASE_VAL
+        data = http_get(base + relpath)
+        dest.write_bytes(data)
+
+
+def flat(relpath):
+    """Platt lokalt filnamn för en relativ indexsökväg."""
+    return relpath.replace("/", "_")
+
+
+# ------------------------------------------------------------------
+# state (nedladdade checksummor)
+# ------------------------------------------------------------------
+def load_state():
+    if STATE.exists():
+        import json
+        return json.loads(STATE.read_text(encoding="utf-8"))
+    return {}
+
+
+def save_state(state):
+    import json
+    CACHE.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+# ------------------------------------------------------------------
+# Ett varv
+# ------------------------------------------------------------------
+def one_cycle(args):
+    ZIPDIR.mkdir(parents=True, exist_ok=True)
+    index = get_index(args)
+    if not index:
+        log("Tomt/oläsbart index."); return False
+
+    targets = {n: m for n, m in index.items() if args.pattern in n}
+    if not targets:
+        log(f"Inga filer i index matchar --pattern '{args.pattern}'. "
+            f"Kör --list för att se namnen. ({len(index)} poster i index.)")
+        return False
+
+    state = load_state()
+    changed = []
+    for relpath, md5 in sorted(targets.items()):
+        local = ZIPDIR / flat(relpath)
+        if state.get(relpath) == md5 and local.exists():
+            continue
+        log(f"Hämtar {relpath}")
+        tmp = local.with_suffix(local.suffix + ".part")
+        fetch_zip(relpath, args, tmp)
+        got = md5_of(tmp)
+        if got != md5:
+            log(f"  ! checksumma fel för {relpath} (fick {got[:8]}…, väntade {md5[:8]}…) – hoppar")
+            tmp.unlink(missing_ok=True)
+            continue
+        tmp.replace(local)
+        state[relpath] = md5
+        changed.append(relpath)
+
+    if not changed and not args.force:
+        log(f"Inga ändringar ({len(targets)} målfiler oförändrade). Bygger inte om.")
+        return False
+
+    save_state(state)
+    log(f"{len(changed)} fil(er) ändrade. Bygger om från {len(targets)} målfil(er).")
+
+    # adapter: alla cachade målzip -> distrikt.csv (+ status.txt)
+    zips = [str(ZIPDIR / flat(r)) for r in sorted(targets) if (ZIPDIR / flat(r)).exists()]
+    Path(args.districts_out).parent.mkdir(parents=True, exist_ok=True)
+    adapter_cmd = [sys.executable, str(HERE / "adapter.py"), *zips, "-o", args.districts_out]
+    if args.status_file:
+        adapter_cmd += ["--status-out", args.status_file]
+    if args.kommuner and Path(args.kommuner).exists():
+        adapter_cmd += ["--kommuner", args.kommuner]
+    run(adapter_cmd)
+
+    # build: distrikt.csv (+ valfria filer) -> public/index.html
+    cmd = [sys.executable, str(HERE / "build.py"), "--districts", args.districts_out, "--out", args.out]
+    for flag, path in [("--covariates", args.covariates), ("--history", args.history), ("--geojson", args.geojson)]:
+        if path and Path(path).exists():
+            cmd += [flag, path]
+    if args.status_file and Path(args.status_file).exists():
+        cmd += ["--status", Path(args.status_file).read_text(encoding="utf-8").strip()]
+    if args.live:
+        cmd += ["--live"]
+    run(cmd)
+
+    if args.deploy:
+        deploy(args.out)
+    log("Klart.")
+    return True
+
+
+def run(cmd):
+    log("$ " + " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+
+def deploy(out_html):
+    site = os.environ.get("NETLIFY_SITE_ID")
+    token = os.environ.get("NETLIFY_AUTH_TOKEN")
+    if not (site and token):
+        log("Hoppar deploy: NETLIFY_SITE_ID / NETLIFY_AUTH_TOKEN saknas i miljön.")
+        return
+    pub = str(Path(out_html).parent)
+    run(["npx", "--yes", "netlify-cli@17", "deploy", "--prod", "--dir", pub,
+         "--site", site, "--auth", token])
+
+
+def list_index(args):
+    index = get_index(args)
+    log(f"{len(index)} poster i index:")
+    for name in sorted(index):
+        print("  " + name)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Hämta Valmyndighetens resultatfiler och bygg om sajten.")
+    ap.add_argument("--pattern", default="preliminar_00_RD",
+                    help="Delsträng i indexets zip-namn att följa. Ex: 'preliminar_00_RD' "
+                         "(riksdag prel.), 'preliminar' + '_KF' för alla kommunval. Default: preliminar_00_RD")
+    ap.add_argument("--kommuner", default="data/kommuner.csv",
+                    help="CSV kommun_kod,kommun_namn för läsbara kommunnamn (valfri)")
+    ap.add_argument("--out", default="public/index.html")
+    ap.add_argument("--districts-out", default="data/distrikt.csv")
+    ap.add_argument("--covariates", default="data/scb.csv")
+    ap.add_argument("--history", default="data/historik.csv")
+    ap.add_argument("--geojson", default="data/valdistrikt.geojson")
+    ap.add_argument("--status-file", default="data/status.txt")
+    ap.add_argument("--live", action="store_true")
+    ap.add_argument("--deploy", action="store_true", help="Deploya till Netlify (kräver env-variabler)")
+    ap.add_argument("--force", action="store_true", help="Bygg om även utan ändringar")
+    ap.add_argument("--genrep", action="store_true", help="Använd genrep2026 (generalrepetition)")
+    ap.add_argument("--loop", type=int, metavar="SEK", help="Kör om och om, med SEK sekunders paus")
+    ap.add_argument("--list", action="store_true", help="Skriv ut filnamnen i index.md5 och avsluta")
+    # test-/offline-överstyrningar
+    ap.add_argument("--index-file", help="Läs index.md5 lokalt i stället för via nät")
+    ap.add_argument("--base-dir", help="Hämta zip från lokal mapp i stället för via nät")
+    args = ap.parse_args()
+
+    if args.list:
+        list_index(args); return
+
+    if args.loop:
+        log(f"Loop var {args.loop}s. Avbryt med Ctrl+C.")
+        while True:
+            try:
+                one_cycle(args)
+            except Exception as e:
+                log(f"FEL i varv: {e}")
+            time.sleep(args.loop)
+    else:
+        one_cycle(args)
+
+
+if __name__ == "__main__":
+    main()
