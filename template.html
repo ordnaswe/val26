@@ -179,7 +179,7 @@
       <text x="120" y="74" font-family="system-ui,Segoe UI,Helvetica,Arial,sans-serif" font-size="52" font-weight="800" letter-spacing="-1.5" fill="#15181a">valutfall</text>
     </svg>
   </header>
-  <p class="sub" id="pageTitle">Valresultat, historik och prognos – per valdistrikt, kommun, region och riksdag.</p>
+  <p class="sub" id="pageTitle">Valresultat, historik och prognos – per valdistrikt, kommun, region och riksdag. Resultat, största parti och mandat visar alla partier över 1 % i valt område (inkl. lokala partier); analys och prognosmodeller avser riksdagspartierna.</p>
   <div class="note" id="dataNote"></div>
 
   <div class="topline" id="topline"></div>
@@ -1107,6 +1107,14 @@
     for(let i=0;i<seats;i++){let best=null,bq=-1;for(const p of elig){const q=(shares[p.id]||0)/div(p);if(q>bq){bq=q;best=p.id;}}if(best)res[best]++;}
     return res;
   }
+  // allokering för godtycklig partiuppsättning (lista [{p,a}]) – för kommun/region inkl. lokala
+  function allocateAny(list,seats,threshold){
+    const elig=list.filter(x=>x.a>=threshold);
+    const res={};elig.forEach(x=>res[x.p]=0);
+    const div=x=>res[x.p]===0?1.2:(2*res[x.p]+1);
+    for(let i=0;i<seats;i++){let best=null,bq=-1;for(const x of elig){const q=x.a/div(x);if(q>bq){bq=q;best=x;}}if(best)res[best.p]++;}
+    return res;
+  }
   function mandateSeats(){
     const el=state.election,S=DATA.seats||{};
     if(el==="RD"&&!state.geo.kommun&&!state.geo.lan)return S.riket||349;
@@ -1197,14 +1205,27 @@
     // mandat ur kombinerad prognos (om området väljer en församling)
     // mandat: RD (riket) via riktig valkretsmodell; annars enkel församling
     const rdRiket = state.election==="RD" && !state.geo.kommun && !state.geo.lan;
-    let seatsN,thr,mand,mand22,rd=null;
+    let seatsN,thr,mand,mand22,rd=null,mandPlist=null;
     if(rdRiket){
       rd=riksdagSeats(data,state.year); seatsN=349; thr=4;
       mand=rd.seats; mand22=riksdagSeats(data,ELYEARS.indexOf(2022)).seats;
+      mandPlist=PARTIES.map(p=>({id:p.id,color:p.color,seats:mand[p.id]||0}));
     } else {
       seatsN=mandateSeats(); thr=progThreshold();
-      mand=seatsN?allocateSeats(m3,seatsN,thr):null;
-      mand22=seatsN?allocateSeats(r2022,seatsN,thr):null;
+      const ar=areaResults();
+      if(seatsN && ar && ar.length){
+        // alla partier ≥1% i området (baslinje 2022) fördelas
+        const sa=allocateAny(ar,seatsN,thr);
+        mand={};for(const p of PARTIES)mand[p.id]=sa[p.id]||0;
+        mandPlist=PARTIES.map(p=>({id:p.id,color:p.color,seats:sa[p.id]||0}))
+          .concat(ar.filter(x=>!PARTIES.some(p=>p.id===x.p)&&(sa[x.p]||0)>0)
+                    .map(x=>({id:x.p,color:pcolor(x.p),seats:sa[x.p]})));
+        mand22=allocateSeats(r2022,seatsN,thr);
+      } else {
+        mand=seatsN?allocateSeats(m3,seatsN,thr):null;
+        mand22=seatsN?allocateSeats(r2022,seatsN,thr):null;
+        mandPlist=mand?PARTIES.map(p=>({id:p.id,color:p.color,seats:mand[p.id]||0})):null;
+      }
     }
     // tabell
     const order=[...PARTIES].sort((a,b)=>(m3[b.id]||0)-(m3[a.id]||0));
@@ -1226,10 +1247,10 @@
     progTbl.innerHTML=html;
     // mandatgraf: hemicykel + stapel (gängse ordning V,S,MP,C,L,KD,M,SD) med majoritetslinje
     const mbox=document.getElementById("progMandat");
-    if(seatsN&&mand){
+    if(seatsN&&mand&&mandPlist){
       const W=820,H=104,x0=10,y=34,bh=40,pw=W-2*x0,tot=seatsN,maj=Math.floor(tot/2)+1;
       let x=x0,segs="";
-      for(const p of PARTIES){const s=mand[p.id]||0;if(s<=0)continue;const w=s/tot*pw;
+      for(const p of mandPlist){const s=p.seats||0;if(s<=0)continue;const w=s/tot*pw;
         segs+=`<rect x="${x.toFixed(1)}" y="${y}" width="${Math.max(0,w-1).toFixed(1)}" height="${bh}" fill="${p.color}"/>`;
         if(w>28)segs+=`<text x="${(x+w/2).toFixed(1)}" y="${y+bh/2+4}" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">${p.id} ${s}</text>`;
         x+=w;}
@@ -1241,7 +1262,7 @@
         `<text x="${mx.toFixed(1)}" y="${y+bh+20}" text-anchor="middle" font-size="11" fill="#171a1c">majoritet ${maj}</text>`+
         `</svg>`;
       mbox.innerHTML=`<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">`+
-        `<div style="flex:0 0 300px;max-width:320px">${hemicycle(mand,tot)}</div>`+
+        `<div style="flex:0 0 300px;max-width:320px">${hemicycle(mandPlist,tot)}</div>`+
         `<div style="flex:1;min-width:280px">${barSvg}</div></div>`;
     } else mbox.innerHTML="";
     const seatNote=seatsN?` Mandat (${seatsN} totalt, ${thr}% spärr)${rdRiket?" – riktig valkretsmodell (fasta valkretsmandat + 39 utjämningsmandat, 4% nationellt eller 12% i en valkrets)":" ur kombinerad prognos, jämkade uddatalsmetoden"}.`:` (Mandat visas för riket+riksdag, län+region och kommun+kommunval om mandattabell finns.)`;
@@ -1270,7 +1291,7 @@
 
   // ---- orchestration ----
   function toggleWatch(i){if(watch.has(i))watch.delete(i);else watch.add(i);renderAll();}
-  function hemicycle(seatsByParty,total){
+  function hemicycle(plist,total){
     const rows=Math.max(3,Math.round(Math.sqrt(total/2.2)));
     const r0=0.42,r1=1.0,radii=[];let sr=0;
     for(let i=0;i<rows;i++){const r=rows===1?r1:r0+(r1-r0)*i/(rows-1);radii.push(r);sr+=r;}
@@ -1279,8 +1300,8 @@
     for(let i=0;diff!==0&&i<rows*6;i++){const k=(rows-1)-(i%rows);if(diff>0){perRow[k]++;diff--;}else if(perRow[k]>1){perRow[k]--;diff++;}}
     const pts=[];
     radii.forEach((r,ri)=>{const n=perRow[ri];for(let s=0;s<n;s++){const a=n===1?Math.PI/2:Math.PI*s/(n-1);pts.push({a:Math.PI-a,r});}});
-    pts.sort((p,q)=>q.a-p.a);   // störst vinkel (vänster) först -> V,S,MP hamnar till vänster
-    const order=[];for(const p of PARTIES)for(let k=0;k<(seatsByParty[p.id]||0);k++)order.push(p.color);
+    pts.sort((p,q)=>q.a-p.a);   // störst vinkel (vänster) först
+    const order=[];for(const p of plist)for(let k=0;k<(p.seats||0);k++)order.push(p.color);
     const W=300,H=168,cx=W/2,cy=H-12,R=140;
     let dots="";
     pts.forEach((p,i)=>{const x=cx+Math.cos(p.a)*R*p.r,yy=cy-Math.sin(p.a)*R*p.r;
