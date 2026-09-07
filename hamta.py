@@ -206,60 +206,76 @@ def one_cycle(args):
     if not index:
         log("Tomt/oläsbart index."); return False
 
-    targets = {n: m for n, m in index.items() if args.pattern in n}
-    if not targets:
-        log(f"Inga filer i index matchar --pattern '{args.pattern}'. "
-            f"Kör --list för att se namnen. ({len(index)} poster i index.)")
-        return False
+    # vilka val ska hämtas
+    vals = [("RD", args.pattern_rd, args.rd_out),
+            ("RF", args.pattern_rf, args.rf_out),
+            ("KF", args.pattern_kf, args.kf_out)]
+    if args.only:
+        vals = [v for v in vals if v[0] == args.only]
+    # bakåtkomp: om användaren gav ett eget --pattern (ej default) och inget --only,
+    # tolka det som "bara detta mönster" (ett val)
+    if args.pattern != "preliminar_00_RD" and not args.only:
+        vals = [("RD", args.pattern, args.rd_out)]
 
     state = load_state()
-    changed = []
-    for relpath, md5 in sorted(targets.items()):
-        local = ZIPDIR / flat(relpath)
-        if state.get(relpath) == md5 and local.exists():
+    any_changed = False
+    built = {}          # "RD" -> csv-path (om filer fanns)
+    rd_status = None
+    for val, pattern, out_csv in vals:
+        targets = {n: m for n, m in index.items() if pattern in n}
+        if not targets:
+            log(f"{val}: inga filer matchar mönstret '{pattern}'. Kör --list och justera --pattern-{val.lower()}.")
             continue
-        log(f"Hämtar {relpath}")
-        tmp = local.with_suffix(local.suffix + ".part")
-        fetch_zip(relpath, args, tmp)
-        got = md5_of(tmp)
-        if got != md5:
-            log(f"  ! checksumma fel för {relpath} (fick {got[:8]}…, väntade {md5[:8]}…) – hoppar")
-            tmp.unlink(missing_ok=True)
+        changed = []
+        for relpath, md5 in sorted(targets.items()):
+            local = ZIPDIR / flat(relpath)
+            if state.get(relpath) == md5 and local.exists():
+                continue
+            log(f"{val}: hämtar {relpath}")
+            tmp = local.with_suffix(local.suffix + ".part")
+            fetch_zip(relpath, args, tmp)
+            got = md5_of(tmp)
+            if got != md5:
+                log(f"  ! checksumma fel för {relpath} – hoppar"); tmp.unlink(missing_ok=True); continue
+            if args.verify:
+                try:
+                    if not verify_zip(tmp):
+                        log(f"  ! signatur underkänd för {relpath} – hoppar"); tmp.unlink(missing_ok=True); continue
+                except FileNotFoundError:
+                    log("  ! openssl saknas – kör utan --verify."); tmp.unlink(missing_ok=True); continue
+            tmp.replace(local); state[relpath] = md5; changed.append(relpath)
+        zips = [str(ZIPDIR / flat(r)) for r in sorted(targets) if (ZIPDIR / flat(r)).exists()]
+        if not zips:
             continue
-        if args.verify:
-            try:
-                if not verify_zip(tmp):
-                    log(f"  ! signatur underkänd för {relpath} – hoppar")
-                    tmp.unlink(missing_ok=True); continue
-            except FileNotFoundError:
-                log("  ! openssl saknas – kan inte verifiera signatur. Installera openssl "
-                    "eller kör utan --verify."); tmp.unlink(missing_ok=True); continue
-        tmp.replace(local)
-        state[relpath] = md5
-        changed.append(relpath)
+        built[val] = out_csv
+        if changed:
+            any_changed = True
+        # kör adaptern för detta val (även om oförändrat, så csv:n finns till bygget)
+        Path(out_csv).parent.mkdir(parents=True, exist_ok=True)
+        acmd = [sys.executable, str(HERE / "adapter.py"), *zips, "-o", out_csv]
+        if args.kommuner and Path(args.kommuner).exists():
+            acmd += ["--kommuner", args.kommuner]
+        if val == "RD":
+            acmd += ["--covariates-out", str(Path(args.rd_out).parent / "scb_live.csv")]
+            if args.status_file:
+                acmd += ["--status-out", args.status_file]
+        run(acmd)
 
-    if not changed and not args.force:
-        log(f"Inga ändringar ({len(targets)} målfiler oförändrade). Bygger inte om.")
-        return False
-
+    if not built:
+        log("Inga målfiler hittades för något val. Kör --list."); return False
+    if not any_changed and not args.force:
+        log("Inga ändringar i något val. Bygger inte om."); return False
     save_state(state)
-    log(f"{len(changed)} fil(er) ändrade. Bygger om från {len(targets)} målfil(er).")
 
-    # adapter: alla cachade målzip -> distrikt.csv (+ status.txt)
-    zips = [str(ZIPDIR / flat(r)) for r in sorted(targets) if (ZIPDIR / flat(r)).exists()]
-    Path(args.districts_out).parent.mkdir(parents=True, exist_ok=True)
-    adapter_cmd = [sys.executable, str(HERE / "adapter.py"), *zips, "-o", args.districts_out]
-    if args.status_file:
-        adapter_cmd += ["--status-out", args.status_file]
-    if args.kommuner and Path(args.kommuner).exists():
-        adapter_cmd += ["--kommuner", args.kommuner]
-    # valdeltagande ur filen -> live-kovariater (används om ingen riktig scb.csv finns)
-    live_cov = str(Path(args.districts_out).parent / "scb_live.csv")
-    adapter_cmd += ["--covariates-out", live_cov]
-    run(adapter_cmd)
-
-    # build: distrikt.csv (+ valfria filer) -> public/index.html
-    cmd = [sys.executable, str(HERE / "build.py"), "--districts", args.districts_out, "--out", args.out]
+    # bygg: primärvalet (RD om det finns, annars första) + ev. RF/KF
+    primary = "RD" if "RD" in built else next(iter(built))
+    cmd = [sys.executable, str(HERE / "build.py"), "--districts", built[primary], "--out", args.out,
+           "--primary-val", primary]
+    if "RF" in built and primary != "RF":
+        cmd += ["--rf", built["RF"]]
+    if "KF" in built and primary != "KF":
+        cmd += ["--kf", built["KF"]]
+    live_cov = str(Path(args.rd_out).parent / "scb_live.csv")
     covariates = args.covariates if Path(args.covariates).exists() else (live_cov if Path(live_cov).exists() else None)
     for flag, path in [("--covariates", covariates), ("--history", args.history), ("--geojson", args.geojson)]:
         if path and Path(path).exists():
@@ -272,7 +288,7 @@ def one_cycle(args):
 
     if args.deploy:
         deploy(args.out)
-    log("Klart.")
+    log(f"Klart. Byggde från {', '.join(built)}.")
     return True
 
 
@@ -302,12 +318,20 @@ def list_index(args):
 def main():
     ap = argparse.ArgumentParser(description="Hämta Valmyndighetens resultatfiler och bygg om sajten.")
     ap.add_argument("--pattern", default="preliminar_00_RD",
-                    help="Delsträng i indexets zip-namn att följa. Ex: 'preliminar_00_RD' "
-                         "(riksdag prel.), 'preliminar' + '_KF' för alla kommunval. Default: preliminar_00_RD")
+                    help="(bakåtkomp.) enkelt mönster om bara ETT val ska hämtas.")
+    ap.add_argument("--pattern-rd", default="preliminar_00_RD",
+                    help="Mönster för riksdagsvalet i index.md5. Default: preliminar_00_RD")
+    ap.add_argument("--pattern-rf", default="preliminar_00_RF",
+                    help="Mönster för regionvalet. Verifiera med --list; ofta '_RF'.")
+    ap.add_argument("--pattern-kf", default="preliminar_00_KF",
+                    help="Mönster för kommunvalet. Verifiera med --list; ofta '_KF'.")
+    ap.add_argument("--only", choices=["RD", "RF", "KF"], help="Hämta bara ett val (annars alla tre).")
     ap.add_argument("--kommuner", default="data/kommuner.csv",
                     help="CSV kommun_kod,kommun_namn för läsbara kommunnamn (valfri)")
     ap.add_argument("--out", default="public/index.html")
-    ap.add_argument("--districts-out", default="data/distrikt.csv")
+    ap.add_argument("--rd-out", default="data/rd.csv")
+    ap.add_argument("--rf-out", default="data/rf.csv")
+    ap.add_argument("--kf-out", default="data/kf.csv")
     ap.add_argument("--covariates", default="data/scb.csv")
     ap.add_argument("--history", default="data/historik.csv")
     ap.add_argument("--geojson", default="data/valdistrikt-riket-2026.zip",

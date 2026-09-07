@@ -1,43 +1,41 @@
-# Deploy – Valutfall (väg A: bygg lokalt, committa public/)
+# Deploy – Valutfall (väg B: allt i molnet via GitHub)
 
-Sajten `public/index.html` är **självständig** – all data och geometri bakas in vid bygget.
-Netlify servar den filen; GitHub-Action deployar den vid varje push.
+Sajten byggs och deployas **i molnet** – din dator behöver inte vara på.
+- Vid **push**: GitHub bygger sajten och deployar (workflow "Bygg och deploya").
+- På **valnatten**: en schemalagd workflow kör var 5:e minut kl 20–01, hämtar
+  alla tre valen från val.se, bygger om och deployar ("Valnatt").
 
-## Engångs-städning av repot
-Rådata och den stora geometrin ska inte ligga i repot. Flytta undan råfilerna och
-sluta spåra dem i git:
+## Vad som ska ligga i repot (väg B)
+Koden + dessa databyggstenar (så att CI kan bygga):
+- data/historik.csv, data/omraden.csv, data/scb.csv, data/mandat.csv, data/kommuner.csv
+- data/valdistrikt-riket-2026.zip  (geometrin, ~27 MB)
+Rådata (SCB-filer, .gpkg, per-distrikt-CSV:er) ska INTE ligga i repot.
 
-    mkdir -p ../källdata
-    mv DeSO_2025.gpkg inkomst.csv utbildning.csv ålder.csv "hyresrätt.csv" "utländsk bakgrund.csv" \
-       2014_*_per_valdistrikt.csv 2018_*_per_valdistrikt.csv [Rr]oster-per-distrikt-*.csv ../källdata/ 2>/dev/null
-    # om de redan committats tidigare:
-    git rm -r --cached --ignore-unmatch *.gpkg inkomst.csv utbildning.csv ålder.csv "hyresrätt.csv" \
-       "utländsk bakgrund.csv" 2014_*_per_valdistrikt.csv 2018_*_per_valdistrikt.csv \
-       "Roster-per-distrikt-*.csv" "roster-per-distrikt-*.csv" data/*.zip
-    # ta bort den gamla schemalagda workflowen (används inte i väg A):
-    git rm -f --ignore-unmatch .github/workflows/valnatt.yml
+## Engångs-omställning från väg A
+1. Packa upp väg B-paketet (skriver över .gitignore och .github/workflows/*).
+2. Sluta spåra den byggda sajten (byggs nu i CI i stället):
+       git rm -r --cached public
+3. Lägg till databyggstenarna (inkl. geometrin):
+       git add -f data/valdistrikt-riket-2026.zip
+       git add data/historik.csv data/omraden.csv data/scb.csv data/mandat.csv data/kommuner.csv
+4. git add -A && git commit -m "Valutfall – väg B (moln-deploy)" && git push
 
-Geometrin `data/valdistrikt-riket-2026.zip` blir kvar lokalt (ignorerad av git) – den
-behövs bara när du bygger.
+## Secrets i GitHub (Settings → Secrets and variables → Actions)
+- NETLIFY_SITE_ID
+- NETLIFY_AUTH_TOKEN
+(Netlify ska INTE ha egen git-koppling; vi deployar via CLI från Action.)
 
-## Bygg och deploya
-1. Bygg sajten lokalt:
+## Före valnatten – verifiera filmönstren (VIKTIGT)
+Result­filerna finns på val.se först kl 20 valdagen. Mönstren för region/kommun
+(--pattern-rf / --pattern-kf) är kvalificerade gissningar och MÅSTE verifieras:
+- Kör workflow "Valnatt" manuellt (Actions → Run workflow) strax efter kl 20,
+  ELLER lokalt:  python3 hamta.py --list
+- Ser du att RF/KF-filerna heter annat än 'preliminar_00_RF' / '...KF', ändra
+  standardvärdena i hamta.py (--pattern-rf/--pattern-kf) och pusha.
 
-       python3 build.py --geojson data/valdistrikt-riket-2026.zip --history data/historik.csv \
-         --kommuner data/kommuner.csv --covariates data/scb.csv --out public/index.html
-
-2. Committa och pusha:
-
-       git add -A
-       git commit -m "Ny build"
-       git push
-
-   GitHub-Action `Deploy till Netlify` kör och lägger upp `public/` på sajten.
-
-## Valnatten 13/9
-Kör hämtaren lokalt – den laddar ned nya siffror, bygger om public/ och deployar direkt:
-
-       python3 hamta.py --loop 90 --deploy
-
-(NETLIFY_SITE_ID och NETLIFY_AUTH_TOKEN måste finnas som miljövariabler; se FÖRBEREDELSER.md.)
-Alternativt: bygg om lokalt och `git push` – Action deployar då den nya public/.
+## Ärliga begränsningar
+- GitHub-cron är ungefärlig och kan bli fördröjd 5–15+ min, särskilt en valnatt.
+  Vill du minutsnabbt: kör som backup lokalt  python3 hamta.py --loop 90 --deploy
+- Varje CI-körning laddar ner filerna på nytt (ingen beständig cache). Det är ok.
+- Pusha INTE designändringar under själva räkningen – då kan push-bygget
+  (exempel-2026) råka deployas över de riktiga siffrorna. Vänta till efter.

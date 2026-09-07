@@ -1,9 +1,10 @@
-# --- Arbetsfiler / cache ---
+# --- Byggutdata (skapas i CI, deployas till Netlify) ---
+public/
 .cache/
 __pycache__/
 .DS_Store
 
-# --- Valnattens arbetsfiler (skapas på plats den 13/9) ---
+# --- Valnattens arbetsfiler (skapas per körning av hamta.py) ---
 data/distrikt.csv
 data/rd.csv
 data/rf.csv
@@ -12,8 +13,7 @@ data/status.txt
 data/scb_live.csv
 data/scb_deso.csv
 
-# --- Rådata: redan bearbetad till data/historik.csv, data/omraden.csv, data/scb.csv ---
-# (behövs INTE i repot – spara lokalt i källdata/ om du vill kunna regenerera)
+# --- Rådata (bearbetad till data/*.csv – behövs ej i repot) ---
 *.gpkg
 inkomst.csv
 utbildning.csv
@@ -24,8 +24,6 @@ utländsk bakgrund.csv
 2018_*_per_valdistrikt.csv
 [Rr]oster-per-distrikt-*.csv
 
-# --- Stor geometri (27 MB) – ligger lokalt, bakas in i public/index.html vid bygget ---
-data/*.zip
-data/valdistrikt-riket-2026.zip
-
-# public/ committas i väg A (den byggda, självständiga sajten) – därför INTE ignorerad.
+# OBS väg B: dessa SKA committas (CI bygger av dem):
+#   data/historik.csv, data/omraden.csv, data/scb.csv, data/mandat.csv,
+#   data/kommuner.csv och data/valdistrikt-riket-2026.zip (geometrin)

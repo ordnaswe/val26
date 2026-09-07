@@ -1,18 +1,25 @@
-name: Deploy till Netlify
+name: Bygg och deploya (push)
 on:
   push:
     branches: [ main ]
-    paths: [ "public/**" ]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Deploya färdigbyggd public/ till Netlify
-        run: npx --yes netlify-cli@17 deploy --dir=public --prod --message "Deploy ${GITHUB_SHA}"
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Bygg sajten
+        run: |
+          python3 build.py --geojson data/valdistrikt-riket-2026.zip \
+            --history data/historik.csv --kommuner data/kommuner.csv \
+            --covariates data/scb.csv --mandat data/mandat.csv \
+            --out public/index.html
+      - name: Deploya till Netlify
+        run: npx --yes netlify-cli@17 deploy --dir=public --prod --message "push ${GITHUB_SHA}"
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
