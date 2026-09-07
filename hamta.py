@@ -310,7 +310,8 @@ def main():
     ap.add_argument("--districts-out", default="data/distrikt.csv")
     ap.add_argument("--covariates", default="data/scb.csv")
     ap.add_argument("--history", default="data/historik.csv")
-    ap.add_argument("--geojson", default="data/valdistrikt.geojson")
+    ap.add_argument("--geojson", default="data/valdistrikt-riket-2026.zip",
+                    help="Valdistrikts-GeoJSON/zip från val.se (valfri; ger Kartogram/Geografi)")
     ap.add_argument("--status-file", default="data/status.txt")
     ap.add_argument("--live", action="store_true")
     ap.add_argument("--deploy", action="store_true", help="Deploya till Netlify (kräver env-variabler)")

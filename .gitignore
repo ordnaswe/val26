@@ -1,7 +1,16 @@
 public/
 .cache/
 data/distrikt.csv
+data/rd.csv
+data/rf.csv
+data/kf.csv
+data/scb.csv
+data/scb_deso.csv
 data/scb_live.csv
 data/status.txt
+data/historik.csv
+data/omraden.csv
+data/*.zip
+data/*.gpkg
 __pycache__/
 .DS_Store

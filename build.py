@@ -70,6 +70,48 @@ ELYEARS = [2014, 2018, 2022, 2026]
 CURRENT_YEAR = ELYEARS[-1]
 PREV_YEAR = ELYEARS[-2]
 
+# de tre valen
+VALS = ["RD", "RF", "KF"]
+VAL_NAMN = {"RD": "Riksdagsval", "RF": "Regionval", "KF": "Kommunval"}
+
+# partimodell (delas av synth och synth_geo)
+_BASE = {"V": 7, "S": 26, "MP": 5, "C": 7, "L": 5, "KD": 5, "M": 19, "SD": 20}
+_BINC = {"V": -1, "S": -4.5, "MP": .5, "C": .5, "L": 3, "KD": 1, "M": 6, "SD": -4}
+_BEDU = {"V": 4, "S": -2, "MP": 4, "C": -.5, "L": 3, "KD": -.5, "M": 3.5, "SD": -6.5}
+_BURB = {"V": 3, "S": .5, "MP": 3.5, "C": -4, "L": 1.5, "KD": -.5, "M": .8, "SD": -3}
+_NAT = {"V": [-1, 0, 1, 1], "S": [4, 2, 0, -1], "MP": [2, 1, -1, 0], "C": [-1, 1, 1, -1],
+        "L": [1, 0, -1, -1], "KD": [-1, -1, 1, 0], "M": [3, 1, 0, -1], "SD": [-6, -2, 1, 4]}
+# röstsplittring: hur valet skiljer sig från riksdagsvalet (additiv tilt före normalisering)
+_TILT = {"RD": {}, "RF": {"S": 2, "C": 1.5, "SD": -1.5, "MP": -.5, "V": .5},
+         "KF": {"S": 4, "C": 3, "SD": -3, "MP": -1, "M": -1, "L": -.5}}
+
+
+def _norm100(d):
+    s = sum(d.values())
+    return {k: (v / s * 100 if s else 0) for k, v in d.items()}
+
+
+def gen_elections(aff, urb, edu, rng):
+    """Skapa tre val (RD/RF/KF) med realistisk röstsplittring OCH en egen
+    historik-serie per val. Returnerar (el, rd_series) där varje el[val] har
+    shares/changes/top/series."""
+    rawRD = {p: _BASE[p] + _BINC[p] * aff + _BEDU[p] * ((edu - 40) / 12) + _BURB[p] * urb for p in PIDS}
+    el = {}
+    for val in VALS:
+        tilt = _TILT[val]
+        ser = {p: [max(.3, min(62, rawRD[p] + tilt.get(p, 0) + _NAT[p][t] + rng.gauss(0, 1.5)))
+                   for t in range(len(ELYEARS))] for p in PIDS}
+        for t in range(len(ELYEARS)):
+            s = sum(ser[p][t] for p in PIDS)
+            for p in PIDS:
+                ser[p][t] = ser[p][t] / s * 100.0
+        cur = {p: ser[p][-1] for p in PIDS}
+        el[val] = {"shares": cur, "series": ser,
+                   "changes": {p: ser[p][-1] - ser[p][-2] for p in PIDS},
+                   "top": max(PIDS, key=lambda p: cur[p]),
+                   "w": [None] * len(ELYEARS)}
+    return el, el["RD"]["series"]
+
 # normaliserad ritruta för geometrin
 GEO_W = 1000.0
 GEO_CODE_PROP_CANDIDATES = ["distrikt_kod", "Vdkod", "VDKOD", "Lkfv", "LKFV", "vdkod", "kod", "code"]
@@ -99,7 +141,8 @@ def load_real(dist_path, cov_path, hist_path):
     districts = []
     for r in read_csv(dist_path):
         votes = {pid: (to_float(r.get(pid)) or 0.0) for pid in PIDS}
-        total = sum(votes.values())
+        giltiga = to_float(r.get("giltiga"))
+        total = giltiga if (giltiga and giltiga > 0) else sum(votes.values())
         shares = {pid: (votes[pid] / total * 100.0 if total else 0.0) for pid in PIDS}
         d = {
             "distrikt_kod": (r.get("distrikt_kod") or "").strip(),
@@ -107,6 +150,7 @@ def load_real(dist_path, cov_path, hist_path):
             "kommun": (r.get("kommun_namn") or "").strip(),
             "lan": (r.get("lan_namn") or "").strip(),
             "rost": int(to_float(r.get("rost_berattigade")) or 0),
+            "raknat": 1 if (to_float(r.get("raknat")) or (1 if (giltiga and giltiga > 0) else 0)) else 0,
             "shares": shares,
             "series": {pid: [None] * len(ELYEARS) for pid in PIDS},
         }
@@ -155,22 +199,88 @@ def _outer_ring(geom):
     return None
 
 
-def load_geojson(path, code_prop):
-    gj = json.loads(Path(path).read_text(encoding="utf-8"))
-    feats = gj.get("features", [])
-    props0 = feats[0]["properties"] if feats else {}
+def _read_geojson_features(path):
+    """Läs features ur .geojson/.json ELLER ur en .zip (t.ex. val.se:s länsfiler
+    eller riksfilen). Slår ihop alla json-medlemmar i zippen."""
+    import zipfile
+    p = Path(path)
+    feats = []
+    if p.suffix.lower() == ".zip":
+        with zipfile.ZipFile(p) as z:
+            for n in z.namelist():
+                if n.lower().endswith((".geojson", ".json")):
+                    gj = json.loads(z.read(n).decode("utf-8", "replace"))
+                    feats += gj.get("features", [])
+    else:
+        gj = json.loads(p.read_text(encoding="utf-8"))
+        feats += gj.get("features", [])
+    return feats
+
+
+def load_geojson(path, code_prop, district_codes=None):
+    """Returnerar (rings_by_code, valt_kodfält). Om code_prop saknas väljs det
+    property vars värden bäst matchar distriktskoderna i datan – så det funkar
+    oavsett vad val.se döpt fältet till."""
+    feats = _read_geojson_features(path)
+    if not feats:
+        return {}, code_prop, {}
+    props0 = feats[0].get("properties", {}) or {}
     if not code_prop:
-        code_prop = next((c for c in GEO_CODE_PROP_CANDIDATES if c in props0), None)
+        dc = {str(c).strip() for c in (district_codes or set())}
+        if dc:
+            best, best_hits = None, -1
+            for k, v in props0.items():
+                if not isinstance(v, (str, int, float)):
+                    continue
+                hits = sum(1 for ft in feats
+                           if str((ft.get("properties") or {}).get(k, "")).strip() in dc)
+                if hits > best_hits:
+                    best, best_hits = k, hits
+            code_prop = best
+            print(f"GeoJSON: valt kodfält '{code_prop}' ({best_hits} träffar mot distriktskoder).",
+                  file=sys.stderr)
+        else:
+            # ingen datamatchning (förhandsvisning): välj fält vars värden ser ut
+            # som valdistriktskoder (mest siffersträngar av längd 6–10, unika).
+            best, best_score = None, -1.0
+            for k in props0.keys():
+                vals = [str((ft.get("properties") or {}).get(k, "")).strip() for ft in feats]
+                digitish = sum(1 for v in vals if v.isdigit() and 6 <= len(v) <= 10)
+                uniq = len(set(vals))
+                score = digitish + uniq * 0.001
+                if score > best_score:
+                    best, best_score = k, score
+            code_prop = best
+            print(f"GeoJSON: gissade kodfält '{code_prop}' utifrån kodformat.", file=sys.stderr)
     if not code_prop:
-        sys.exit("Kunde inte gissa GeoJSON-kodfält. Ange --geo-code-prop. "
+        sys.exit("Kunde inte hitta GeoJSON-kodfält. Ange --geo-code-prop. "
                  f"Tillgängliga properties: {', '.join(props0.keys())}")
     rings = {}
     for ft in feats:
-        code = str(ft.get("properties", {}).get(code_prop, "")).strip()
+        code = str((ft.get("properties") or {}).get(code_prop, "")).strip()
         ring = _outer_ring(ft.get("geometry") or {})
         if code and ring:
             rings[code] = [[float(p[0]), float(p[1])] for p in ring]
-    return rings, code_prop
+    # hitta namnfält: mest bokstäver + högst unikhet (valdistriktsnamn är distinkt),
+    # men inte kodfältet.
+    name_prop, best = None, -1.0
+    for k in props0.keys():
+        if k == code_prop:
+            continue
+        vals = [str((ft.get("properties") or {}).get(k, "")) for ft in feats]
+        alpha = sum(1 for v in vals if any(c.isalpha() for c in v))
+        score = alpha + len(set(vals)) * 0.002
+        if score > best:
+            name_prop, best = k, score
+    names = {}
+    if name_prop:
+        for ft in feats:
+            code = str((ft.get("properties") or {}).get(code_prop, "")).strip()
+            nm = str((ft.get("properties") or {}).get(name_prop, "")).strip()
+            if code and nm:
+                names[code] = nm
+        print(f"GeoJSON: namnfält '{name_prop}'.", file=sys.stderr)
+    return rings, code_prop, names
 
 
 def _bbox(all_pts):
@@ -199,13 +309,56 @@ def make_projector(rings_by_code):
     return proj, round(W, 1), round(H, 1)
 
 
+def _rdp(points, eps):
+    """Douglas–Peucker, iterativ (klarar stora ringar utan rekursionsdjup)."""
+    n = len(points)
+    if n < 3:
+        return points[:]
+    keep = [False] * n
+    keep[0] = keep[-1] = True
+    stack = [(0, n - 1)]
+    while stack:
+        s, e = stack.pop()
+        ax, ay = points[s]
+        bx, by = points[e]
+        dx, dy = bx - ax, by - ay
+        nrm = math.hypot(dx, dy) or 1e-9
+        idx, dmax = -1, eps
+        for i in range(s + 1, e):
+            px, py = points[i]
+            d = abs((px - ax) * dy - (py - ay) * dx) / nrm
+            if d > dmax:
+                idx, dmax = i, d
+        if idx != -1:
+            keep[idx] = True
+            stack.append((s, idx))
+            stack.append((idx, e))
+    return [points[i] for i in range(n) if keep[i]]
+
+
 def simplify_ring(ring, max_points):
-    """Enkel likformig gallring till max_points (behåller form, billigt)."""
-    n = len(ring)
-    if n <= max_points:
+    """Förenkla en (projicerad) sluten ring formtroget med Douglas–Peucker.
+    Slutna ringar delas vid den mest avlägsna punkten för att undvika en
+    degenererad startlinje (annars kollapsar ringen)."""
+    if len(ring) <= 6:
         return ring
-    step = n / max_points
-    return [ring[int(i * step)] for i in range(max_points)]
+    closed = ring[0] == ring[-1]
+    pts = ring[:-1] if closed else ring[:]
+    if len(pts) <= 4:
+        return ring
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    diag = math.hypot(max(xs) - min(xs), max(ys) - min(ys)) or 1.0
+    eps = diag * 0.0012
+    a = pts[0]
+    far = max(range(len(pts)), key=lambda i: (pts[i][0] - a[0]) ** 2 + (pts[i][1] - a[1]) ** 2)
+    r = _rdp(pts[:far + 1], eps)[:-1] + _rdp(pts[far:] + [pts[0]], eps)[:-1]
+    if len(r) > max_points:
+        step = len(r) / max_points
+        r = [r[int(i * step)] for i in range(max_points)]
+    if r:
+        r.append(r[0])
+    return r
 
 
 def polygon_centroid(ring):
@@ -330,13 +483,8 @@ def synth(n=620, seed=42):
         kommun = random.choice(koms)
         kod = f"D{i:04d}"
         namn = f"{kommun} {i % 40 + 1} {random.choice(ort)}"
-        raw = {p: base[p] + binc[p] * aff + bedu[p] * ((edu - 40) / 12) + burb[p] * urb for p in PIDS}
-        series = {p: [max(.3, min(62, raw[p] + nat[p][t] + random.gauss(0, 1.5))) for t in range(len(ELYEARS))] for p in PIDS}
-        for t in range(len(ELYEARS)):
-            s = sum(series[p][t] for p in PIDS)
-            for p in PIDS:
-                series[p][t] = series[p][t] / s * 100.0
-        shares = {p: series[p][ELYEARS.index(CURRENT_YEAR)] for p in PIDS}
+        el, series = gen_elections(aff, urb, edu, random)
+        shares = el["RD"]["shares"]
         # syntetisk geometri: liten fyrkant kring kommun-centrum + jitter
         clon, clat = KOM_CENTER[kommun]
         jx = random.gauss(0, 0.06); jy = random.gauss(0, 0.06)
@@ -346,14 +494,171 @@ def synth(n=620, seed=42):
         districts.append({
             "distrikt_kod": kod, "namn": namn, "kommun": kommun, "lan": KOM2LAN[kommun],
             "rost": rost, "income": income, "edu": edu, "foreign": foreign,
-            "turnout": turnout, "age": age, "hyra": hyra, "shares": shares, "series": series,
+            "turnout": turnout, "age": age, "hyra": hyra, "shares": shares, "series": series, "el": el,
         })
     return districts, rings
 
 
-# ============================================================
-#  Beräkningar
-# ============================================================
+LAN_NAMN = {
+    "01": "Stockholms län", "03": "Uppsala län", "04": "Södermanlands län",
+    "05": "Östergötlands län", "06": "Jönköpings län", "07": "Kronobergs län",
+    "08": "Kalmar län", "09": "Gotlands län", "10": "Blekinge län",
+    "12": "Skåne län", "13": "Hallands län", "14": "Västra Götalands län",
+    "17": "Värmlands län", "18": "Örebro län", "19": "Västmanlands län",
+    "20": "Dalarnas län", "21": "Gävleborgs län", "22": "Västernorrlands län",
+    "23": "Jämtlands län", "24": "Västerbottens län", "25": "Norrbottens län",
+}
+
+
+def synth_geo(rings, kommun_lookup, names=None, seed=42):
+    """Förhandsvisning: skapa syntetiska distrikt kopplade till de VERKLIGA
+    koderna i geojson-filen (så geometrin matchar), med påhittade röster.
+    Kommun/län härleds ur valdistriktskoden (fyra första = kommunkod).
+    Distriktsnamn tas från geojson om det finns, annars koden."""
+    random.seed(seed)
+    names = names or {}
+    base = {"V": 7, "S": 26, "MP": 5, "C": 7, "L": 5, "KD": 5, "M": 19, "SD": 20}
+    binc = {"V": -1, "S": -4.5, "MP": .5, "C": .5, "L": 3, "KD": 1, "M": 6, "SD": -4}
+    bedu = {"V": 4, "S": -2, "MP": 4, "C": -.5, "L": 3, "KD": -.5, "M": 3.5, "SD": -6.5}
+    burb = {"V": 3, "S": .5, "MP": 3.5, "C": -4, "L": 1.5, "KD": -.5, "M": .8, "SD": -3}
+    nat = {"V": [-1, 0, 1, 1], "S": [4, 2, 0, -1], "MP": [2, 1, -1, 0], "C": [-1, 1, 1, -1],
+           "L": [1, 0, -1, -1], "KD": [-1, -1, 1, 0], "M": [3, 1, 0, -1], "SD": [-6, -2, 1, 4]}
+    districts = []
+    for kod in sorted(rings.keys()):
+        kkod = str(kod)[:4].zfill(4)
+        lkod = kkod[:2]
+        kommun = kommun_lookup.get(kkod, kkod)
+        lan = LAN_NAMN.get(lkod, lkod)
+        aff = max(-2.6, min(2.6, random.gauss(0, 1)))
+        urb = max(-2.6, min(2.6, random.gauss(0, 1)))
+        income = round(max(190, min(470, 300 + aff * 55 + random.gauss(0, 12))))
+        edu = max(12, min(78, 38 + aff * 6 + urb * 7 + random.gauss(0, 4)))
+        foreign = max(3, min(68, 22 - aff * 7 + urb * 5 + random.gauss(0, 5)))
+        turnout = max(55, min(96, 84 + aff * 3 + edu * .08 - foreign * .12 + random.gauss(0, 2.5)))
+        age = max(28, min(60, 43 - urb * 3 + aff * 1.5 + random.gauss(0, 3)))
+        hyra = max(3, min(85, 30 + urb * 10 - aff * 8 + random.gauss(0, 6)))
+        rost = round(max(500, min(2600, 1300 + urb * 250 + random.gauss(0, 350))))
+        el, series = gen_elections(aff, urb, edu, random)
+        shares = el["RD"]["shares"]
+        districts.append({
+            "distrikt_kod": kod, "namn": names.get(kod, kod), "kommun": kommun, "lan": lan,
+            "rost": rost, "income": income, "edu": edu, "foreign": foreign,
+            "turnout": turnout, "age": age, "hyra": hyra, "shares": shares, "series": series, "el": el,
+        })
+    return districts
+
+
+def _load_shares_csv(path):
+    """Läs en distrikt-CSV (partikolumner = röster) -> {distrikt_kod: {pid: andel}}."""
+    out = {}
+    for r in read_csv(path):
+        votes = {pid: (to_float(r.get(pid)) or 0.0) for pid in PIDS}
+        giltiga = to_float(r.get("giltiga"))
+        tot = giltiga if (giltiga and giltiga > 0) else sum(votes.values())
+        kod = (r.get("distrikt_kod") or "").strip()
+        if tot and kod:
+            out[kod] = {pid: votes[pid] / tot * 100.0 for pid in PIDS}
+    return out
+
+
+def attach_elections_real(districts, primary_val, rf_path, kf_path):
+    """Bygg d['el'] för riktig data: primärvalet + ev. region/kommunval.
+    Varje el[val] får en tom historik-serie (fylls sedan av apply_history)."""
+    def blank_series(cur):
+        s = {p: [None] * len(ELYEARS) for p in PIDS}
+        for p in PIDS:
+            s[p][ELYEARS.index(CURRENT_YEAR)] = cur[p]
+        return s
+    for d in districts:
+        sh = d["shares"]
+        d["el"] = {primary_val: {"shares": sh, "changes": {p: 0.0 for p in PIDS},
+                                 "top": max(PIDS, key=lambda p: sh[p]), "series": blank_series(sh),
+                                 "w": [None] * len(ELYEARS)}}
+        d["series"] = d["el"][primary_val]["series"]   # aktiv serie = primärvalets
+    for val, path in [("RF", rf_path), ("KF", kf_path)]:
+        if path and Path(path).exists():
+            shares = _load_shares_csv(path)
+            for d in districts:
+                s = shares.get(d["distrikt_kod"])
+                if s:
+                    d["el"][val] = {"shares": s, "changes": {p: 0.0 for p in PIDS},
+                                    "top": max(PIDS, key=lambda p: s[p]), "series": blank_series(s),
+                                    "w": [None] * len(ELYEARS)}
+
+
+def apply_covariates(districts, cov_path):
+    """Lägg riktiga SCB-kovariater på förhandsvisningens distrikt (matchar på kod)."""
+    if not cov_path or not Path(cov_path).exists():
+        return 0
+    by = {d["distrikt_kod"]: d for d in districts}
+    n = 0
+    for r in read_csv(cov_path):
+        d = by.get((r.get("distrikt_kod") or "").strip())
+        if not d:
+            continue
+        for k in COV_KEYS:
+            v = to_float(r.get(k))
+            if v is not None:
+                d[k] = v
+        n += 1
+    return n
+
+
+def apply_history(districts, hist_path):
+    """Lägg in riktig historik på distrikten där koden matchar. Stödjer val-kolumn
+    (RD/RF/KF); saknas den antas RD. Skriver in i el[val]['series'] och även d['series']
+    för RD (aktiv default). 2026 (sista året) behålls."""
+    by = {d["distrikt_kod"]: d for d in districts}
+    hit = set()
+    for r in read_csv(hist_path):
+        d = by.get((r.get("distrikt_kod") or "").strip())
+        if not d:
+            continue
+        yr = to_float(r.get("year"))
+        val = (r.get("val") or "RD").strip().upper()
+        pid = (r.get("party") or "").strip()
+        sh = to_float(r.get("share"))
+        wt = to_float(r.get("roster"))
+        if yr is None or pid not in PIDS or sh is None or int(yr) not in ELYEARS:
+            continue
+        t = ELYEARS.index(int(yr))
+        el = d.get("el") or {}
+        if val in el and el[val].get("series"):
+            el[val]["series"][pid][t] = sh
+            if wt is not None and el[val].get("w") is not None:
+                el[val]["w"][t] = wt
+            hit.add(d["distrikt_kod"])
+    return len(hit)
+
+
+def load_areas(path):
+    """Läs omraden.csv -> {niva:{kod:{val:{year:{pid:share}}}}} (exakta områdestotaler)."""
+    out = {}
+    if not path or not Path(path).exists():
+        return out
+    for r in read_csv(path):
+        niva = (r.get("niva") or "").strip()
+        kod = (r.get("kod") or "").strip()
+        val = (r.get("val") or "").strip().upper()
+        yr = to_float(r.get("year"))
+        pid = (r.get("party") or "").strip()
+        sh = to_float(r.get("share"))
+        if not niva or yr is None or pid not in PIDS or sh is None:
+            continue
+        out.setdefault(niva, {}).setdefault(kod, {}).setdefault(val, {}).setdefault(int(yr), {})[pid] = sh
+    return out
+
+
+def load_kommun_lookup(path):
+    out = {}
+    if path and Path(path).exists():
+        with open(path, newline="", encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                kod = (r.get("kommun_kod") or r.get("kommunkod") or "").strip()
+                namn = (r.get("kommun_namn") or r.get("kommun") or "").strip()
+                if kod and namn:
+                    out[kod] = namn
+    return out
 def compute_changes_and_top(districts):
     ci, pi = ELYEARS.index(CURRENT_YEAR), ELYEARS.index(PREV_YEAR)
     for d in districts:
@@ -447,16 +752,28 @@ def build_data(districts, meta, geo_w, geo_h, has_geo):
     for i, d in enumerate(districts):
         rec = {
             "i": i, "namn": d["namn"], "kommun": d["kommun"], "lan": d["lan"],
-            "rost": d.get("rost", 0), "top": d["top"],
+            "rost": d.get("rost", 0), "top": d["top"], "raknat": int(d.get("raknat", 1)),
             "shares": {p: round(d["shares"][p], 2) for p in PIDS},
             "changes": {p: round(d["changes"][p], 2) for p in PIDS},
             "series": {p: [round_opt(v, 2) for v in d["series"][p]] for p in PIDS},
         }
         for k in COV_KEYS:
             rec[k] = round_opt(d.get(k), 2)
-        if d.get("pred"):
-            rec["pred"] = {p: round_opt(d["pred"].get(p), 2) for p in PIDS}
-            rec["resid"] = {p: round_opt(d["resid"].get(p), 2) for p in PIDS}
+        if d.get("el"):
+            rec["el"] = {}
+            ci = ELYEARS.index(CURRENT_YEAR)
+            for val, e in d["el"].items():
+                if e.get("w") is not None and e["w"][ci] is None:
+                    e["w"][ci] = d.get("rost", 0)
+                rec["el"][val] = {
+                    "shares": {p: round(e["shares"][p], 2) for p in PIDS},
+                    "changes": {p: round(e["changes"][p], 2) for p in PIDS},
+                    "top": e["top"],
+                }
+                if e.get("series"):
+                    rec["el"][val]["series"] = {p: [round_opt(v, 2) for v in e["series"][p]] for p in PIDS}
+                if e.get("w"):
+                    rec["el"][val]["w"] = [None if v is None else int(round(v)) for v in e["w"]]
         if d.get("poly"):
             rec["poly"] = [[round(x, 1), round(y, 1)] for x, y in d["poly"]]
         if d.get("dor"):
@@ -467,6 +784,8 @@ def build_data(districts, meta, geo_w, geo_h, has_geo):
     meta["hasGeo"] = bool(has_geo)
     return {
         "parties": PARTIES, "covKeys": COV_KEYS, "cov": cov, "elyears": ELYEARS,
+        "vals": [v for v in VALS if any(v in (d.get("el") or {}) for d in districts)],
+        "valNamn": VAL_NAMN,
         "lanOrder": lan_order, "meta": meta,
         "geoW": round(geo_w, 1), "geoH": round(geo_h, 1),
         "districts": out,
@@ -524,14 +843,21 @@ def emit_sample(dirpath):
 def main():
     ap = argparse.ArgumentParser(description="Bygg valdistrikts-HTML från CSV + GeoJSON.")
     ap.add_argument("--districts")
+    ap.add_argument("--rf", help="Distrikt-CSV för regionval (RF), samma schema")
+    ap.add_argument("--kf", help="Distrikt-CSV för kommunval (KF), samma schema")
+    ap.add_argument("--primary-val", default="RD", choices=["RD", "RF", "KF"],
+                    help="Vilket val --districts innehåller (default RD)")
     ap.add_argument("--covariates")
     ap.add_argument("--history")
+    ap.add_argument("--areas", default="data/omraden.csv", help="Exakta områdestotaler (omraden.csv från historik.py)")
     ap.add_argument("--geojson")
     ap.add_argument("--geo-code-prop", default=None, help="GeoJSON-property som matchar distrikt_kod")
-    ap.add_argument("--geo-max-points", type=int, default=40, help="Max punkter per polygon (förenkling)")
+    ap.add_argument("--geo-max-points", type=int, default=80, help="Max punkter per polygon (tak; Douglas–Peucker används)")
+    ap.add_argument("--kommuner", default="data/kommuner.csv", help="CSV kommun_kod,kommun_namn (för förhandsvisning)")
+    ap.add_argument("--mandat", default="data/mandat.csv", help="CSV niva,kod,antal med mandat per kommun/region (valfri)")
     ap.add_argument("--template", default=str(Path(__file__).with_name("template.html")))
     ap.add_argument("--out", default="dist/valdistrikt.html")
-    ap.add_argument("--title", default="Valdistrikt – analysvyer")
+    ap.add_argument("--title", default="Valutfall")
     ap.add_argument("--source-label", default=None)
     ap.add_argument("--status", default="")
     ap.add_argument("--live", action="store_true")
@@ -544,11 +870,28 @@ def main():
 
     rings, geojson_path = {}, args.geojson
     if args.districts:
-        districts = load_real(args.districts, args.covariates, args.history)
+        districts = load_real(args.districts, args.covariates, None)
+        attach_elections_real(districts, args.primary_val, args.rf, args.kf)
+        if args.history and Path(args.history).exists():
+            m = apply_history(districts, args.history)
+            print(f"Historik: {m} distrikt fick riktig historik.", file=sys.stderr)
         source = args.source_label or "Källa: Valmyndigheten (röstfördelning) + SCB (kovariater)"
         if geojson_path:
-            rings, used = load_geojson(geojson_path, args.geo_code_prop)
+            codes = {d["distrikt_kod"] for d in districts}
+            rings, used, _names = load_geojson(geojson_path, args.geo_code_prop, codes)
             print(f"GeoJSON: {len(rings)} distriktpolygoner (kodfält '{used}').", file=sys.stderr)
+    elif geojson_path and Path(geojson_path).exists():
+        # FÖRHANDSVISNING: riktig geometri + syntetiska röster, kopplade till de riktiga koderna
+        rings, used, names = load_geojson(geojson_path, args.geo_code_prop, None)
+        districts = synth_geo(rings, load_kommun_lookup(args.kommuner), names)
+        if args.covariates and Path(args.covariates).exists():
+            mc = apply_covariates(districts, args.covariates)
+            print(f"SCB-kovariater: {mc} distrikt fick riktiga värden.", file=sys.stderr)
+        if args.history and Path(args.history).exists():
+            m = apply_history(districts, args.history)
+            print(f"Historik: {m} distrikt fick riktig 2014–2022-historik.", file=sys.stderr)
+        source = args.source_label or "SYNTETISKA RÖSTER på verklig geometri – siffrorna är påhittade"
+        print(f"GeoJSON: {len(rings)} distriktpolygoner (kodfält '{used}'). Förhandsvisning med syntetiska röster.", file=sys.stderr)
     else:
         districts, rings = synth()
         source = args.source_label or "SYNTETISKT EXEMPELDATA – siffrorna och geometrin är påhittade"
@@ -560,6 +903,27 @@ def main():
 
     meta = {"title": args.title, "source_label": source, "status": args.status, "live": bool(args.live)}
     data = build_data(districts, meta, geo_w, geo_h, has_geo)
+    # exakta områdestotaler + namn->kod-uppslag
+    data["areaHist"] = load_areas(args.areas)
+    kl = load_kommun_lookup(args.kommuner)
+    data["komKod"] = {namn: kod for kod, namn in kl.items()}
+    data["lanKod"] = {namn: kod for kod, namn in LAN_NAMN.items()}
+    # mandat: riksdag 349 känt; kommun/region ur valfri data/mandat.csv (niva,kod,antal)
+    seats = {"riket": 349, "kommun": {}, "lan": {}}
+    valkretsar = {}   # kommunkod -> antal valkretsar (för 2%/3%-spärr i KF)
+    if args.mandat and Path(args.mandat).exists():
+        for r in read_csv(args.mandat):
+            niva = (r.get("niva") or "").strip().lower()
+            kod = (r.get("kod") or "").strip()
+            antal = to_float(r.get("antal"))
+            vk = to_float(r.get("valkretsar"))
+            if niva in ("kommun", "lan") and kod and antal:
+                seats[niva][kod] = int(antal)
+            if niva == "kommun" and kod and vk:
+                valkretsar[kod] = int(vk)
+    data["seats"] = seats
+    data["valkretsar"] = valkretsar
+    data["thresholds"] = {"RD": 4.0, "RF": 3.0, "KF": 2.0}   # KF: 2% (1 valkrets) / 3% (fler) väljs i klienten
     size, n = render_site(data, args.template, args.out)
     print(f"Byggde {args.out}  ·  {n} distrikt  ·  geo={'ja' if has_geo else 'nej'}  ·  {size:,} tecken".replace(",", " "))
 

@@ -69,6 +69,9 @@ MAPPING = {
     "party_list_path": "rostfordelning.rosterPaverkaMandat.partiRoster",
     "party_code_key":  "partiforkortning",
     "party_votes_key": "antalRoster",
+    # totala giltiga röster (nämnare) och "övriga partier"-klumpen
+    "valid_total":     "rostfordelning.rosterPaverkaMandat.antalRoster",
+    "ovriga_votes":    "rostfordelning.rosterPaverkaMandat.rosterOvrigaPartier.antalRoster",
     # räknestatus på rot-nivå
     "raknade":  "antalValdistriktRaknade",
     "ska":      "antalValdistriktSomSkaRaknas",
@@ -144,6 +147,11 @@ def rows_from_blob(obj, kommun_lookup):
         lankod = zpad2(dig(rec, MAPPING["lan_kod"]))
         kkod = str(dig(rec, MAPPING["kommun_kod"]) or "").strip()
         turnout = dig(rec, MAPPING["turnout"])
+        votes = extract_votes(rec)
+        # nämnare = totala giltiga röster; annars 8 partier + övriga-klumpen
+        giltiga = to_int(dig(rec, MAPPING["valid_total"]))
+        if giltiga <= 0:
+            giltiga = sum(votes.values()) + to_int(dig(rec, MAPPING["ovriga_votes"]))
         rows.append({
             "distrikt_kod": str(dig(rec, MAPPING["district_code"]) or "").strip(),
             "distrikt_namn": dig(rec, MAPPING["district_name"]) or "",
@@ -151,8 +159,10 @@ def rows_from_blob(obj, kommun_lookup):
             "kommun_namn": kommun_lookup.get(kkod, kkod),   # fallback: koden
             "lan_namn": LAN_NAMN.get(lankod, lankod),
             "rost_berattigade": to_int(dig(rec, MAPPING["rostberattigade"])),
+            "giltiga": giltiga,
+            "raknat": 1 if giltiga > 0 else 0,   # räknat = distriktet har rapporterat
             "_turnout": turnout,   # valdeltagande (till kovariater), skrivs ej i distrikt.csv
-            **extract_votes(rec),
+            **votes,
         })
     raknade = to_int(dig(obj, MAPPING["raknade"]))
     ska = to_int(dig(obj, MAPPING["ska"]))
@@ -161,7 +171,7 @@ def rows_from_blob(obj, kommun_lookup):
 
 def write_csv(rows, out_path):
     cols = ["distrikt_kod", "distrikt_namn", "kommun_kod", "kommun_namn",
-            "lan_namn", "rost_berattigade"] + PIDS
+            "lan_namn", "rost_berattigade", "giltiga", "raknat"] + PIDS
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=cols)
@@ -217,12 +227,15 @@ def write_sample_json(path):
         votes["S"] += 250; votes["M"] += 180
         partiRoster = [{"partibeteckning": p, "partiforkortning": fk[p], "partikod": str(k),
                         "antalRoster": votes[p], "andelRoster": 0.0} for k, p in enumerate(PIDS)]
+        ovriga = max(0, int(random.gauss(60, 30)))   # småpartier klumpade
+        giltiga = sum(votes.values()) + ovriga
         dists.append({
             "namn": f"Värmdö {i+1}", "valdistriktstyp": "Valdistrikt",
             "valdistriktskod": f"0120{i+1:04d}", "kommunkod": "0120", "lankod": "01",
             "valomradeskod": "00", "antalRostberattigade": random.randint(900, 2000),
             "rostfordelning": {"rosterPaverkaMandat": {"partiRoster": partiRoster,
-                                                       "antalRoster": sum(votes.values())}},
+                                                       "rosterOvrigaPartier": {"antalRoster": ovriga},
+                                                       "antalRoster": giltiga}},
         })
     obj = {"valtillfalle": "Val 2026", "rakningstillfalle": "preliminär", "valtyp": "KF",
            "valdatum": "2026-09-13", "antalValdistriktRaknade": 28,

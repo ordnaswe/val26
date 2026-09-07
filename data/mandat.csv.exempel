@@ -1,0 +1,6 @@
+niva,kod,antal,valkretsar
+# niva = kommun eller lan; kod = kommunkod (4 siffror) resp länskod (2 siffror)
+# antal = antal fullmäktigemandat; valkretsar = antal valkretsar (styr KF-spärr 2%/3%)
+kommun,0120,51,1
+kommun,0180,101,6
+lan,01,149,
