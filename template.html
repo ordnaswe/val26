@@ -1044,6 +1044,41 @@
     if(el==="KF"){const kk=(DATA.komKod||{})[state.geo.kommun];return ((DATA.valkretsar||{})[kk]||1)>=2?3:2;}
     return 0;
   }
+  function sainteAmong(votes,eligIds,seats){
+    const res={};eligIds.forEach(p=>res[p]=0);
+    for(let i=0;i<seats;i++){let best=null,bq=-1;
+      for(const p of eligIds){const dv=res[p]===0?1.2:2*res[p]+1;const q=(votes[p]||0)/dv;if(q>bq){bq=q;best=p;}}
+      if(best)res[best]++;}
+    return res;
+  }
+  // Riktig riksdagsmodell: fasta valkretsmandat per valkrets + 39 utjämningsmandat,
+  // spärr 4% nationellt ELLER 12% i en valkrets.
+  function riksdagSeats(data,yi){
+    if(yi==null)yi=state.year;
+    const RV=DATA.riksvalkretsar||{};
+    const perVk={}, nat={};for(const p of PARTIES)nat[p.id]=0;
+    for(const d of data){const vk=d.vk;if(!vk||!RV[vk])continue;
+      const w=(d.w&&d.w[yi]!=null)?d.w[yi]:(d.rost||1);
+      for(const p of PARTIES){const s=(d.series&&d.series[p.id])?d.series[p.id][yi]:null;if(s==null)continue;const v=s/100*w;
+        (perVk[vk]=perVk[vk]||Object.fromEntries(PARTIES.map(q=>[q.id,0])))[p.id]+=v;nat[p.id]+=v;}}
+    const natTot=PARTIES.reduce((a,p)=>a+nat[p.id],0)||1;
+    const natPct={};for(const p of PARTIES)natPct[p.id]=nat[p.id]/natTot*100;
+    const elig4=PARTIES.filter(p=>natPct[p.id]>=4).map(p=>p.id);
+    const fasta={};for(const p of PARTIES)fasta[p.id]=0;const vkDetail={};
+    for(const vk in perVk){const seats=(RV[vk]&&RV[vk].fasta)||0;if(!seats)continue;
+      const vv=perVk[vk],vtot=PARTIES.reduce((a,p)=>a+vv[p.id],0)||1;
+      const elig=PARTIES.filter(p=>elig4.includes(p.id)||(vv[p.id]/vtot*100)>=12).map(p=>p.id);
+      const alloc=sainteAmong(vv,elig,seats);
+      vkDetail[vk]={namn:RV[vk].namn,fasta:seats,alloc,pct:Object.fromEntries(PARTIES.map(p=>[p.id,vv[p.id]/vtot*100]))};
+      for(const pid of elig)fasta[pid]+=alloc[pid]||0;}
+    const twelveOnly=PARTIES.filter(p=>!elig4.includes(p.id)&&fasta[p.id]>0).map(p=>p.id);
+    const remaining=349-twelveOnly.reduce((a,pid)=>a+fasta[pid],0);
+    const natAlloc=sainteAmong(nat,elig4,remaining);
+    const seats={};for(const p of PARTIES)seats[p.id]=0;
+    for(const pid of elig4)seats[pid]=natAlloc[pid]||0;
+    for(const pid of twelveOnly)seats[pid]=fasta[pid];
+    return {seats,fasta,vkDetail,natPct,elig4,twelveOnly};
+  }
   // jämkade uddatalsmetoden (första delningstal 1,2) + spärr
   function allocateSeats(shares,seats,threshold){
     const res={};for(const p of PARTIES)res[p.id]=0;
@@ -1139,9 +1174,17 @@
       r2022[p.id]=(ah&&ah[2022]&&ah[2022][p.id]!=null)?ah[2022][p.id]:wavg(data,d=>d.series&&d.series[p.id]?d.series[p.id][YI22]:null);
     }
     // mandat ur kombinerad prognos (om området väljer en församling)
-    const seatsN=mandateSeats(),thr=progThreshold();
-    const mand=seatsN?allocateSeats(m3,seatsN,thr):null;
-    const mand22=seatsN?allocateSeats(r2022,seatsN,thr):null;
+    // mandat: RD (riket) via riktig valkretsmodell; annars enkel församling
+    const rdRiket = state.election==="RD" && !state.geo.kommun && !state.geo.lan;
+    let seatsN,thr,mand,mand22,rd=null;
+    if(rdRiket){
+      rd=riksdagSeats(data,state.year); seatsN=349; thr=4;
+      mand=rd.seats; mand22=riksdagSeats(data,ELYEARS.indexOf(2022)).seats;
+    } else {
+      seatsN=mandateSeats(); thr=progThreshold();
+      mand=seatsN?allocateSeats(m3,seatsN,thr):null;
+      mand22=seatsN?allocateSeats(r2022,seatsN,thr):null;
+    }
     // tabell
     const order=[...PARTIES].sort((a,b)=>(m3[b.id]||0)-(m3[a.id]||0));
     let html=`<tr><th>Parti</th><th>Räknat nu</th><th>Swing</th><th>Demografi</th><th>Kombinerad</th>`+
@@ -1180,11 +1223,17 @@
         `<div style="flex:0 0 300px;max-width:320px">${hemicycle(mand,tot)}</div>`+
         `<div style="flex:1;min-width:280px">${barSvg}</div></div>`;
     } else mbox.innerHTML="";
-    const seatNote=seatsN?` Mandat (${seatsN} totalt, ${thr}% spärr) ur kombinerad prognos, jämkade uddatalsmetoden; liten siffra = förändring mot 2022.`:` (Mandat visas för riket+riksdag, län+region och kommun+kommunval om mandattabell finns.)`;
+    const seatNote=seatsN?` Mandat (${seatsN} totalt, ${thr}% spärr)${rdRiket?" – riktig valkretsmodell (fasta valkretsmandat + 39 utjämningsmandat, 4% nationellt eller 12% i en valkrets)":" ur kombinerad prognos, jämkade uddatalsmetoden"}.`:` (Mandat visas för riket+riksdag, län+region och kommun+kommunval om mandattabell finns.)`;
+    // 12%-varning: parti under 4% nationellt men som tar valkretsmandat via 12%
+    let twelveNote="";
+    if(rd&&rd.twelveOnly.length){
+      const names=rd.twelveOnly.map(pid=>{const P=PARTIES.find(p=>p.id===pid);const vks=Object.entries(rd.vkDetail).filter(([vk,dd])=>dd.pct[pid]>=12).map(([vk,dd])=>dd.namn);return `${P?P.id:pid} (${rd.fasta[pid]} mandat via ${vks.join(", ")})`;}).join("; ");
+      twelveNote=` OBS – parti under 4% som tar valkretsmandat: ${names}.`;
+    }
     document.getElementById("progCap").textContent=
       `${counted.length} av ${data.length} distrikt ${progMode==="live"?"rapporterade":"räknade (simulering)"} (${Math.round((progMode==="live"?pctCounted:progPct)*100)}%). `+
       `"Räknat nu" är enbart de inkomna (skevt tidigt). Swing = förändring mot 2022 lagd på oräknade. `+
-      `Demografi = regression på SCB-variabler. Kombinerad väger ihop dem.`+seatNote+
+      `Demografi = regression på SCB-variabler. Kombinerad väger ihop dem.`+seatNote+twelveNote+
       ` Prognoser är osäkra, särskilt tidigt – tolka som riktning.`;
   }
   (function(){

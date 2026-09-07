@@ -1,0 +1,291 @@
+kommunkod,valkretskod,valkretsnamn,fasta
+0114,02,Stockholms län,41
+0115,02,Stockholms län,41
+0117,02,Stockholms län,41
+0120,02,Stockholms län,41
+0123,02,Stockholms län,41
+0125,02,Stockholms län,41
+0126,02,Stockholms län,41
+0127,02,Stockholms län,41
+0128,02,Stockholms län,41
+0136,02,Stockholms län,41
+0138,02,Stockholms län,41
+0139,02,Stockholms län,41
+0140,02,Stockholms län,41
+0160,02,Stockholms län,41
+0162,02,Stockholms län,41
+0163,02,Stockholms län,41
+0180,01,Stockholms kommun,29
+0181,02,Stockholms län,41
+0182,02,Stockholms län,41
+0183,02,Stockholms län,41
+0184,02,Stockholms län,41
+0186,02,Stockholms län,41
+0187,02,Stockholms län,41
+0188,02,Stockholms län,41
+0191,02,Stockholms län,41
+0192,02,Stockholms län,41
+0305,03,Uppsala län,12
+0319,03,Uppsala län,12
+0330,03,Uppsala län,12
+0331,03,Uppsala län,12
+0360,03,Uppsala län,12
+0380,03,Uppsala län,12
+0381,03,Uppsala län,12
+0382,03,Uppsala län,12
+0428,04,Södermanlands län,9
+0461,04,Södermanlands län,9
+0480,04,Södermanlands län,9
+0481,04,Södermanlands län,9
+0482,04,Södermanlands län,9
+0483,04,Södermanlands län,9
+0484,04,Södermanlands län,9
+0486,04,Södermanlands län,9
+0488,04,Södermanlands län,9
+0509,05,Östergötlands län,14
+0512,05,Östergötlands län,14
+0513,05,Östergötlands län,14
+0560,05,Östergötlands län,14
+0561,05,Östergötlands län,14
+0562,05,Östergötlands län,14
+0563,05,Östergötlands län,14
+0580,05,Östergötlands län,14
+0581,05,Östergötlands län,14
+0582,05,Östergötlands län,14
+0583,05,Östergötlands län,14
+0584,05,Östergötlands län,14
+0586,05,Östergötlands län,14
+0604,06,Jönköpings län,11
+0617,06,Jönköpings län,11
+0642,06,Jönköpings län,11
+0643,06,Jönköpings län,11
+0662,06,Jönköpings län,11
+0665,06,Jönköpings län,11
+0680,06,Jönköpings län,11
+0682,06,Jönköpings län,11
+0683,06,Jönköpings län,11
+0684,06,Jönköpings län,11
+0685,06,Jönköpings län,11
+0686,06,Jönköpings län,11
+0687,06,Jönköpings län,11
+0760,07,Kronobergs län,6
+0761,07,Kronobergs län,6
+0763,07,Kronobergs län,6
+0764,07,Kronobergs län,6
+0765,07,Kronobergs län,6
+0767,07,Kronobergs län,6
+0780,07,Kronobergs län,6
+0781,07,Kronobergs län,6
+0821,08,Kalmar län,7
+0834,08,Kalmar län,7
+0840,08,Kalmar län,7
+0860,08,Kalmar län,7
+0861,08,Kalmar län,7
+0862,08,Kalmar län,7
+0880,08,Kalmar län,7
+0881,08,Kalmar län,7
+0882,08,Kalmar län,7
+0883,08,Kalmar län,7
+0884,08,Kalmar län,7
+0885,08,Kalmar län,7
+0980,09,Gotlands län,2
+1060,10,Blekinge län,5
+1080,10,Blekinge län,5
+1081,10,Blekinge län,5
+1082,10,Blekinge län,5
+1083,10,Blekinge län,5
+1214,12,Skåne läns västra,9
+1230,13,Skåne läns södra,12
+1231,13,Skåne läns södra,12
+1233,13,Skåne läns södra,12
+1256,14,Skåne läns norra och östra,10
+1257,14,Skåne läns norra och östra,10
+1260,12,Skåne läns västra,9
+1261,13,Skåne läns södra,12
+1262,13,Skåne läns södra,12
+1263,13,Skåne läns södra,12
+1264,13,Skåne läns södra,12
+1265,13,Skåne läns södra,12
+1266,12,Skåne läns västra,9
+1267,12,Skåne läns västra,9
+1270,14,Skåne läns norra och östra,10
+1272,14,Skåne läns norra och östra,10
+1273,14,Skåne läns norra och östra,10
+1275,14,Skåne läns norra och östra,10
+1276,14,Skåne läns norra och östra,10
+1277,14,Skåne läns norra och östra,10
+1278,14,Skåne läns norra och östra,10
+1280,11,Malmö kommun,10
+1281,13,Skåne läns södra,12
+1282,12,Skåne läns västra,9
+1283,12,Skåne läns västra,9
+1284,12,Skåne läns västra,9
+1285,12,Skåne läns västra,9
+1286,13,Skåne läns södra,12
+1287,13,Skåne läns södra,12
+1290,14,Skåne läns norra och östra,10
+1291,14,Skåne läns norra och östra,10
+1292,14,Skåne läns norra och östra,10
+1293,14,Skåne läns norra och östra,10
+1315,15,Hallands län,10
+1380,15,Hallands län,10
+1381,15,Hallands län,10
+1382,15,Hallands län,10
+1383,15,Hallands län,10
+1384,15,Hallands län,10
+1401,17,Västra Götalands läns västra,11
+1402,17,Västra Götalands läns västra,11
+1407,17,Västra Götalands läns västra,11
+1415,17,Västra Götalands läns västra,11
+1419,17,Västra Götalands läns västra,11
+1421,18,Västra Götalands läns norra,8
+1427,18,Västra Götalands läns norra,8
+1430,18,Västra Götalands läns norra,8
+1435,18,Västra Götalands läns norra,8
+1438,18,Västra Götalands läns norra,8
+1439,18,Västra Götalands läns norra,8
+1440,17,Västra Götalands läns västra,11
+1441,17,Västra Götalands läns västra,11
+1442,19,Västra Götalands läns södra,7
+1443,19,Västra Götalands läns södra,7
+1444,20,Västra Götalands läns östra,8
+1445,20,Västra Götalands läns östra,8
+1446,20,Västra Götalands läns östra,8
+1447,20,Västra Götalands läns östra,8
+1452,19,Västra Götalands läns södra,7
+1460,18,Västra Götalands läns norra,8
+1461,18,Västra Götalands läns norra,8
+1462,17,Västra Götalands läns västra,11
+1463,19,Västra Götalands läns södra,7
+1465,19,Västra Götalands läns södra,7
+1466,19,Västra Götalands läns södra,7
+1470,20,Västra Götalands läns östra,8
+1471,20,Västra Götalands läns östra,8
+1472,20,Västra Götalands läns östra,8
+1473,20,Västra Götalands läns östra,8
+1480,16,Göteborgs kommun,18
+1481,17,Västra Götalands läns västra,11
+1482,17,Västra Götalands läns västra,11
+1484,18,Västra Götalands läns norra,8
+1485,18,Västra Götalands läns norra,8
+1486,18,Västra Götalands läns norra,8
+1487,18,Västra Götalands läns norra,8
+1488,18,Västra Götalands läns norra,8
+1489,17,Västra Götalands läns västra,11
+1490,19,Västra Götalands läns södra,7
+1491,19,Västra Götalands läns södra,7
+1492,18,Västra Götalands läns norra,8
+1493,20,Västra Götalands läns östra,8
+1494,20,Västra Götalands läns östra,8
+1495,20,Västra Götalands läns östra,8
+1496,20,Västra Götalands läns östra,8
+1497,20,Västra Götalands läns östra,8
+1498,20,Västra Götalands läns östra,8
+1499,20,Västra Götalands läns östra,8
+1715,21,Värmlands län,9
+1730,21,Värmlands län,9
+1737,21,Värmlands län,9
+1760,21,Värmlands län,9
+1761,21,Värmlands län,9
+1762,21,Värmlands län,9
+1763,21,Värmlands län,9
+1764,21,Värmlands län,9
+1765,21,Värmlands län,9
+1766,21,Värmlands län,9
+1780,21,Värmlands län,9
+1781,21,Värmlands län,9
+1782,21,Värmlands län,9
+1783,21,Värmlands län,9
+1784,21,Värmlands län,9
+1785,21,Värmlands län,9
+1814,22,Örebro län,9
+1860,22,Örebro län,9
+1861,22,Örebro län,9
+1862,22,Örebro län,9
+1863,22,Örebro län,9
+1864,22,Örebro län,9
+1880,22,Örebro län,9
+1881,22,Örebro län,9
+1882,22,Örebro län,9
+1883,22,Örebro län,9
+1884,22,Örebro län,9
+1885,22,Örebro län,9
+1904,23,Västmanlands län,8
+1907,23,Västmanlands län,8
+1960,23,Västmanlands län,8
+1961,23,Västmanlands län,8
+1962,23,Västmanlands län,8
+1980,23,Västmanlands län,8
+1981,23,Västmanlands län,8
+1982,23,Västmanlands län,8
+1983,23,Västmanlands län,8
+1984,23,Västmanlands län,8
+2021,24,Dalarnas län,9
+2023,24,Dalarnas län,9
+2026,24,Dalarnas län,9
+2029,24,Dalarnas län,9
+2031,24,Dalarnas län,9
+2034,24,Dalarnas län,9
+2039,24,Dalarnas län,9
+2061,24,Dalarnas län,9
+2062,24,Dalarnas län,9
+2080,24,Dalarnas län,9
+2081,24,Dalarnas län,9
+2082,24,Dalarnas län,9
+2083,24,Dalarnas län,9
+2084,24,Dalarnas län,9
+2085,24,Dalarnas län,9
+2101,25,Gävleborgs län,9
+2104,25,Gävleborgs län,9
+2121,25,Gävleborgs län,9
+2132,25,Gävleborgs län,9
+2161,25,Gävleborgs län,9
+2180,25,Gävleborgs län,9
+2181,25,Gävleborgs län,9
+2182,25,Gävleborgs län,9
+2183,25,Gävleborgs län,9
+2184,25,Gävleborgs län,9
+2260,26,Västernorrlands län,7
+2262,26,Västernorrlands län,7
+2280,26,Västernorrlands län,7
+2281,26,Västernorrlands län,7
+2282,26,Västernorrlands län,7
+2283,26,Västernorrlands län,7
+2284,26,Västernorrlands län,7
+2303,27,Jämtlands län,4
+2305,27,Jämtlands län,4
+2309,27,Jämtlands län,4
+2313,27,Jämtlands län,4
+2321,27,Jämtlands län,4
+2326,27,Jämtlands län,4
+2361,27,Jämtlands län,4
+2380,27,Jämtlands län,4
+2401,28,Västerbottens län,8
+2403,28,Västerbottens län,8
+2404,28,Västerbottens län,8
+2409,28,Västerbottens län,8
+2417,28,Västerbottens län,8
+2418,28,Västerbottens län,8
+2421,28,Västerbottens län,8
+2422,28,Västerbottens län,8
+2425,28,Västerbottens län,8
+2460,28,Västerbottens län,8
+2462,28,Västerbottens län,8
+2463,28,Västerbottens län,8
+2480,28,Västerbottens län,8
+2481,28,Västerbottens län,8
+2482,28,Västerbottens län,8
+2505,29,Norrbottens län,8
+2506,29,Norrbottens län,8
+2510,29,Norrbottens län,8
+2513,29,Norrbottens län,8
+2514,29,Norrbottens län,8
+2518,29,Norrbottens län,8
+2521,29,Norrbottens län,8
+2523,29,Norrbottens län,8
+2560,29,Norrbottens län,8
+2580,29,Norrbottens län,8
+2581,29,Norrbottens län,8
+2582,29,Norrbottens län,8
+2583,29,Norrbottens län,8
+2584,29,Norrbottens län,8

@@ -631,6 +631,23 @@ def apply_history(districts, hist_path):
     return len(hit)
 
 
+def load_valkrets(path):
+    """kommunkod -> valkretskod, och valkretskod -> {namn, fasta} (riksdag)."""
+    kom2vk, vk = {}, {}
+    if not path or not Path(path).exists():
+        return kom2vk, vk
+    for r in read_csv(path):
+        kk = (r.get("kommunkod") or "").strip()
+        vkk = (r.get("valkretskod") or "").strip()
+        namn = (r.get("valkretsnamn") or "").strip()
+        fasta = to_float(r.get("fasta"))
+        if kk and vkk:
+            kom2vk[kk] = vkk
+            if vkk not in vk:
+                vk[vkk] = {"namn": namn, "fasta": int(fasta) if fasta else 0}
+    return kom2vk, vk
+
+
 def load_areas(path):
     """Läs omraden.csv -> {niva:{kod:{val:{year:{pid:share}}}}} (exakta områdestotaler)."""
     out = {}
@@ -752,7 +769,7 @@ def build_data(districts, meta, geo_w, geo_h, has_geo):
     for i, d in enumerate(districts):
         rec = {
             "i": i, "namn": d["namn"], "kommun": d["kommun"], "lan": d["lan"],
-            "rost": d.get("rost", 0), "top": d["top"], "raknat": int(d.get("raknat", 1)),
+            "rost": d.get("rost", 0), "top": d["top"], "raknat": int(d.get("raknat", 1)), "vk": d.get("vk"),
             "shares": {p: round(d["shares"][p], 2) for p in PIDS},
             "changes": {p: round(d["changes"][p], 2) for p in PIDS},
             "series": {p: [round_opt(v, 2) for v in d["series"][p]] for p in PIDS},
@@ -855,6 +872,7 @@ def main():
     ap.add_argument("--geo-max-points", type=int, default=80, help="Max punkter per polygon (tak; Douglas–Peucker används)")
     ap.add_argument("--kommuner", default="data/kommuner.csv", help="CSV kommun_kod,kommun_namn (för förhandsvisning)")
     ap.add_argument("--mandat", default="data/mandat.csv", help="CSV niva,kod,antal med mandat per kommun/region (valfri)")
+    ap.add_argument("--valkrets", default="data/valkrets.csv", help="CSV kommunkod,valkretskod,valkretsnamn,fasta (riksdag)")
     ap.add_argument("--template", default=str(Path(__file__).with_name("template.html")))
     ap.add_argument("--out", default="dist/valdistrikt.html")
     ap.add_argument("--title", default="Valutfall")
@@ -902,6 +920,12 @@ def main():
         print("VARNING: inga GeoJSON-koder matchade distrikt_kod – kontrollera --geo-code-prop.", file=sys.stderr)
 
     meta = {"title": args.title, "source_label": source, "status": args.status, "live": bool(args.live)}
+    # riksdagens valkretsar: koppla varje distrikt till sin valkrets före bygget
+    KOM2VK, RIKSVK = load_valkrets(args.valkrets)
+    for d in districts:
+        kk = (d.get("distrikt_kod") or "")[:4]
+        if kk in KOM2VK:
+            d["vk"] = KOM2VK[kk]
     data = build_data(districts, meta, geo_w, geo_h, has_geo)
     # exakta områdestotaler + namn->kod-uppslag
     data["areaHist"] = load_areas(args.areas)
@@ -924,6 +948,7 @@ def main():
     data["seats"] = seats
     data["valkretsar"] = valkretsar
     data["thresholds"] = {"RD": 4.0, "RF": 3.0, "KF": 2.0}   # KF: 2% (1 valkrets) / 3% (fler) väljs i klienten
+    data["riksvalkretsar"] = RIKSVK
     size, n = render_site(data, args.template, args.out)
     print(f"Byggde {args.out}  ·  {n} distrikt  ·  geo={'ja' if has_geo else 'nej'}  ·  {size:,} tecken".replace(",", " "))
 
