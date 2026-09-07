@@ -69,6 +69,9 @@ MAPPING = {
     "party_list_path": "rostfordelning.rosterPaverkaMandat.partiRoster",
     "party_code_key":  "partiforkortning",
     "party_votes_key": "antalRoster",
+    "party_name_key":  "partibeteckning",
+    "valkrets_kod":    "valkretskod",
+    "valkrets_namn":   "valkretsnamn",
     # totala giltiga röster (nämnare) och "övriga partier"-klumpen
     "valid_total":     "rostfordelning.rosterPaverkaMandat.antalRoster",
     "ovriga_votes":    "rostfordelning.rosterPaverkaMandat.rosterOvrigaPartier.antalRoster",
@@ -136,6 +139,28 @@ def extract_votes(rec):
     return votes
 
 
+def extract_all(rec):
+    """Alla partier: {namn: röster}. De 8 som PID, övriga med sitt partinamn."""
+    out = {}
+    arr = dig(rec, MAPPING["party_list_path"])
+    if isinstance(arr, list):
+        for item in arr:
+            if not isinstance(item, dict):
+                continue
+            v = to_int(item.get(MAPPING["party_votes_key"]))
+            if v <= 0:
+                continue
+            pid = norm_party(item.get(MAPPING["party_code_key"]))
+            namn = pid or str(item.get(MAPPING["party_name_key"]) or item.get(MAPPING["party_code_key"]) or "").strip()
+            if namn:
+                out[namn] = out.get(namn, 0) + v
+    # ta med "övriga partier"-klumpen om den finns
+    ov = to_int(dig(rec, MAPPING["ovriga_votes"]))
+    if ov > 0:
+        out["Övriga"] = out.get("Övriga", 0) + ov
+    return out
+
+
 def rows_from_blob(obj, kommun_lookup):
     dl = dig(obj, MAPPING["district_list"])
     if not isinstance(dl, list):
@@ -162,6 +187,10 @@ def rows_from_blob(obj, kommun_lookup):
             "giltiga": giltiga,
             "raknat": 1 if giltiga > 0 else 0,   # räknat = distriktet har rapporterat
             "_turnout": turnout,   # valdeltagande (till kovariater), skrivs ej i distrikt.csv
+            "_alla": extract_all(rec),           # alla partier (för omraden_alla live)
+            "_vkkod": str(dig(rec, MAPPING["valkrets_kod"]) or "").strip(),
+            "_vknamn": str(dig(rec, MAPPING["valkrets_namn"]) or "").strip(),
+            "_lankod": lankod,
             **votes,
         })
     raknade = to_int(dig(obj, MAPPING["raknade"]))
@@ -178,6 +207,50 @@ def write_csv(rows, out_path):
         w.writeheader()
         for r in rows:
             w.writerow({c: r.get(c, "") for c in cols})
+
+
+def write_allresults(rows, val, out_path, valkrets_csv, minpct):
+    """Aggregera alla partier per område -> niva,kod,namn,val,parti,andel (≥ minpct)."""
+    from collections import defaultdict
+    kom2vknamn = {}
+    if valkrets_csv and Path(valkrets_csv).exists():
+        with open(valkrets_csv, encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                kom2vknamn[(r.get("kommunkod") or "").strip()] = (r.get("valkretsnamn") or "").strip()
+    # (niva, kod, namn) -> {parti: röster}
+    acc = defaultdict(lambda: defaultdict(float))
+    names = {}
+    def add(niva, kod, namn, alla):
+        key = (niva, kod)
+        names[key] = namn
+        for p, v in alla.items():
+            acc[key][p] += v
+    for r in rows:
+        kod = r["distrikt_kod"]; kk = (r.get("kommun_kod") or kod[:4]).zfill(4) if kod else ""
+        alla = r.get("_alla") or {}
+        if not alla:
+            continue
+        if val == "KF":
+            add("kommun", kk, r.get("kommun_namn", kk), alla)
+        elif val == "RF":
+            add("region", (r.get("_lankod") or kk[:2]), r.get("lan_namn", ""), alla)
+        elif val == "RD":
+            vknamn = r.get("_vknamn") or kom2vknamn.get(kk) or r.get("lan_namn", "")
+            add("valkrets", vknamn, vknamn, alla)
+            add("riket", "00", "Riket", alla)
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["niva", "kod", "namn", "val", "parti", "andel"])
+        for (niva, kod), pv in sorted(acc.items()):
+            tot = sum(pv.values())
+            if tot <= 0:
+                continue
+            for parti, v in sorted(pv.items(), key=lambda kv: -kv[1]):
+                andel = v / tot * 100.0
+                if andel >= minpct:
+                    w.writerow([niva, kod, names.get((niva, kod), ""), val, parti, round(andel, 2)])
+    print(f"  allresults ({val}): {out_path}")
 
 
 def load_kommun_lookup(path):
@@ -227,12 +300,17 @@ def write_sample_json(path):
         votes["S"] += 250; votes["M"] += 180
         partiRoster = [{"partibeteckning": p, "partiforkortning": fk[p], "partikod": str(k),
                         "antalRoster": votes[p], "andelRoster": 0.0} for k, p in enumerate(PIDS)]
+        # ett lokalt parti (utan riksförkortning) för att testa alla-partier-flödet
+        lokal = max(0, int(random.gauss(300, 60)))
+        partiRoster.append({"partibeteckning": "Värmdöpartiet", "partiforkortning": "",
+                            "partikod": "9001", "antalRoster": lokal, "andelRoster": 0.0})
         ovriga = max(0, int(random.gauss(60, 30)))   # småpartier klumpade
-        giltiga = sum(votes.values()) + ovriga
+        giltiga = sum(votes.values()) + lokal + ovriga
         dists.append({
             "namn": f"Värmdö {i+1}", "valdistriktstyp": "Valdistrikt",
             "valdistriktskod": f"0120{i+1:04d}", "kommunkod": "0120", "lankod": "01",
-            "valomradeskod": "00", "antalRostberattigade": random.randint(900, 2000),
+            "valomradeskod": "00", "valkretskod": "01", "valkretsnamn": "Stockholms län",
+            "antalRostberattigade": random.randint(900, 2000),
             "rostfordelning": {"rosterPaverkaMandat": {"partiRoster": partiRoster,
                                                        "rosterOvrigaPartier": {"antalRoster": ovriga},
                                                        "antalRoster": giltiga}},
@@ -254,6 +332,10 @@ def main():
     ap.add_argument("--kommuner", help="CSV kommun_kod,kommun_namn för läsbara kommunnamn (valfri)")
     ap.add_argument("--status-out", help="Skriv 'X av Y valdistrikt räknade' till denna fil (valfri)")
     ap.add_argument("--covariates-out", help="Skriv distrikt_kod,turnout (valdeltagande ur filen) hit (valfri)")
+    ap.add_argument("--val", choices=["RD", "RF", "KF"], help="Valnivå (för områdesaggregering av alla partier)")
+    ap.add_argument("--allresults-out", help="Skriv alla partier ≥ min per område (niva,kod,namn,val,parti,andel) hit")
+    ap.add_argument("--valkrets", help="CSV kommunkod,valkretskod,valkretsnamn,fasta (för RD-valkrets)")
+    ap.add_argument("--allmin", type=float, default=1.0, help="Tröskel i procent för allresults-out (default 1.0)")
     ap.add_argument("--inspect", metavar="FILE")
     ap.add_argument("--sample-json", metavar="FILE")
     args = ap.parse_args()
@@ -285,6 +367,8 @@ def main():
         sys.exit("Inga distrikt extraherade. Kör --inspect och kontrollera --json-filter / MAPPING.")
 
     write_csv(rows, args.out)
+    if args.allresults_out and args.val:
+        write_allresults(rows, args.val, args.allresults_out, args.valkrets, args.allmin)
     if args.covariates_out:
         Path(args.covariates_out).parent.mkdir(parents=True, exist_ok=True)
         with open(args.covariates_out, "w", newline="", encoding="utf-8") as f:

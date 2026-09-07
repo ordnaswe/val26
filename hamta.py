@@ -220,6 +220,7 @@ def one_cycle(args):
     state = load_state()
     any_changed = False
     built = {}          # "RD" -> csv-path (om filer fanns)
+    built_alla = {}     # "RD" -> alla-partier-områdesfil
     rd_status = None
     for val, pattern, out_csv in vals:
         targets = {n: m for n, m in index.items() if pattern in n}
@@ -255,6 +256,11 @@ def one_cycle(args):
         acmd = [sys.executable, str(HERE / "adapter.py"), *zips, "-o", out_csv]
         if args.kommuner and Path(args.kommuner).exists():
             acmd += ["--kommuner", args.kommuner]
+        alla_out = str(Path(out_csv).parent / f"alla_{val.lower()}.csv")
+        acmd += ["--val", val, "--allresults-out", alla_out, "--allmin", str(args.allmin)]
+        if args.valkrets and Path(args.valkrets).exists():
+            acmd += ["--valkrets", args.valkrets]
+        built_alla[val] = alla_out
         if val == "RD":
             acmd += ["--covariates-out", str(Path(args.rd_out).parent / "scb_live.csv")]
             if args.status_file:
@@ -267,6 +273,19 @@ def one_cycle(args):
         log("Inga ändringar i något val. Bygger inte om."); return False
     save_state(state)
 
+    # slå ihop alla-partier-områdesfilerna (RD/RF/KF) -> live omraden_alla.csv
+    alla_live = str(Path(args.rd_out).parent / "omraden_alla.csv")
+    merged = 0
+    with open(alla_live, "w", newline="", encoding="utf-8") as f:
+        f.write("niva,kod,namn,val,parti,andel\n")
+        for val, p in built_alla.items():
+            if p and Path(p).exists():
+                lines = Path(p).read_text(encoding="utf-8").splitlines()[1:]
+                for ln in lines:
+                    f.write(ln + "\n"); merged += 1
+    if merged:
+        log(f"omraden_alla.csv (live): {merged} rader från {', '.join(built_alla)}")
+
     # bygg: primärvalet (RD om det finns, annars första) + ev. RF/KF
     primary = "RD" if "RD" in built else next(iter(built))
     cmd = [sys.executable, str(HERE / "build.py"), "--districts", built[primary], "--out", args.out,
@@ -275,6 +294,8 @@ def one_cycle(args):
         cmd += ["--rf", built["RF"]]
     if "KF" in built and primary != "KF":
         cmd += ["--kf", built["KF"]]
+    if merged and Path(alla_live).exists():
+        cmd += ["--allresults", alla_live]
     live_cov = str(Path(args.rd_out).parent / "scb_live.csv")
     covariates = args.covariates if Path(args.covariates).exists() else (live_cov if Path(live_cov).exists() else None)
     for flag, path in [("--covariates", covariates), ("--history", args.history), ("--geojson", args.geojson)]:
@@ -336,6 +357,8 @@ def main():
     ap.add_argument("--history", default="data/historik.csv")
     ap.add_argument("--geojson", default="data/valdistrikt-riket-2026.zip",
                     help="Valdistrikts-GeoJSON/zip från val.se (valfri; ger Kartogram/Geografi)")
+    ap.add_argument("--valkrets", default="data/valkrets.csv", help="CSV för riksdagsvalkretsar (RD-områden)")
+    ap.add_argument("--allmin", type=float, default=1.0, help="Tröskel (%) för alla-partier-områdesfilen")
     ap.add_argument("--status-file", default="data/status.txt")
     ap.add_argument("--live", action="store_true")
     ap.add_argument("--deploy", action="store_true", help="Deploya till Netlify (kräver env-variabler)")
