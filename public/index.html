@@ -45,6 +45,11 @@
   .tile{cursor:pointer}
   .blockbg{fill:transparent}.blockbg.sel{fill:#eef4ff}
   .progress{height:5px;background:var(--hair2);border-radius:999px;overflow:hidden;margin:0 0 14px}
+  .tabmap{margin:14px 0 2px}
+  .tabmap-h{font-size:12px;color:var(--muted);margin:0 2px 6px}
+  .tabmap svg{display:block;width:100%;height:auto;max-height:420px;background:#fbfbf9;border:1px solid var(--hair);border-radius:12px}
+  .tabmap-lg{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin:6px 2px 0}
+  .tabmap-lg .bar{height:10px;width:120px;border-radius:3px}
   .progress>i{display:block;height:100%;background:linear-gradient(90deg,#3aa76d,#2a9d8f);transition:width .5s ease}
   .partybar{display:flex;align-items:center;gap:10px;margin:14px 0 12px}
   .topline{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:var(--panel);
@@ -221,6 +226,7 @@
         <select id="xvar"></select></div>
     </div>
     <div class="chartwrap"><svg id="scatterSvg" class="chart" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet"></svg><div class="tip" id="tipS"></div></div>
+    <div class="tabmap"><div class="tabmap-h" id="scatterMapH"></div><svg id="scatterMap" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg><div class="tabmap-lg" id="scatterMapLg"></div></div>
     <div class="readout">
       <div class="stat"><span class="k">Korrelation (r)</span><span class="v" id="r">–</span></div>
       <div class="stat"><span class="k">Förklaringsgrad (R²)</span><span class="v" id="r2">–</span></div>
@@ -261,6 +267,7 @@
     </div>
     <p class="sub" style="margin:-4px 0 10px">Varje punkt är ett distrikt. Ligger punkten under den streckade linjen är partiet starkare i x än i y.</p>
     <div class="chartwrap"><svg id="splitSvg" class="chart" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet"></svg><div class="tip" id="tipSp"></div></div>
+    <div class="tabmap"><div class="tabmap-h" id="splitMapH"></div><svg id="splitMap" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg><div class="tabmap-lg" id="splitMapLg"></div></div>
     <div class="readout">
       <div class="stat"><span class="k">Snittsplittring (x−y)</span><span class="v" id="spMean">–</span></div>
       <div class="stat"><span class="k">Distrikt</span><span class="v" id="spN">–</span></div>
@@ -507,6 +514,50 @@
     const pad=Math.max(x1-x0,y1-y0)*0.08+6;vb={x:x0-pad,y:y0-pad,w:(x1-x0)+2*pad,h:(y1-y0)+2*pad};applyVB();
   }
   const mapFill=d=>d.raknat===1?(PC[topAt(d)]||"#bbb"):"#dcdcd6";
+  // ---- distriktskarta (choropleth) för flikar ----
+  function _hex(c){c=c.replace("#","");return [parseInt(c.slice(0,2),16),parseInt(c.slice(2,4),16),parseInt(c.slice(4,6),16)];}
+  function _mix(a,b,t){const A=_hex(a),B=_hex(b);return "#"+[0,1,2].map(i=>Math.round(A[i]+(B[i]-A[i])*t).toString(16).padStart(2,"0")).join("");}
+  function polyD(d){if(d._pd!==undefined)return d._pd;if(!d.poly){d._pd=null;return null;}let p="";d.poly.forEach((pt,i)=>{p+=(i?"L":"M")+pt[0].toFixed(1)+" "+pt[1].toFixed(1)+" ";});d._pd=p+"Z";return d._pd;}
+  function choropleth(svgId,hId,lgId,valueFn,colorFn,legendHtml,note){
+    const svg=document.getElementById(svgId);if(!svg)return;
+    const data=scope().filter(d=>d.poly&&valueFn(d)!=null);
+    if(!data.length){svg.innerHTML="";document.getElementById(hId).textContent="";document.getElementById(lgId).innerHTML="";return;}
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    for(const d of data)for(const pt of d.poly){if(pt[0]<x0)x0=pt[0];if(pt[0]>x1)x1=pt[0];if(pt[1]<y0)y0=pt[1];if(pt[1]>y1)y1=pt[1];}
+    const pad=Math.max(x1-x0,y1-y0)*0.04+4;
+    let s="";
+    for(const d of data){const pd=polyD(d);if(!pd)continue;
+      s+=`<path d="${pd}" fill="${colorFn(valueFn(d))}" stroke="#fff" stroke-width="0.25" opacity="0.95"/>`;}
+    svg.innerHTML=s;svg.setAttribute("viewBox",`${(x0-pad).toFixed(1)} ${(y0-pad).toFixed(1)} ${(x1-x0+2*pad).toFixed(1)} ${(y1-y0+2*pad).toFixed(1)}`);
+    document.getElementById(hId).textContent=note;
+    document.getElementById(lgId).innerHTML=legendHtml;
+  }
+  function renderScatterMap(){
+    const P=PARTIES.find(p=>p.id===state.party);
+    const vals=scope().map(d=>shareAt(d,P.id)).filter(v=>v!=null);
+    if(!vals.length){choropleth("scatterMap","scatterMapH","scatterMapLg",()=>null,()=>"#eee","","");return;}
+    const mx=Math.max(...vals)||1;
+    choropleth("scatterMap","scatterMapH","scatterMapLg",
+      d=>shareAt(d,P.id),
+      v=>_mix("#f3f4f0",P.color,Math.min(1,v/mx)),
+      `0% <span class="bar" style="background:linear-gradient(90deg,#f3f4f0,${P.color})"></span> ${mx.toFixed(0)}%`,
+      `${P.namn}s andel per distrikt (${yearLabel()}) i ${areaLabel()} – mörkare = starkare.`);
+  }
+  function renderSplitMap(){
+    const P=PARTIES.find(p=>p.id===state.party),years=state.splitMode==="years";
+    const A=state.splitA,B=state.splitB,yA=state.splitYearA,yB=state.splitYearB;
+    const gv=years?(d=>{const s=d.series&&d.series[P.id];return s&&s[yA]!=null&&s[yB]!=null?s[yA]-s[yB]:null;})
+                  :(d=>{const a=shareEl(d,A,P.id),b=shareEl(d,B,P.id);return a!=null&&b!=null?a-b:null;});
+    const vals=scope().map(gv).filter(v=>v!=null);
+    if(!vals.length){choropleth("splitMap","splitMapH","splitMapLg",()=>null,()=>"#eee","","");return;}
+    const mx=Math.max(1,...vals.map(Math.abs));
+    const labA=years?(""+ELYEARS[yA]):(DATA.valNamn[A]||A),labB=years?(""+ELYEARS[yB]):(DATA.valNamn[B]||B);
+    choropleth("splitMap","splitMapH","splitMapLg",
+      gv,
+      v=>v>=0?_mix("#f3f4f0","#2a9d8f",Math.min(1,v/mx)):_mix("#f3f4f0","#e07a5f",Math.min(1,-v/mx)),
+      `${labB} starkare <span class="bar" style="background:linear-gradient(90deg,#e07a5f,#f3f4f0,#2a9d8f)"></span> ${labA} starkare`,
+      `${P.namn}: skillnad ${labA} − ${labB} per distrikt i ${areaLabel()} (grön = starkare i ${labA}).`);
+  }
   function renderMap(){
     applyVB();mapSvg.textContent="";
     if(mapMode==="tiles"){renderTiles();return;}
@@ -544,8 +595,24 @@
     }
   }
   let dragging=false,moved=false,last=null;
-  mapSvg.addEventListener("pointerdown",e=>{dragging=true;moved=false;last={x:e.clientX,y:e.clientY};mapSvg.classList.add("grabbing");mapSvg.setPointerCapture(e.pointerId);});
+  const pointers=new Map();let pinch=null;
+  function svgPt(cx,cy){const r=mapSvg.getBoundingClientRect();return {x:vb.x+(cx-r.left)/r.width*vb.w,y:vb.y+(cy-r.top)/r.height*vb.h};}
+  mapSvg.addEventListener("pointerdown",e=>{
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size===1){dragging=true;moved=false;last={x:e.clientX,y:e.clientY};mapSvg.classList.add("grabbing");mapSvg.setPointerCapture(e.pointerId);}
+    else if(pointers.size===2){dragging=false;const p=[...pointers.values()];
+      const mid={x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2};
+      pinch={dist:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),mid:svgPt(mid.x,mid.y),w0:vb.w,h0:vb.h};moved=true;}
+  });
   mapSvg.addEventListener("pointermove",e=>{
+    if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pinch&&pointers.size>=2){const p=[...pointers.values()];
+      const dist=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);if(dist<=0)return;
+      const mw=space().w*1.4,nw=clamp(pinch.w0*(pinch.dist/dist),50,mw),nh=pinch.h0*(nw/pinch.w0);
+      const r=mapSvg.getBoundingClientRect(),mid={x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2};
+      const fx=(mid.x-r.left)/r.width,fy=(mid.y-r.top)/r.height;
+      vb.w=nw;vb.h=nh;vb.x=pinch.mid.x-fx*nw;vb.y=pinch.mid.y-fy*nh;
+      mapSvg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);tipM.style.opacity=0;return;}
     if(dragging){const dx=e.clientX-last.x,dy=e.clientY-last.y;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;
       const sc=vb.w/mapSvg.clientWidth;vb.x-=dx*sc;vb.y-=dy*sc;last={x:e.clientX,y:e.clientY};mapSvg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);tipM.style.opacity=0;return;}
     const t=e.target;if(t&&t.__d){const d=t.__d;
@@ -553,8 +620,11 @@
       tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(e.clientX-w.left)+"px";tipM.style.top=(e.clientY-w.top)+"px";}
     else tipM.style.opacity=0;
   });
-  mapSvg.addEventListener("pointerup",e=>{dragging=false;mapSvg.classList.remove("grabbing");
-    if(!moved){const t=document.elementFromPoint(e.clientX,e.clientY);if(t&&t.__d){openDetail(t.__d.i);}}});
+  function endPtr(e){pointers.delete(e.pointerId);if(pointers.size<2)pinch=null;
+    if(pointers.size===0){dragging=false;mapSvg.classList.remove("grabbing");}}
+  mapSvg.addEventListener("pointerup",e=>{endPtr(e);
+    if(!moved&&pointers.size===0){const t=document.elementFromPoint(e.clientX,e.clientY);if(t&&t.__d){openDetail(t.__d.i);}}});
+  mapSvg.addEventListener("pointercancel",endPtr);
   mapSvg.addEventListener("pointerleave",()=>{tipM.style.opacity=0;});
   mapSvg.addEventListener("wheel",e=>{e.preventDefault();
     const rect=mapSvg.getBoundingClientRect();
@@ -613,7 +683,7 @@
     const pts=data.filter(d=>d[Xkey]!=null&&yget(d)!=null).map(d=>({d,x:d[Xkey],y:yget(d)}));
     sSvg.textContent="";
     if(pts.length<3){const t=el("text",{x:W/2,y:H/2,"text-anchor":"middle",fill:"#9aa0a4"});t.textContent="För få distrikt i valt område.";sSvg.appendChild(t);
-      ["r","r2","slope"].forEach(id=>document.getElementById(id).textContent="–");document.getElementById("n").textContent=pts.length;document.getElementById("capS").textContent="";return;}
+      ["r","r2","slope"].forEach(id=>document.getElementById(id).textContent="–");document.getElementById("n").textContent=pts.length;document.getElementById("capS").textContent="";renderScatterMap();return;}
     const [x0,x1]=extent(pts.map(p=>p.x));let[y0,y1]=extent(pts.map(p=>p.y));
     if(state.ymode==="change"){const m=Math.max(Math.abs(y0),Math.abs(y1));y0=-m;y1=m;}
     const sx=v=>Mg.l+(v-x0)/(x1-x0)*pw,sy=v=>Mg.t+ph-(v-y0)/(y1-y0)*ph,rr=v=>3+Math.sqrt((v||1000)/2600)*7;
@@ -643,6 +713,7 @@
     document.getElementById("n").textContent=pts.length;
     const styrka=Math.abs(r)>0.6?"starkt":Math.abs(r)>0.3?"måttligt":"svagt";
     document.getElementById("capS").textContent=`${P.namn}s ${state.ymode==="share"?"andel":"förändring"} ${r>0?"stiger":"faller"} med ${Xm.lab.toLowerCase()} – ${styrka} samband i ${areaLabel()} ${yearLabel()}. Klicka på en punkt för att bevaka.`;
+    renderScatterMap();
   }
   function tipHtml(d,P,Xkey){return `<b>${d.namn}</b><br><span class="row">${P.id}: ${(shareAt(d,state.party)||0).toFixed(1)}% (${changeAt(d,state.party)>=0?"+":""}${changeAt(d,state.party).toFixed(1)})</span><br><span class="row">${COVMETA[Xkey].lab.split(" (")[0]}: ${fmtCov(Xkey,d[Xkey])}</span><br><span class="row">Röstberättigade: ${(d.rost||0).toLocaleString("sv-SE")}</span>`;}
   document.querySelectorAll("#ymode button").forEach(b=>b.addEventListener("click",()=>{
@@ -924,7 +995,7 @@
     if(!years&&(!DATA.vals||DATA.vals.length<2)||data.length<3){
       const t=el("text",{x:400,y:260,"text-anchor":"middle",fill:"#9aa0a4"});
       t.textContent=(!years&&(!DATA.vals||DATA.vals.length<2))?"Bara ett val i datan – välj läget 'Två år' i stället.":"För få distrikt med data i valt område.";
-      spSvg.appendChild(t);document.getElementById("spMean").textContent="–";document.getElementById("spN").textContent=data.length;document.getElementById("capSp").textContent="";return;}
+      spSvg.appendChild(t);document.getElementById("spMean").textContent="–";document.getElementById("spN").textContent=data.length;document.getElementById("capSp").textContent="";renderSplitMap();return;}
     const W=800,H=520,Mg={l:56,r:22,t:20,b:52},pw=W-Mg.l-Mg.r,ph=H-Mg.t-Mg.b;
     let mx=0;for(const d of data){mx=Math.max(mx,ga(d),gb(d));}mx=Math.ceil((mx+2)/5)*5;
     const sx=v=>Mg.l+v/mx*pw,sy=v=>Mg.t+ph-v/mx*ph,rr=v=>3+Math.sqrt((v||1000)/2600)*6;
@@ -949,6 +1020,7 @@
     document.getElementById("spN").textContent=data.length;
     const what=years?`mellan ${labA} och ${labB}`:`i ${labA} än i ${labB}`;
     document.getElementById("capSp").textContent=`I snitt ${(mean>=0?mean.toFixed(1)+' procentenheter mer':(-mean).toFixed(1)+' procentenheter mindre')} för ${P.namn} ${what} i ${areaLabel()}. Klicka på en punkt för distriktsdetaljer.`;
+    renderSplitMap();
   }
 
   // ================= PROGNOS =================
