@@ -291,6 +291,7 @@
 
   <section class="panelview" id="view-prognos">
     <p class="sub" style="margin-bottom:6px">Prognos för slutresultatet utifrån hittills räknade distrikt. Tre modeller; alla räknar på <b id="progArea"></b>.</p>
+    <div id="allResBox" style="margin:8px 0 14px"></div>
     <div style="display:flex;align-items:center;gap:14px;margin:8px 0 4px;flex-wrap:wrap">
       <div class="seg" id="progMode">
         <button data-m="live" aria-pressed="true">Verklig räkning</button>
@@ -1114,6 +1115,7 @@
     return null;
   }
   function renderPrognos(){
+    renderAllRes();
     document.getElementById("progArea").textContent=areaLabel();
     document.getElementById("progPct").textContent=Math.round(progPct*100)+"%";
     const data=scope();
@@ -1331,6 +1333,28 @@
       lede.innerHTML="Välj område och val för kandidatprognos: <b>en kommun + Kommunval</b> (kommunfullmäktige), eller <b>ett län + Riksdagsval</b> (riksdagsvalkrets). Region och fler-valkretskommuner kommer i ett senare steg.";
     }
   }
+  function pcolor(p){return PC[p]||"#9aa0a4";}
+  function areaResults(){
+    const A=DATA.allresults||{},el=state.election;let niva,kod;
+    if(el==="KF"&&state.geo.kommun){niva="kommun";kod=(DATA.komKod||{})[state.geo.kommun];}
+    else if(el==="RF"&&state.geo.lan&&!state.geo.kommun){niva="region";kod=(DATA.lanKod||{})[state.geo.lan];}
+    else if(el==="RD"&&!state.geo.lan&&!state.geo.kommun){niva="riket";kod="00";}
+    else if(el==="RD"&&state.geo.lan&&!state.geo.kommun){niva="valkrets";kod=state.geo.lan;}
+    else return null;
+    return (A[niva]&&A[niva][kod]&&A[niva][kod][el])||null;
+  }
+  function renderAllRes(){
+    const box=document.getElementById("allResBox");if(!box)return;
+    const res=areaResults();
+    if(!res||!res.length){box.innerHTML="";return;}
+    const mx=res[0].a||1;
+    const rows=res.map(x=>{const isLocal=!PARTIES.some(p=>p.id===x.p);
+      return `<div style="display:flex;align-items:center;gap:8px;margin:2px 0;font-size:13px">`+
+        `<span style="width:120px;flex:0 0 120px;${isLocal?'color:#555':'font-weight:600;color:'+pcolor(x.p)}">${x.p}</span>`+
+        `<span style="flex:1;background:var(--hair2);border-radius:4px;overflow:hidden"><span style="display:block;height:12px;width:${(x.a/mx*100).toFixed(1)}%;background:${pcolor(x.p)}"></span></span>`+
+        `<span style="width:52px;text-align:right">${x.a.toFixed(1)}%</span></div>`;});
+    box.innerHTML=`<div class="tl-lead" style="margin-bottom:4px">Resultat i ${areaLabel()} – alla partier ≥ 1% (baslinje 2022 tills valnatten)</div>${rows.join("")}`;
+  }
   function renderTopline(){
     const box=document.getElementById("topline");const data=scope();
     // aktuella andelar för valt år, viktade, för området (via exakt områdestotal om finns)
@@ -1340,10 +1364,14 @@
     const ord=[...PARTIES].filter(p=>cur[p.id]!=null).sort((a,b)=>cur[b.id]-cur[a.id]);
     if(!ord.length){box.innerHTML="";return;}
     const lead=ord[0];
-    // förändring mot 2022 för ledande parti
+    // störst inkl. lokala partier (från all-party-resultatet om det finns)
+    const ar=areaResults();
+    let leadId=lead.id, leadColor=lead.color, leadVal=cur[lead.id], leadLocal=false;
+    if(ar&&ar.length&&ar[0].a>(leadVal||0)){leadId=ar[0].p;leadColor=pcolor(ar[0].p);leadVal=ar[0].a;leadLocal=!PARTIES.some(p=>p.id===leadId);}
+    // förändring mot 2022 för ledande parti (endast för de åtta)
     const y22=ELYEARS.indexOf(2022);
-    const lead22=(y22>=0&&agg[lead.id]&&agg[lead.id][y22]!=null)?agg[lead.id][y22]:null;
-    const leadDelta=lead22!=null?cur[lead.id]-lead22:null;
+    const lead22=(!leadLocal&&y22>=0&&agg[leadId]&&agg[leadId][y22]!=null)?agg[leadId][y22]:null;
+    const leadDelta=lead22!=null?leadVal-lead22:null;
     // räknat-status
     const counted=data.filter(d=>d.raknat===1).length,pct=data.length?Math.round(counted/data.length*100):0;
     const pf=document.querySelector("#progress > i");if(pf)pf.style.width=pct+"%";
@@ -1360,9 +1388,9 @@
     }
     box.innerHTML=
       `<div><div class="tl-lead">Största (${DATA.valNamn[state.election]||state.election})</div>`+
-      `<div class="tl-big" style="color:${lead.color}">${lead.id} ${cur[lead.id].toFixed(1)}%`+
+      `<div class="tl-big" style="color:${leadColor}">${leadId} ${leadVal.toFixed(1)}%`+
       (leadDelta!=null?` <span style="font-size:13px;font-weight:600;color:${leadDelta>=0?'var(--over)':'var(--under)'}">${leadDelta>=0?'▲':'▼'}${Math.abs(leadDelta).toFixed(1)}</span>`:"")+
-      `</div><div class="tl-meta">mot 2022${lead22!=null?` (${lead22.toFixed(1)}%)`:""}</div></div>`+
+      `</div><div class="tl-meta">${leadLocal?"lokalt parti":("mot 2022"+(lead22!=null?` (${lead22.toFixed(1)}%)`:""))}</div></div>`+
       `<div style="flex:1;min-width:200px"><div class="tl-lead">${areaLabel()} · ${barLabel}</div>`+
       `<div class="tl-seatbar">${barHtml}</div></div>`+
       `<div><div class="tl-lead">Räknat</div><div class="tl-big">${pct}%</div>`+
