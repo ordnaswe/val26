@@ -1,9 +1,8 @@
-
-Gitignore ny · TXT
-# --- Byggutdata (skapas av build.py) ---
-public/
+# --- Arbetsfiler / cache ---
 .cache/
- 
+__pycache__/
+.DS_Store
+
 # --- Valnattens arbetsfiler (skapas på plats den 13/9) ---
 data/distrikt.csv
 data/rd.csv
@@ -12,9 +11,9 @@ data/kf.csv
 data/status.txt
 data/scb_live.csv
 data/scb_deso.csv
- 
+
 # --- Rådata: redan bearbetad till data/historik.csv, data/omraden.csv, data/scb.csv ---
-# (behövs inte i repot – spara lokalt om du vill kunna regenerera)
+# (behövs INTE i repot – spara lokalt i källdata/ om du vill kunna regenerera)
 *.gpkg
 inkomst.csv
 utbildning.csv
@@ -24,13 +23,9 @@ utländsk bakgrund.csv
 2014_*_per_valdistrikt.csv
 2018_*_per_valdistrikt.csv
 [Rr]oster-per-distrikt-*.csv
- 
-# --- Stor geometri (27 MB) – se noten nedan ---
+
+# --- Stor geometri (27 MB) – ligger lokalt, bakas in i public/index.html vid bygget ---
 data/*.zip
- 
-__pycache__/
-.DS_Store
- 
-# OBS: data/historik.csv, data/omraden.csv, data/scb.csv, data/mandat.csv och
-# data/kommuner.csv ska INTE ignoreras – de behövs för att bygga sajten.
- 
+data/valdistrikt-riket-2026.zip
+
+# public/ committas i väg A (den byggda, självständiga sajten) – därför INTE ignorerad.

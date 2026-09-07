@@ -1,106 +1,43 @@
-# Publicera valdistrikt-sajten
+# Deploy – Valutfall (väg A: bygg lokalt, committa public/)
 
-Samma mönster som förtidsröster-sajten och Faktadriven: ett stdlib-Python-skript
-bygger en självständig `public/index.html`, och **GitHub Actions bygger och
-deployar `public/` till Netlify**. `public/` committas aldrig. `index.html`
-redigeras aldrig för hand — bara `template.html` och byggskripten.
+Sajten `public/index.html` är **självständig** – all data och geometri bakas in vid bygget.
+Netlify servar den filen; GitHub-Action deployar den vid varje push.
 
-## Repo-innehåll
+## Engångs-städning av repot
+Rådata och den stora geometrin ska inte ligga i repot. Flytta undan råfilerna och
+sluta spåra dem i git:
 
-Lägg dessa i repots rot:
+    mkdir -p ../källdata
+    mv DeSO_2025.gpkg inkomst.csv utbildning.csv ålder.csv "hyresrätt.csv" "utländsk bakgrund.csv" \
+       2014_*_per_valdistrikt.csv 2018_*_per_valdistrikt.csv [Rr]oster-per-distrikt-*.csv ../källdata/ 2>/dev/null
+    # om de redan committats tidigare:
+    git rm -r --cached --ignore-unmatch *.gpkg inkomst.csv utbildning.csv ålder.csv "hyresrätt.csv" \
+       "utländsk bakgrund.csv" 2014_*_per_valdistrikt.csv 2018_*_per_valdistrikt.csv \
+       "Roster-per-distrikt-*.csv" "roster-per-distrikt-*.csv" data/*.zip
+    # ta bort den gamla schemalagda workflowen (används inte i väg A):
+    git rm -f --ignore-unmatch .github/workflows/valnatt.yml
 
-```
-adapter.py            # Valmyndighetens JSON/ZIP -> data/distrikt.csv
-build.py              # bygger public/index.html
-template.html         # UI:t (redigeras för hand, inte index.html)
-data/                 # committad indata (valfritt tills datasteget finns)
-  distrikt.csv        #   – finns den bygger Action:en från den
-  scb.csv             #   – valfri
-  historik.csv        #   – valfri
-  valdistrikt.geojson #   – valfri (ger Kartogram/Geografi-läge)
-  status.txt          #   – valfri, t.ex. "4 231 av 6 578 valdistrikt räknade"
-.github/workflows/bygg-och-deploy.yml
-```
+Geometrin `data/valdistrikt-riket-2026.zip` blir kvar lokalt (ignorerad av git) – den
+behövs bara när du bygger.
 
-Finns ingen `data/distrikt.csv` bygger Action:en med **syntetiskt exempeldata**,
-så sajten kommer upp direkt. Byt in riktig data när du är redo.
+## Bygg och deploya
+1. Bygg sajten lokalt:
 
----
+       python3 build.py --geojson data/valdistrikt-riket-2026.zip --history data/historik.csv \
+         --kommuner data/kommuner.csv --covariates data/scb.csv --out public/index.html
 
-## A. Netlify — skapa sajt och hämta två värden
+2. Committa och pusha:
 
-1. netlify.com → **Add new site → Deploy manually**. Dra in valfri mapp (kör du
-   `python3 build.py --out public/index.html` lokalt en gång får du en `public`-mapp
-   att dra in — annars duger en tom mapp; Action:en skriver ändå över den).
-2. Öppna sajten → **Site configuration → Site details** → kopiera **API ID**.
-   Det är värdet till `NETLIFY_SITE_ID` (API-ID:t, inte sajtens namn eller URL).
-3. Profilbilden uppe till höger → **User settings → Applications → Personal access
-   tokens → New access token**. Namnge det. Kräver ditt team SSO: bocka i **Allow
-   access to my SAML-based Netlify team**. **Generate token** och **kopiera strängen
-   direkt** — den visas bara en gång. Det är `NETLIFY_AUTH_TOKEN`.
-4. Se till att sajten och token ligger på **samma Netlify-konto/team**.
+       git add -A
+       git commit -m "Ny build"
+       git push
 
-## B. GitHub — lägg in de två värdena som secrets
+   GitHub-Action `Deploy till Netlify` kör och lägger upp `public/` på sajten.
 
-5. Repot → **Settings** (repots egna, i menyraden) → **Secrets and variables → Actions**.
-6. **New repository secret** → Name: `NETLIFY_AUTH_TOKEN`, Secret: token-strängen från steg 3. Spara.
-7. **New repository secret** igen → Name: `NETLIFY_SITE_ID`, Secret: API-ID:t från steg 2. Spara.
+## Valnatten 13/9
+Kör hämtaren lokalt – den laddar ned nya siffror, bygger om public/ och deployar direkt:
 
-Kontrollera: båda ligger under **Secrets** (inte Variables), namnen exakt rätt,
-inga mellanslag/radbrytningar. (Detta är repots secrets — inte fine-grained tokens.)
+       python3 hamta.py --loop 90 --deploy
 
-## C. Kör och verifiera
-
-8. Repot → **Actions** → **Bygg och deploy valdistrikt-sajt** → **Run workflow**.
-9. Öppna körningen. Grön = sajten är uppe på Netlify. Därefter bygger den om vid
-   varje push till `main`.
-
-Om deploy-steget säger `Unauthorized`, isolera med samma två värden i terminalen:
-
-```
-curl -s -o /dev/null -w "%{http_code}\n" \
-  -H "Authorization: Bearer DIN_TOKEN" \
-  https://api.netlify.com/api/v1/sites/DITT_SITE_ID
-```
-
-`200` = värdena funkar (då är det hur secreten klistrats in), `401` = token, `404` = fel site-ID.
-
-## D. Undvik dubbla byggen
-
-Låt Netlify-sajten **inte** vara kopplad till repot för egen auto-build. Valde du
-"Import an existing project" av misstag: **Site configuration → Build & deploy** →
-lämna build-kommandot tomt eller koppla bort repot. Det är GitHub Actions som
-bygger och skickar färdiga filer till Netlify.
-
-## E. Egen domän (Loopia)
-
-10. Netlify → **Domain management → Add a domain** → ange domänen.
-11. Netlify visar vilka DNS-poster som krävs (en CNAME för www, samt A/ALIAS för
-    apex). Logga in på **Loopia → DNS-redigering** för domänen och lägg in exakt
-    de poster Netlify anger. Peka inte om något annat än det Netlify listar.
-12. Vänta på DNS-propagering och låt Netlify utfärda TLS-certifikatet (Let's Encrypt)
-    automatiskt.
-
----
-
-## Bygga om med riktig data
-
-Lokalt, eller som ett steg före deploy:
-
-```
-# 1) Valmyndighetens JSON/ZIP -> data/distrikt.csv
-python3 adapter.py --inspect resultat_kf_0120.json      # se strukturen först
-python3 adapter.py resultat_kf_*.json -o data/distrikt.csv
-
-# 2) bygg
-python3 build.py --districts data/distrikt.csv \
-  --covariates data/scb.csv --history data/historik.csv \
-  --geojson data/valdistrikt.geojson \
-  --status "4 231 av 6 578 valdistrikt räknade" --live \
-  --out public/index.html
-```
-
-Committar du uppdaterad `data/`-fil och pushar till `main` bygger och deployar
-Action:en automatiskt. Den kontinuerliga valnatts-hämtningen (cron + nedladdning
-av ändrade zip från `index.md5`) är nästa steg — då avkommenteras `schedule` i
-workflow-filen.
+(NETLIFY_SITE_ID och NETLIFY_AUTH_TOKEN måste finnas som miljövariabler; se FÖRBEREDELSER.md.)
+Alternativt: bygg om lokalt och `git push` – Action deployar då den nya public/.
