@@ -46,6 +46,19 @@
   .blockbg{fill:transparent}.blockbg.sel{fill:#eef4ff}
   .progress{height:5px;background:var(--hair2);border-radius:999px;overflow:hidden;margin:0 0 14px}
   .tabmap{margin:14px 0 2px}
+  .kandgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .kandcard{border:1px solid var(--hair);border-radius:12px;padding:12px 14px;background:var(--panel);box-shadow:var(--shadow)}
+  .kandcard h4{margin:0 0 2px;font-size:15px}
+  .kandcard .seatline{font-size:12px;color:var(--muted);margin:0 0 8px}
+  .kandcard ol{margin:0;padding-left:22px}
+  .kandcard li{font-size:13px;padding:1px 0}
+  .kandcard li.inne{font-weight:600}
+  .kandcard li.grans{color:#8a6d00}
+  .kandcard li.ute{color:var(--faint)}
+  .kandcard .divider{border:0;border-top:1px dashed var(--hair);margin:4px 0}
+  .kandtag{font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:1px 6px;border-radius:999px;margin-left:6px}
+  .kandtag.inne{background:#e4f4ec;color:#0a5b3a}
+  .kandtag.grans{background:#fbf3d8;color:#7a5a00}
   .tabmap-h{font-size:12px;color:var(--muted);margin:0 2px 6px}
   .tabmap svg{display:block;width:100%;height:auto;max-height:420px;background:#fbfbf9;border:1px solid var(--hair);border-radius:12px}
   .tabmap-lg{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin:6px 2px 0}
@@ -206,6 +219,7 @@
   <div class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="table">Tabell</button>
     <button role="tab" aria-selected="false" data-tab="prognos">Prognos</button>
+    <button role="tab" aria-selected="false" data-tab="kandidater">Kandidater</button>
     <button role="tab" aria-selected="false" data-tab="hist">Historik</button>
     <button role="tab" aria-selected="false" data-tab="scatter">Samband</button>
     <button role="tab" aria-selected="false" data-tab="resid">Avvikelse</button>
@@ -292,6 +306,11 @@
     <div id="progMandat" style="margin:6px 0 2px"></div>
     <table class="dtbl" id="progTbl" style="margin-top:10px"></table>
     <p class="caption" id="progCap"></p>
+  </section>
+
+  <section class="panelview" id="view-kandidater">
+    <p class="sub" id="kandLede" style="margin-bottom:10px"></p>
+    <div id="kandBody"></div>
   </section>
 
   <section class="panelview active" id="view-table">
@@ -1269,6 +1288,49 @@
       `<text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="13" font-weight="700" fill="#171a1c">${total}</text>`+
       `<text x="${cx}" y="${H-1}" text-anchor="middle" font-size="10" fill="#888">majoritet ${maj}</text></svg>`;
   }
+  function kandCard(namn,partiObj,seats,list){
+    // seats = prognostiserade mandat; list = namn i listordning
+    const inne=Math.max(0,Math.round(seats));
+    const rows=list.map((n,i)=>{
+      const cls=i<inne?"inne":(i<inne+2?"grans":"ute");
+      const tag=i<inne?`<span class="kandtag inne">inne</span>`:(i<inne+2?`<span class="kandtag grans">gräns</span>`:"");
+      return `<li class="${cls}">${n}${tag}</li>`;
+    }).slice(0,Math.max(inne+4,6));
+    return `<div class="kandcard"><h4 style="color:${partiObj.color}">${partiObj.id} – ${partiObj.namn}</h4>`+
+      `<p class="seatline">${namn}: <b>${inne}</b> mandat i prognosen</p><ol>${rows.join("")}</ol></div>`;
+  }
+  function renderKandidater(){
+    const C=DATA.candidates||{},lede=document.getElementById("kandLede"),body=document.getElementById("kandBody");
+    body.innerHTML="";
+    if(state.election==="KF"&&state.geo.kommun){
+      const kk=(DATA.komKod||{})[state.geo.kommun],lists=(C.KF||{})[kk]||{};
+      const seatsN=mandateSeats(),thr=progThreshold();
+      if(!seatsN){lede.textContent=`Mandattabell saknas för ${state.geo.kommun}.`;return;}
+      // partimandat i kommunen ur exakta/aktuella andelar
+      const area=areaSeries()||{},cur={};for(const p of PARTIES)cur[p.id]=(area[p.id]&&area[p.id][state.year]!=null)?area[p.id][state.year]:null;
+      if(cur[PARTIES[0].id]==null){const a=aggSeries(scope());for(const p of PARTIES)cur[p.id]=a[p.id][state.year];}
+      const seats=allocateSeats(cur,seatsN,thr);
+      lede.innerHTML=`Prognostiserade invalda i <b>${state.geo.kommun}s kommunfullmäktige</b> (${seatsN} mandat, ${thr}% spärr). `+
+        `Grönt = inne, gult = på gränsen. Endast de åtta riksdagspartierna – lokala partier ingår inte i modellen. Personröster kan flytta namn.`;
+      const cards=[...PARTIES].filter(p=>lists[p.id]&&seats[p.id]>0).sort((a,b)=>seats[b.id]-seats[a.id])
+        .map(p=>kandCard(state.geo.kommun,p,seats[p.id],lists[p.id]));
+      body.innerHTML=cards.length?`<div class="kandgrid">${cards.join("")}</div>`:"<p class='sub'>Inga listor för de åtta partierna i den här kommunen.</p>";
+    } else if(state.election==="RD"&&state.geo.lan&&!state.geo.kommun){
+      // valkrets = länet, om det motsvarar exakt en riksdagsvalkrets med samma namn
+      const RV=DATA.riksvalkretsar||{};
+      const vkcode=Object.keys(RV).find(k=>RV[k].namn===state.geo.lan);
+      const lists=(C.RD||{})[state.geo.lan]||{};
+      if(!vkcode){lede.innerHTML=`${state.geo.lan} är uppdelat i flera riksdagsvalkretsar – kandidater per valkrets kommer i ett senare steg. Välj en kommun + Kommunval för kommunkandidater.`;return;}
+      const rd=riksdagSeats(scope(),state.year),alloc=(rd.vkDetail[vkcode]||{}).alloc||{};
+      lede.innerHTML=`Prognostiserade invalda i riksdagsvalkretsen <b>${state.geo.lan}</b> (${RV[vkcode].fasta} fasta valkretsmandat). `+
+        `Baserat på valkretsens fasta mandat (utjämningsmandat fördelas ej per kandidat i denna version). Personröster kan flytta namn.`;
+      const cards=[...PARTIES].filter(p=>lists[p.id]&&(alloc[p.id]||0)>0).sort((a,b)=>(alloc[b.id]||0)-(alloc[a.id]||0))
+        .map(p=>kandCard(state.geo.lan,p,alloc[p.id]||0,lists[p.id]));
+      body.innerHTML=cards.length?`<div class="kandgrid">${cards.join("")}</div>`:"<p class='sub'>Inga fasta mandat till de åtta partiernas listor i den här valkretsen ännu.</p>";
+    } else {
+      lede.innerHTML="Välj område och val för kandidatprognos: <b>en kommun + Kommunval</b> (kommunfullmäktige), eller <b>ett län + Riksdagsval</b> (riksdagsvalkrets). Region och fler-valkretskommuner kommer i ett senare steg.";
+    }
+  }
   function renderTopline(){
     const box=document.getElementById("topline");const data=scope();
     // aktuella andelar för valt år, viktade, för området (via exakt områdestotal om finns)
@@ -1314,6 +1376,7 @@
     if(active==="scatter")renderScatter();else if(active==="resid")renderResid();
     else if(active==="hist")renderHist();else if(active==="split")renderSplit();
     else if(active==="prognos")renderPrognos();
+    else if(active==="kandidater")renderKandidater();
     else if(active==="table")renderTable();else if(active==="watch")renderWatch();
   }
   buildLayout();applyHash();fillLan();fillKom();resetZoom();zoomToScope();

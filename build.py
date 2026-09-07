@@ -631,6 +631,28 @@ def apply_history(districts, hist_path):
     return len(hit)
 
 
+def load_candidates(path):
+    """Läs kandidater.csv -> {valtyp: {omrade: {parti: [namn i ordning]}}}."""
+    out = {}
+    if not path or not Path(path).exists():
+        return out
+    tmp = {}
+    for r in read_csv(path):
+        vt = (r.get("valtyp") or "").strip()
+        om = (r.get("omrade") or "").strip()
+        pa = (r.get("parti") or "").strip()
+        ordn = to_float(r.get("ordning"))
+        namn = (r.get("namn") or "").strip()
+        if not (vt and om and pa and namn) or ordn is None:
+            continue
+        tmp.setdefault(vt, {}).setdefault(om, {}).setdefault(pa, []).append((ordn, namn))
+    for vt, oms in tmp.items():
+        out[vt] = {}
+        for om, ps in oms.items():
+            out[vt][om] = {pa: [n for _, n in sorted(lst)] for pa, lst in ps.items()}
+    return out
+
+
 def load_valkrets(path):
     """kommunkod -> valkretskod, och valkretskod -> {namn, fasta} (riksdag)."""
     kom2vk, vk = {}, {}
@@ -873,6 +895,7 @@ def main():
     ap.add_argument("--kommuner", default="data/kommuner.csv", help="CSV kommun_kod,kommun_namn (för förhandsvisning)")
     ap.add_argument("--mandat", default="data/mandat.csv", help="CSV niva,kod,antal med mandat per kommun/region (valfri)")
     ap.add_argument("--valkrets", default="data/valkrets.csv", help="CSV kommunkod,valkretskod,valkretsnamn,fasta (riksdag)")
+    ap.add_argument("--kandidater", default="data/kandidater.csv", help="CSV valtyp,omrade,parti,ordning,namn (från kandidater.py)")
     ap.add_argument("--template", default=str(Path(__file__).with_name("template.html")))
     ap.add_argument("--out", default="dist/valdistrikt.html")
     ap.add_argument("--title", default="Valutfall")
@@ -949,6 +972,7 @@ def main():
     data["valkretsar"] = valkretsar
     data["thresholds"] = {"RD": 4.0, "RF": 3.0, "KF": 2.0}   # KF: 2% (1 valkrets) / 3% (fler) väljs i klienten
     data["riksvalkretsar"] = RIKSVK
+    data["candidates"] = load_candidates(args.kandidater)
     size, n = render_site(data, args.template, args.out)
     print(f"Byggde {args.out}  ·  {n} distrikt  ·  geo={'ja' if has_geo else 'nej'}  ·  {size:,} tecken".replace(",", " "))
 
