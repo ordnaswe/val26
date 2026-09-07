@@ -921,6 +921,7 @@ def main():
     ap.add_argument("--valkrets", default="data/valkrets.csv", help="CSV kommunkod,valkretskod,valkretsnamn,fasta (riksdag)")
     ap.add_argument("--kandidater", default="data/kandidater.csv", help="CSV valtyp,omrade,parti,ordning,namn (från kandidater.py)")
     ap.add_argument("--allresults", default="data/omraden_alla.csv", help="CSV niva,kod,namn,val,parti,andel – alla partier ≥ tröskel (från omraden_alla.py)")
+    ap.add_argument("--granser", default="data/granser.json", help="Kommun-/länsgränser (från granser.py) för hierarkisk karta")
     ap.add_argument("--template", default=str(Path(__file__).with_name("template.html")))
     ap.add_argument("--out", default="dist/valdistrikt.html")
     ap.add_argument("--title", default="Valutfall")
@@ -999,6 +1000,10 @@ def main():
     data["riksvalkretsar"] = RIKSVK
     data["candidates"] = load_candidates(args.kandidater)
     data["allresults"] = load_allresults(args.allresults)
+    try:
+        data["granser"] = json.loads(Path(args.granser).read_text(encoding="utf-8")) if args.granser and Path(args.granser).exists() else {}
+    except Exception:
+        data["granser"] = {}
     size, n = render_site(data, args.template, args.out)
     print(f"Byggde {args.out}  ·  {n} distrikt  ·  geo={'ja' if has_geo else 'nej'}  ·  {size:,} tecken".replace(",", " "))
 
