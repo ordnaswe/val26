@@ -194,6 +194,7 @@
   </div>
 
   <div id="mapModes" class="seg" style="margin-bottom:8px;width:max-content"></div>
+  <div id="hierLayers" class="seg" style="margin-bottom:8px;width:max-content;display:none"></div>
   <input id="mapSearch" list="mapSearchList" placeholder="Sök kommun – hoppa dit på kartan…"
     style="width:100%;max-width:340px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;margin-bottom:8px;background:var(--panel)">
   <datalist id="mapSearchList"></datalist>
@@ -489,7 +490,7 @@
   const mapSvg=document.getElementById("mapSvg"),tipM=document.getElementById("tipM");
   const MAPW=760,TILE=13,GAP=2.5,BLOCKGAP=16,LANGAP=8,LABELH=13,LANLABELH=18;
   const GEOW=DATA.geoW||760,GEOH=DATA.geoH||500;
-  let mapMode=DATA.meta.hasGeo?"geo":"tiles";
+  let mapMode=(DATA.granser&&DATA.granser.lan&&Object.keys(DATA.granser.lan).length)?"nivaer":(DATA.meta.hasGeo?"geo":"tiles");
   let layout=null;
   function space(){ if(mapMode==="tiles"){ if(!layout)buildLayout(); return {w:MAPW,h:layout.totalH}; } return {w:GEOW,h:GEOH}; }
   function buildLayout(){
@@ -579,8 +580,69 @@
       `${labB} starkare <span class="bar" style="background:linear-gradient(90deg,#e07a5f,#f3f4f0,#2a9d8f)"></span> ${labA} starkare`,
       `${P.namn}: skillnad ${labA} − ${labB} per distrikt i ${areaLabel()} (grön = starkare i ${labA}).`);
   }
+  // ---- hierarkisk karta (län -> kommun -> distrikt) med lager-spak ----
+  let hierLayer="kommuner";
+  const LAN_BY_KOD={},KOM_BY_KOD={},KOMKOD_BY_NAMN=DATA.komKod||{},LANKOD_BY_NAMN=DATA.lanKod||{};
+  for(const [n,k] of Object.entries(LANKOD_BY_NAMN))LAN_BY_KOD[k]=n;
+  for(const [n,k] of Object.entries(KOMKOD_BY_NAMN))KOM_BY_KOD[k]=n;
+  const KOMKOD2VK={};for(const d of dist){const kk=KOMKOD_BY_NAMN[d.kommun];if(kk&&d.vk)KOMKOD2VK[kk]=d.vk;}
+  const VKPAL=["#8ecae6","#219ebc","#ffb703","#fb8500","#a3b18a","#bc6c25","#adb5bd","#cdb4db","#84a98c","#e07a5f","#81b29a","#f2cc8f"];
+  function largest8(filterFn){const s={};for(const p of PARTIES)s[p.id]=0;
+    for(const d of dist){if(!filterFn(d))continue;const w=d.rost||1;for(const p of PARTIES){const v=shareAt(d,p.id);if(v!=null)s[p.id]+=v*w;}}
+    let bp=null,bv=-1;for(const p of PARTIES)if(s[p.id]>bv){bv=s[p.id];bp=p.id;}return bp||"S";}
+  function ringsPath(rings){let p="";for(const r of rings){r.forEach((pt,i)=>{p+=(i?"L":"M")+pt[0].toFixed(1)+" "+pt[1].toFixed(1)+" ";});p+="Z ";}return p;}
+  function hierBounds(rings){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const r of rings)for(const pt of r){if(pt[0]<x0)x0=pt[0];if(pt[0]>x1)x1=pt[0];if(pt[1]<y0)y0=pt[1];if(pt[1]>y1)y1=pt[1];}return[x0,y0,x1,y1];}
+  function zoomHier(rings){const b=hierBounds(rings);const pad=Math.max(b[2]-b[0],b[3]-b[1])*0.06+2000;
+    vb={x:b[0]-pad,y:b[1]-pad,w:(b[2]-b[0])+2*pad,h:(b[3]-b[1])+2*pad};applyVB();}
+  function renderHier(){
+    const G=DATA.granser||{};mapSvg.textContent="";
+    const lanToggle=document.getElementById("hierLayers");
+    if(state.geo.kommun){                       // NIVÅ: valdistrikt i kommunen
+      lanToggle.style.display="none";
+      let any=[];
+      for(const d of dist){if(d.kommun!==state.geo.kommun||!d.poly)continue;
+        const path=el("path",{d:polyD(d),fill:mapFill(d),stroke:hi(d.i)?"#171a1c":"#fff","stroke-width":hi(d.i)?1.2:0.4});
+        path.__d=d;mapSvg.appendChild(path);any=any.concat(d.poly);}
+      if(any.length)zoomHier([any]);
+      return;
+    }
+    if(state.geo.lan){                          // NIVÅ: kommuner i länet (+ lager-spak)
+      lanToggle.style.display="";
+      const lk=LANKOD_BY_NAMN[state.geo.lan];const koms=Object.keys(G.kommun||{}).filter(kk=>kk.slice(0,2)===lk);
+      let all=[];
+      for(const kk of koms){const rings=G.kommun[kk];if(!rings||!rings.length)continue;all=all.concat(rings);
+        let fill;
+        if(hierLayer==="riks"){const vk=KOMKOD2VK[kk];fill=vk?VKPAL[(parseInt(vk,10)||0)%VKPAL.length]:"#ccc";}
+        else {fill=PC[largest8(d=>KOMKOD_BY_NAMN[d.kommun]===kk)]||"#bbb";}
+        const path=el("path",{d:ringsPath(rings),fill,"fill-opacity":0.9,stroke:"#fff","stroke-width":1.2});
+        path.style.cursor="pointer";path.__komkod=kk;
+        path.addEventListener("click",()=>{const namn=KOM_BY_KOD[kk];if(namn){state.geo.kommun=namn;fillKom();renderAll();}});
+        path.addEventListener("pointerenter",ev=>{const namn=KOM_BY_KOD[kk]||kk;const vk=KOMKOD2VK[kk];
+          tipM.innerHTML=`<b>${namn}</b>${hierLayer==="riks"&&vk?`<br><span class="row">Riksdagsvalkrets: ${(DATA.riksvalkretsar[vk]||{}).namn||vk}</span>`:""}`;
+          tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(ev.clientX-w.left)+"px";tipM.style.top=(ev.clientY-w.top)+"px";});
+        path.addEventListener("pointerleave",()=>tipM.style.opacity=0);
+        mapSvg.appendChild(path);}
+      if(all.length)zoomHier(all);
+      return;
+    }
+    // NIVÅ: län (riksnivå)
+    lanToggle.style.display="none";
+    let all=[];
+    for(const [lk,rings] of Object.entries(G.lan||{})){if(!rings||!rings.length)continue;all=all.concat(rings);
+      const namn=LAN_BY_KOD[lk];const fill=PC[largest8(d=>d.lan===namn)]||"#bbb";
+      const path=el("path",{d:ringsPath(rings),fill,"fill-opacity":0.88,stroke:"#fff","stroke-width":1.4});
+      path.style.cursor="pointer";
+      path.addEventListener("click",()=>{if(namn){state.geo.lan=namn;state.geo.kommun=null;fillLan();fillKom();renderAll();}});
+      path.addEventListener("pointerenter",ev=>{tipM.innerHTML=`<b>${namn||lk}</b><br><span class="row">Klicka för att zooma in</span>`;
+        tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(ev.clientX-w.left)+"px";tipM.style.top=(ev.clientY-w.top)+"px";});
+      path.addEventListener("pointerleave",()=>tipM.style.opacity=0);
+      mapSvg.appendChild(path);}
+    if(all.length)zoomHier(all);
+  }
   function renderMap(){
     applyVB();mapSvg.textContent="";
+    document.getElementById("hierLayers").style.display=(mapMode==="nivaer"&&state.geo.lan&&!state.geo.kommun)?"":"none";
+    if(mapMode==="nivaer"&&DATA.granser&&DATA.granser.lan){renderHier();return;}
     if(mapMode==="tiles"){renderTiles();return;}
     const inScope=d=>(!state.geo.lan||d.lan===state.geo.lan)&&(!state.geo.kommun||d.kommun===state.geo.kommun);
     if(mapMode==="geo"){
@@ -675,12 +737,21 @@
   })();
   (function(){
     const box=document.getElementById("mapModes");if(!box)return;
-    const modes=DATA.meta.hasGeo?[["geo","Geografi"],["carto","Kartogram"],["tiles","Rutnät"]]:[["tiles","Rutnät"]];
+    const hasHier=DATA.granser&&DATA.granser.lan&&Object.keys(DATA.granser.lan).length;
+    let modes=DATA.meta.hasGeo?[["geo","Geografi"],["carto","Kartogram"],["tiles","Rutnät"]]:[["tiles","Rutnät"]];
+    if(hasHier)modes=[["nivaer","Nivåer"],...modes];
     if(modes.length<2){box.style.display="none";return;}
     box.innerHTML=modes.map(([v,l])=>`<button data-m="${v}" aria-pressed="${v===mapMode}">${l}</button>`).join("");
     box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
       box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
-      b.setAttribute("aria-pressed","true");mapMode=b.dataset.m;zoomToScope();renderMap();}));
+      b.setAttribute("aria-pressed","true");mapMode=b.dataset.m;if(mapMode!=="nivaer")zoomToScope();renderMap();}));
+    // lager-spak (i Nivåer-läget, på länsnivå)
+    const lb=document.getElementById("hierLayers");
+    const layers=[["kommuner","Kommuner"],["riks","Riksdagsvalkretsar"]];
+    lb.innerHTML=layers.map(([v,l])=>`<button data-l="${v}" aria-pressed="${v===hierLayer}">${l}</button>`).join("");
+    lb.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+      lb.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
+      b.setAttribute("aria-pressed","true");hierLayer=b.dataset.l;renderHier();}));
   })();
 
   // ================= tabs =================
