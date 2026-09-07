@@ -1084,19 +1084,31 @@
     const natTot=PARTIES.reduce((a,p)=>a+nat[p.id],0)||1;
     const natPct={};for(const p of PARTIES)natPct[p.id]=nat[p.id]/natTot*100;
     const elig4=PARTIES.filter(p=>natPct[p.id]>=4).map(p=>p.id);
+    const AR=(DATA.allresults||{}).valkrets||{};
     const fasta={};for(const p of PARTIES)fasta[p.id]=0;const vkDetail={};
-    for(const vk in perVk){const seats=(RV[vk]&&RV[vk].fasta)||0;if(!seats)continue;
-      const vv=perVk[vk],vtot=PARTIES.reduce((a,p)=>a+vv[p.id],0)||1;
-      const elig=PARTIES.filter(p=>elig4.includes(p.id)||(vv[p.id]/vtot*100)>=12).map(p=>p.id);
-      const alloc=sainteAmong(vv,elig,seats);
-      vkDetail[vk]={namn:RV[vk].namn,fasta:seats,alloc,pct:Object.fromEntries(PARTIES.map(p=>[p.id,vv[p.id]/vtot*100]))};
-      for(const pid of elig)fasta[pid]+=alloc[pid]||0;}
-    const twelveOnly=PARTIES.filter(p=>!elig4.includes(p.id)&&fasta[p.id]>0).map(p=>p.id);
-    const remaining=349-twelveOnly.reduce((a,pid)=>a+fasta[pid],0);
+    for(const vk in RV){const seats=(RV[vk]&&RV[vk].fasta)||0;if(!seats)continue;
+      const namn=RV[vk].namn;
+      // andelar i valkretsen: de 8 live (skalade), lokala partier från baslinjen (allresults)
+      const vv=perVk[vk]||{},v8=PARTIES.reduce((a,p)=>a+(vv[p.id]||0),0);
+      const arList=(AR[namn]&&AR[namn].RD)||[];
+      const locals=arList.filter(x=>!PARTIES.some(p=>p.id===x.p));
+      const localSum=locals.reduce((a,x)=>a+x.a,0);
+      const share={};
+      if(v8>0){const sc=Math.max(0,(100-localSum))/100;for(const p of PARTIES)share[p.id]=(vv[p.id]/v8*100)*sc;}
+      else {for(const x of arList)if(PARTIES.some(p=>p.id===x.p))share[x.p]=x.a;}
+      for(const x of locals)share[x.p]=x.a;
+      const ids=Object.keys(share);
+      const elig=ids.filter(id=>elig4.includes(id)||(share[id]||0)>=12);
+      const alloc=sainteAmong(share,elig,seats);
+      vkDetail[vk]={namn,fasta:seats,alloc,pct:share};
+      for(const id of elig){fasta[id]=(fasta[id]||0)+(alloc[id]||0);}}
+    const allIds=Object.keys(fasta);
+    const twelveOnly=allIds.filter(id=>!elig4.includes(id)&&fasta[id]>0);
+    const remaining=349-twelveOnly.reduce((a,id)=>a+fasta[id],0);
     const natAlloc=sainteAmong(nat,elig4,remaining);
     const seats={};for(const p of PARTIES)seats[p.id]=0;
-    for(const pid of elig4)seats[pid]=natAlloc[pid]||0;
-    for(const pid of twelveOnly)seats[pid]=fasta[pid];
+    for(const id of elig4)seats[id]=natAlloc[id]||0;
+    for(const id of twelveOnly)seats[id]=fasta[id];
     return {seats,fasta,vkDetail,natPct,elig4,twelveOnly};
   }
   // jämkade uddatalsmetoden (första delningstal 1,2) + spärr
@@ -1209,7 +1221,9 @@
     if(rdRiket){
       rd=riksdagSeats(data,state.year); seatsN=349; thr=4;
       mand=rd.seats; mand22=riksdagSeats(data,ELYEARS.indexOf(2022)).seats;
-      mandPlist=PARTIES.map(p=>({id:p.id,color:p.color,seats:mand[p.id]||0}));
+      mandPlist=PARTIES.map(p=>({id:p.id,color:p.color,seats:mand[p.id]||0}))
+        .concat(Object.keys(mand).filter(id=>!PARTIES.some(p=>p.id===id)&&mand[id]>0)
+          .map(id=>({id,color:pcolor(id),seats:mand[id]})));
     } else {
       seatsN=mandateSeats(); thr=progThreshold();
       const ar=areaResults();
