@@ -365,6 +365,7 @@
     residX:"income",residY:"edu"};
   const watch=new Set();
   let focusIdx=null;                     // distrikt som lyfts fram i vyerna
+  let kandVk=null;                        // vald riksdagsvalkrets i kandidat-fliken (uppdelade län)
   const hi=i=>watch.has(i)||i===focusIdx;
   function scope(){return dist.filter(d=>(!state.geo.lan||d.lan===state.geo.lan)&&(!state.geo.kommun||d.kommun===state.geo.kommun));}
   // andel/förändring/största parti för VALT år (state.year), ur seriens år
@@ -1109,7 +1110,24 @@
     const seats={};for(const p of PARTIES)seats[p.id]=0;
     for(const id of elig4)seats[id]=natAlloc[id]||0;
     for(const id of twelveOnly)seats[id]=fasta[id];
-    return {seats,fasta,vkDetail,natPct,elig4,twelveOnly};
+    // fördela utjämningsmandaten till valkretsar (jämförelsetalsmetoden)
+    const vkSeats={};for(const vk in vkDetail)vkSeats[vk]=Object.assign({},vkDetail[vk].alloc);
+    const owed={};for(const id of elig4)owed[id]=Math.max(0,(seats[id]||0)-(fasta[id]||0));
+    let pool=Object.values(owed).reduce((a,b)=>a+b,0);
+    let guard=0;
+    while(pool>0&&guard++<400){
+      let best=null,bq=-1;
+      for(const vk in perVk){const vv=perVk[vk];
+        for(const id of elig4){if(owed[id]<=0)continue;
+          const cur=(vkSeats[vk]&&vkSeats[vk][id])||0;
+          const q=(vv[id]||0)/(2*cur+1);
+          if(q>bq){bq=q;best={vk,id};}}}
+      if(!best)break;
+      vkSeats[best.vk]=vkSeats[best.vk]||{};
+      vkSeats[best.vk][best.id]=((vkSeats[best.vk][best.id])||0)+1;
+      owed[best.id]--;pool--;
+    }
+    return {seats,fasta,vkDetail,vkSeats,natPct,elig4,twelveOnly};
   }
   // jämkade uddatalsmetoden (första delningstal 1,2) + spärr
   function allocateSeats(shares,seats,threshold){
@@ -1353,17 +1371,27 @@
         .map(p=>kandCard(state.geo.kommun,p,seats[p.id],lists[p.id]));
       body.innerHTML=cards.length?`<div class="kandgrid">${cards.join("")}</div>`:"<p class='sub'>Inga listor för de åtta partierna i den här kommunen.</p>";
     } else if(state.election==="RD"&&state.geo.lan&&!state.geo.kommun){
-      // valkrets = länet, om det motsvarar exakt en riksdagsvalkrets med samma namn
       const RV=DATA.riksvalkretsar||{};
-      const vkcode=Object.keys(RV).find(k=>RV[k].namn===state.geo.lan);
-      const lists=(C.RD||{})[state.geo.lan]||{};
-      if(!vkcode){lede.innerHTML=`${state.geo.lan} är uppdelat i flera riksdagsvalkretsar – kandidater per valkrets kommer i ett senare steg. Välj en kommun + Kommunval för kommunkandidater.`;return;}
-      const rd=riksdagSeats(scope(),state.year),alloc=(rd.vkDetail[vkcode]||{}).alloc||{};
-      lede.innerHTML=`Prognostiserade invalda i riksdagsvalkretsen <b>${state.geo.lan}</b> (${RV[vkcode].fasta} fasta valkretsmandat). `+
-        `Baserat på valkretsens fasta mandat (utjämningsmandat fördelas ej per kandidat i denna version). Personröster kan flytta namn.`;
-      const cards=[...PARTIES].filter(p=>lists[p.id]&&(alloc[p.id]||0)>0).sort((a,b)=>(alloc[b.id]||0)-(alloc[a.id]||0))
-        .map(p=>kandCard(state.geo.lan,p,alloc[p.id]||0,lists[p.id]));
-      body.innerHTML=cards.length?`<div class="kandgrid">${cards.join("")}</div>`:"<p class='sub'>Inga fasta mandat till de åtta partiernas listor i den här valkretsen ännu.</p>";
+      const vksInLan=[...new Set(scope().map(d=>d.vk).filter(Boolean))].filter(vk=>RV[vk]);
+      if(!vksInLan.length){lede.innerHTML=`Ingen riksdagsvalkrets hittad för ${state.geo.lan}.`;return;}
+      let vk=(kandVk&&vksInLan.includes(kandVk))?kandVk:vksInLan[0];
+      const namn=RV[vk].namn;
+      const rd=riksdagSeats(dist,state.year);          // hela riket för korrekt utjämning
+      const bySeat=rd.vkSeats[vk]||{};
+      const lists=(C.RD||{})[namn]||{};
+      let picker="";
+      if(vksInLan.length>1){picker=` Valkrets: <select id="kandVkSel" style="font:inherit">`+
+        vksInLan.map(v=>`<option value="${v}" ${v===vk?"selected":""}>${RV[v].namn}</option>`).join("")+`</select>`;}
+      lede.innerHTML=`Prognostiserade invalda för riksdagsvalkretsen <b>${namn}</b> (${RV[vk].fasta} fasta + utjämningsmandat).${picker} `+
+        `Inkluderar fasta valkretsmandat och fördelade utjämningsmandat. Personröster kan flytta namn.`;
+      const cards=[];
+      [...PARTIES].filter(p=>lists[p.id]&&(bySeat[p.id]||0)>0).sort((a,b)=>(bySeat[b.id]||0)-(bySeat[a.id]||0))
+        .forEach(p=>cards.push(kandCard(namn,p,bySeat[p.id]||0,lists[p.id])));
+      Object.keys(bySeat).filter(id=>!PARTIES.some(p=>p.id===id)&&bySeat[id]>0&&lists[id])
+        .forEach(id=>cards.push(kandCard(namn,{id,namn:id,color:pcolor(id)},bySeat[id],lists[id])));
+      body.innerHTML=cards.length?`<div class="kandgrid">${cards.join("")}</div>`:"<p class='sub'>Inga mandat till partiernas listor i den här valkretsen ännu.</p>";
+      const sel=document.getElementById("kandVkSel");
+      if(sel)sel.addEventListener("change",e=>{kandVk=e.target.value;renderKandidater();});
     } else {
       lede.innerHTML="Välj område och val för kandidatprognos: <b>en kommun + Kommunval</b> (kommunfullmäktige), eller <b>ett län + Riksdagsval</b> (riksdagsvalkrets). Region och fler-valkretskommuner kommer i ett senare steg.";
     }
