@@ -622,7 +622,11 @@
         const fill=(hierLayer==="komvk"&&d.komvk)?nameColor(d.komvk):mapFill(d);
         const path=el("path",{d:polyD(d),fill,stroke:hi(d.i)?"#171a1c":"#fff","stroke-width":hi(d.i)?1.2:0.4});
         path.__d=d;
-        if(hierLayer==="komvk"&&d.komvk){path.addEventListener("pointerenter",ev=>{tipM.innerHTML=`<b>${d.namn}</b><br><span class="row">Kommunvalkrets: ${d.komvk}</span>`;tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(ev.clientX-w.left)+"px";tipM.style.top=(ev.clientY-w.top)+"px";});path.addEventListener("pointerleave",()=>tipM.style.opacity=0);}
+        path.addEventListener("pointerenter",ev=>{
+          const extra=(hierLayer==="komvk"&&d.komvk)?`<br><span class="row">Kommunvalkrets: ${d.komvk}</span>`:`<br><span class="row">Största: ${topAt(d)} (${(shareAt(d,topAt(d))||0).toFixed(1)}%)</span>`;
+          tipM.innerHTML=`<b>${d.namn}</b>${extra}`;tipM.style.opacity=1;
+          const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(ev.clientX-w.left)+"px";tipM.style.top=(ev.clientY-w.top)+"px";});
+        path.addEventListener("pointerleave",()=>tipM.style.opacity=0);
         mapSvg.appendChild(path);any=any.concat(d.poly);}
       if(any.length)zoomHier([any]);
       return;
@@ -720,6 +724,9 @@
       mapSvg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);tipM.style.opacity=0;return;}
     if(dragging){const dx=e.clientX-last.x,dy=e.clientY-last.y;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;
       const sc=vb.w/mapSvg.clientWidth;vb.x-=dx*sc;vb.y-=dy*sc;last={x:e.clientX,y:e.clientY};mapSvg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);tipM.style.opacity=0;return;}
+    if(mapMode==="nivaer"){ // path-handlers styr innehållet; följ bara musen (dölj ej)
+      if(tipM.style.opacity==="1"||tipM.style.opacity==1){const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(e.clientX-w.left)+"px";tipM.style.top=(e.clientY-w.top)+"px";}
+      return;}
     const t=e.target;if(t&&t.__d){const d=t.__d;
       tipM.innerHTML=`<b>${d.namn}</b><br><span class="row">Största: ${topAt(d)} (${(shareAt(d,topAt(d))||0).toFixed(1)}%)</span><br><span class="row">${(d.rost||0).toLocaleString("sv-SE")} röstberättigade</span>`;
       tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(e.clientX-w.left)+"px";tipM.style.top=(e.clientY-w.top)+"px";}
@@ -925,31 +932,7 @@
       const t=el("text",{x:m.l-8,y:y+3,"text-anchor":"end"});t.textContent=yv.toFixed(0)+"%";g.appendChild(t);}
     ELYEARS.forEach((yr,t)=>{const tx=el("text",{x:sx(t),y:m.t+ph2+20,"text-anchor":"middle"});tx.textContent=yr;g.appendChild(tx);});
     hSvg.appendChild(g);
-    const line=(ser,stroke,op,wdt)=>{let pts="",started=false;ser.forEach((v,t)=>{if(v==null)return;pts+=(started?" ":"")+sx(t)+","+sy(v);started=true;});
-      if(pts)hSvg.appendChild(el("polyline",{points:pts,fill:"none",stroke,"stroke-opacity":op,"stroke-width":wdt}));};
-    for(const idx of new Set([...watch,...(focusIdx!=null?[focusIdx]:[])])){const d=dist[idx];if(!data.includes(d))continue;line(d.series[P.id],P.color,idx===focusIdx?0.7:0.28,idx===focusIdx?2:1);}
-    for(const p of PARTIES){const sel=p.id===state.party;line(agg[p.id],p.color,sel?1:0.35,sel?3:1.4);
-      const lastV=[...agg[p.id]].reverse().find(v=>v!=null);
-      if(lastV!=null){const lab=el("text",{x:m.l+pw2+8,y:sy(lastV)+4,"font-size":sel?13:11,fill:p.color,"font-weight":sel?"700":"400"});lab.textContent=`${p.id} ${lastV.toFixed(1)}%`;hSvg.appendChild(lab);}
-      if(sel)agg[p.id].forEach((v,t)=>{if(v!=null)hSvg.appendChild(el("circle",{cx:sx(t),cy:sy(v),r:3.5,fill:p.color}));});
-    }
-    // lokala partier: streckade linjer i grått-spektrum
-    for(const nm of locals){const col=nameColor(nm);const ser=localSer[nm];
-      let pts="";ser.forEach((v,t)=>{if(v!=null)pts+=(pts?" ":"")+sx(t)+","+sy(v);});
-      if(pts)hSvg.appendChild(el("polyline",{points:pts,fill:"none",stroke:col,"stroke-opacity":0.85,"stroke-width":1.8,"stroke-dasharray":"4 3"}));
-      const lastV=[...ser].reverse().find(v=>v!=null);
-      if(lastV!=null){const lab=el("text",{x:m.l+pw2+8,y:sy(lastV)+4,"font-size":10.5,fill:col});lab.textContent=`${nm.length>16?nm.slice(0,15)+"…":nm} ${lastV.toFixed(1)}%`;hSvg.appendChild(lab);}
-    }
-    const fv=agg[P.id].find(v=>v!=null),lv=[...agg[P.id]].reverse().find(v=>v!=null);
-    // täckning: hur många distrikt i området har historik för senaste riktiga året
-    const ti=ELYEARS.length-2;                       // näst sista året (t.ex. 2022, det senaste riktiga)
-    const withH=data.filter(d=>d.series[P.id][ti]!=null).length, tot=data.length;
-    let cov="";
-    if(!exact&&withH<tot)cov=` OBS: bara ${withH} av ${tot} distrikt har historik för ${ELYEARS[ti]} (resten omnumrerade sedan dess) – snittet för äldre år är därför ungefärligt i just detta område.`;
-    if(exact)cov=` Historiken visar hela områdets officiella totalresultat.`;
-    if(locals.length)cov+=` Endast riksdagspartierna finns med 2018 och bakåt – lokala partier redovisas först från 2022 (källdatan buntar tidigare småpartier).`;
-    if(fv!=null&&lv!=null)document.getElementById("capH").textContent=`${P.namn}: ${fv.toFixed(1)}% (${ELYEARS[0]}) → ${lv.toFixed(1)}% (${ELYEARS[ELYEARS.length-1]}), ${(lv-fv)>=0?"+":""}${(lv-fv).toFixed(1)} %-e i ${areaLabel()}. Håll muspekaren över ett år för exakta siffror.`+cov;
-    // hover per år: exakta siffror för alla partier
+    // bakgrund: hover per år (alla partier) – ligger UNDER punkterna
     ELYEARS.forEach((yr,t)=>{
       const hit=el("rect",{x:sx(t)-26,y:m.t,width:52,height:ph2,fill:"transparent"});
       hit.style.cursor="pointer";
@@ -963,6 +946,36 @@
       hit.addEventListener("pointerleave",()=>tipH.style.opacity=0);
       hSvg.appendChild(hit);
     });
+    const line=(ser,stroke,op,wdt,dash)=>{let pts="";ser.forEach((v,t)=>{if(v!=null)pts+=(pts?" ":"")+sx(t)+","+sy(v);});
+      if(pts){const pl=el("polyline",{points:pts,fill:"none",stroke,"stroke-opacity":op,"stroke-width":wdt,"stroke-linejoin":"round","stroke-linecap":"round"});if(dash)pl.setAttribute("stroke-dasharray",dash);hSvg.appendChild(pl);}};
+    const dot=(x,y,color,r,op,label)=>{const c=el("circle",{cx:x,cy:y,r,fill:color,"fill-opacity":op,stroke:"#fff","stroke-width":r>=4?1.3:0.7});
+      c.style.cursor="pointer";
+      c.addEventListener("pointerenter",ev=>{tipH.innerHTML=`<b>${label}</b>`;tipH.style.opacity=1;moveTip(tipH,hSvg,ev);});
+      c.addEventListener("pointermove",ev=>moveTip(tipH,hSvg,ev));
+      c.addEventListener("pointerleave",()=>tipH.style.opacity=0);
+      hSvg.appendChild(c);};
+    // bevakade/fokuserade distrikt (svaga bakgrundslinjer)
+    for(const idx of new Set([...watch,...(focusIdx!=null?[focusIdx]:[])])){const d=dist[idx];if(!data.includes(d))continue;line(d.series[P.id],P.color,idx===focusIdx?0.55:0.2,idx===focusIdx?2:1);}
+    // riksdagspartiernas linjer – markerat tydligt tjockare
+    for(const p of PARTIES){const sel=p.id===state.party;line(agg[p.id],p.color,sel?1:0.55,sel?4:2);
+      const lastV=[...agg[p.id]].reverse().find(v=>v!=null);
+      if(lastV!=null){const lab=el("text",{x:m.l+pw2+8,y:sy(lastV)+4,"font-size":sel?13:11,fill:p.color,"font-weight":sel?"700":"500"});lab.textContent=`${p.id} ${lastV.toFixed(1)}%`;hSvg.appendChild(lab);}}
+    // lokala partier (streckade)
+    for(const nm of locals){const col=nameColor(nm);line(localSer[nm],col,0.9,2.2,"5 3");
+      const lastV=[...localSer[nm]].reverse().find(v=>v!=null);
+      if(lastV!=null){const lab=el("text",{x:m.l+pw2+8,y:sy(lastV)+4,"font-size":10.5,fill:col});lab.textContent=`${nm.length>16?nm.slice(0,15)+"…":nm} ${lastV.toFixed(1)}%`;hSvg.appendChild(lab);}}
+    // punkter ÖVERST: alla partier + lokala, var och en hoverbar; markerat parti större
+    for(const p of PARTIES){const sel=p.id===state.party;agg[p.id].forEach((v,t)=>{if(v!=null)dot(sx(t),sy(v),p.color,sel?4.5:2.6,sel?1:0.85,`${p.id} ${ELYEARS[t]}: ${v.toFixed(1)}%`);});}
+    for(const nm of locals){const col=nameColor(nm);localSer[nm].forEach((v,t)=>{if(v!=null)dot(sx(t),sy(v),col,2.6,0.85,`${nm} ${ELYEARS[t]}: ${v.toFixed(1)}%`);});}
+    const fv=agg[P.id].find(v=>v!=null),lv=[...agg[P.id]].reverse().find(v=>v!=null);
+    // täckning: hur många distrikt i området har historik för senaste riktiga året
+    const ti=ELYEARS.length-2;                       // näst sista året (t.ex. 2022, det senaste riktiga)
+    const withH=data.filter(d=>d.series[P.id][ti]!=null).length, tot=data.length;
+    let cov="";
+    if(!exact&&withH<tot)cov=` OBS: bara ${withH} av ${tot} distrikt har historik för ${ELYEARS[ti]} (resten omnumrerade sedan dess) – snittet för äldre år är därför ungefärligt i just detta område.`;
+    if(exact)cov=` Historiken visar hela områdets officiella totalresultat.`;
+    if(locals.length)cov+=` Endast riksdagspartierna finns med 2018 och bakåt – lokala partier redovisas först från 2022 (källdatan buntar tidigare småpartier).`;
+    if(fv!=null&&lv!=null)document.getElementById("capH").textContent=`${P.namn}: ${fv.toFixed(1)}% (${ELYEARS[0]}) → ${lv.toFixed(1)}% (${ELYEARS[ELYEARS.length-1]}), ${(lv-fv)>=0?"+":""}${(lv-fv).toFixed(1)} %-e i ${areaLabel()}. Håll muspekaren över ett år eller en punkt för exakta siffror.`+cov;
   }
   function sparkline(ser,color){
     const vals=ser.filter(v=>v!=null);if(vals.length<2)return "";
@@ -1029,7 +1042,7 @@
 
   // ================= DISTRIKTSDETALJ =================
   const detailBg=document.getElementById("detailBg"),detailBox=document.getElementById("detailBox");
-  function detailTrendSVG(ser){
+  function detailTrendSVG(ser,hi){
     const W=520,H=150,m={l:34,r:70,t:10,b:22},pw2=W-m.l-m.r,ph2=H-m.t-m.b,nX=ELYEARS.length;
     let ymax=0;for(const p of PARTIES)for(const v of ser[p.id])if(v!=null)ymax=Math.max(ymax,v);
     ymax=Math.ceil(ymax/5)*5+2;
@@ -1039,10 +1052,14 @@
       s+=`<text x="${m.l-6}" y="${y+3}" text-anchor="end" font-size="10" fill="#9aa0a4">${(ymax*(4-i)/4).toFixed(0)}%</text>`;}
     ELYEARS.forEach((yr,t)=>{s+=`<text x="${sx(t)}" y="${m.t+ph2+16}" text-anchor="middle" font-size="10" fill="#9aa0a4">${yr}</text>`;});
     const order=[...PARTIES].sort((a,b)=>(ser[b.id][nX-1]||0)-(ser[a.id][nX-1]||0));
-    for(const p of order){let pts="",started=false;ser[p.id].forEach((v,t)=>{if(v==null)return;pts+=(started?" ":"")+sx(t)+","+sy(v);started=true;});
-      if(pts)s+=`<polyline points="${pts}" fill="none" stroke="${p.color}" stroke-width="2"/>`;
+    // markerat parti sist (överst)
+    order.sort((a,b)=>(a.id===hi?1:0)-(b.id===hi?1:0));
+    for(const p of order){const sel=p.id===hi;
+      let pts="";ser[p.id].forEach((v,t)=>{if(v!=null)pts+=(pts?" ":"")+sx(t)+","+sy(v);});
+      if(pts)s+=`<polyline points="${pts}" fill="none" stroke="${p.color}" stroke-opacity="${sel?1:(hi?0.5:0.85)}" stroke-width="${sel?3.6:1.8}" stroke-linejoin="round" stroke-linecap="round"/>`;
+      ser[p.id].forEach((v,t)=>{if(v!=null)s+=`<circle cx="${sx(t)}" cy="${sy(v)}" r="${sel?3.6:2.1}" fill="${p.color}" fill-opacity="${sel?1:(hi?0.6:0.9)}" stroke="#fff" stroke-width="${sel?1:0.6}"><title>${p.id} ${ELYEARS[t]}: ${v.toFixed(1)}%</title></circle>`;});
       const lv=[...ser[p.id]].reverse().find(v=>v!=null);
-      if(lv!=null&&lv>=4)s+=`<text x="${m.l+pw2+6}" y="${sy(lv)+3}" font-size="10" fill="${p.color}" font-weight="600">${p.id} ${lv.toFixed(0)}%</text>`;}
+      if(lv!=null&&(sel||lv>=4))s+=`<text x="${m.l+pw2+6}" y="${sy(lv)+3}" font-size="10" fill="${p.color}" font-weight="${sel?"700":"600"}">${p.id} ${lv.toFixed(0)}%</text>`;}
     return s+`</svg>`;
   }
   function komAgg(kommun){
@@ -1101,7 +1118,7 @@
       `<h2>${d.namn}</h2><div class="sub2">${d.kommun} · ${d.lan} · ${(d.rost||0).toLocaleString("sv-SE")} röstberättigade</div>`+
       menu+
       `<div class="dsec"><h4>Så röstade distriktet – alla partier</h4>${bars}</div>`+
-      `<div class="dsec"><h4>Historik</h4>${detailTrendSVG(d.series)}</div>`+
+      `<div class="dsec"><h4>Historik</h4>${detailTrendSVG(d.series,detParty)}</div>`+
       (cov?`<div class="dsec"><h4>Distriktets profil</h4><div class="kpi">${cov}</div></div>`:"")+
       partySec+
       `<div class="dsec"><h4>Kommunen ${d.kommun} (${ka.n} distrikt)</h4>${detailTrendSVG(ka.ser)}</div>`;
