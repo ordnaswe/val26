@@ -221,6 +221,8 @@
     <div class="scopetag" id="scopeTag" style="margin-left:auto"></div>
   </div>
 
+  <button id="mapToggle" style="font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--panel);cursor:pointer;margin-bottom:8px">Dölj karta ▲</button>
+  <div id="mapCollapse">
   <div id="mapModes" class="seg" style="margin-bottom:8px;width:max-content"></div>
   <div id="hierLayers" class="seg" style="margin-bottom:8px;width:max-content;display:none"></div>
   <input id="mapSearch" list="mapSearchList" placeholder="Sök kommun – hoppa dit på kartan…"
@@ -237,6 +239,7 @@
   </div>
   <div class="maphint">Klicka på ett distrikt för detaljer. Dra för att panorera, dubbelklicka eller rulla för att zooma.</div>
   <div class="maplegend" id="mapLegend"></div>
+  </div>
 
   <div id="valBar" class="seg" style="margin:14px 0 0;width:max-content"></div>
   <div class="partybar" style="margin:8px 0 0;flex-wrap:wrap"><span>År</span><div id="yearBar" class="seg" style="width:max-content;flex-shrink:0"></div><span id="yearHint" style="font-size:12px;color:var(--muted)">– äldre år visar historik, senaste = nuvarande val</span></div>
@@ -254,6 +257,9 @@
   <div class="partybar" id="partyFilter" style="margin:8px 0 0;flex-wrap:wrap">
     <span>Parti</span><select id="party"></select>
     <span id="watchcount" style="margin-left:auto"></span>
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin:6px 0 2px">
+    <button id="csvBtn" class="dbtn" style="margin:0;font-size:12px">⬇ Ladda ner CSV</button>
   </div>
 
   <div class="scopeBanner" id="scopeBanner"></div>
@@ -426,11 +432,7 @@
       usable.forEach((d,idx)=>{if(!d.pred){d.pred={};d.resid={};}const pr=X[idx].reduce((s,v,a)=>s+v*beta[a],0);d.pred[p.id]=pr;d.resid[p.id]=shareAt(d,p.id)-pr;});
     }
   }
-  function setElection(val){
-    state.election=val;
-    dist.forEach(d=>{const e=d.el&&d.el[val];if(e){d.shares=e.shares;d.changes=e.changes;d.top=e.top;if(e.series)d.series=e.series;d.w=e.w||null;}});
-    computeResiduals();renderAll();
-  }
+  function setElection(val){setElectionState(val);computeResiduals();renderAll();}
   function setYear(t){state.year=t;computeResiduals();renderAll();}
   (function(){
     const box=document.getElementById("yearBar");
@@ -516,14 +518,40 @@
     const br=document.getElementById("bnReset");
     if(br)br.onclick=()=>{state.geo={lan:null,kommun:null};focusIdx=null;fillLan();fillKom();resetZoom();renderAll();};
     writeHash();}
-  function writeHash(){
-    try{const g=state.geo;location.hash = g.kommun?("k="+encodeURIComponent(g.kommun)) : g.lan?("l="+encodeURIComponent(g.lan)) : "";}catch(e){}
+  let _writingHash=false;
+  function writeHash(){try{
+    const g=state.geo,parts=[];
+    if(g.kommun)parts.push("k="+encodeURIComponent(g.kommun));
+    else if(g.lan)parts.push("l="+encodeURIComponent(g.lan));
+    const tb=document.querySelector(".tabs button[aria-selected='true']");
+    if(tb&&tb.dataset.tab&&tb.dataset.tab!=="table")parts.push("t="+tb.dataset.tab);
+    if(DATA.vals&&DATA.vals.length>1&&state.election&&state.election!==DATA.vals[0])parts.push("val="+state.election);
+    if(state.party)parts.push("p="+state.party);
+    if(state.year!=null&&state.year!==ELYEARS.length-1)parts.push("y="+ELYEARS[state.year]);
+    const nh=parts.join("&");
+    if(("#"+nh)!==location.hash){_writingHash=true;location.hash=nh;}
+  }catch(e){}}
+  function setElectionState(val){state.election=val;
+    dist.forEach(d=>{const e=d.el&&d.el[val];if(e){d.shares=e.shares;d.changes=e.changes;d.top=e.top;if(e.series)d.series=e.series;d.w=e.w||null;}});}
+  function syncControls(){
+    const ps=document.getElementById("party");if(ps)ps.value=state.party;
+    const yb=document.getElementById("yearBar");if(yb)yb.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.t===state.year)));
+    const vb=document.getElementById("valBar");if(vb)vb.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===state.election)));
+    if(typeof fillLan==="function"){fillLan();fillKom();}
   }
   function applyHash(){
     try{const h=(location.hash||"").replace(/^#/,"");if(!h)return;
-      const [k,v]=h.split("=");const val=decodeURIComponent(v||"");
-      if(k==="k"&&KOMMUNER.includes(val)){state.geo.kommun=val;state.geo.lan=KOM2LAN[val];}
-      else if(k==="l"&&LAN_ORDER.includes(val)){state.geo.lan=val;}
+      const q={};h.split("&").forEach(pair=>{const i=pair.indexOf("=");if(i>0)q[pair.slice(0,i)]=decodeURIComponent(pair.slice(i+1));});
+      if(q.val&&DATA.vals&&DATA.vals.includes(q.val))setElectionState(q.val);
+      if(q.k&&KOMMUNER.includes(q.k)){state.geo.kommun=q.k;state.geo.lan=KOM2LAN[q.k];}
+      else if(q.l&&LAN_ORDER.includes(q.l)){state.geo.lan=q.l;state.geo.kommun=null;}
+      if(q.p&&PARTIES.some(p=>p.id===q.p))state.party=q.p;
+      if(q.y!=null){const yi=ELYEARS.indexOf(+q.y);if(yi>=0)state.year=yi;}
+      if(q.t){const btn=document.querySelector('.tabs button[data-tab="'+q.t+'"]');if(btn){
+        document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===btn?"true":"false"));
+        document.querySelectorAll(".panelview").forEach(v=>v.classList.remove("active"));
+        const view=document.getElementById("view-"+q.t);if(view)view.classList.add("active");}}
+      syncControls();
     }catch(e){}
   }
   document.getElementById("refreshBtn").addEventListener("click",()=>location.reload());
@@ -1654,9 +1682,9 @@
   dist.forEach(d=>{if(d.el&&d.el[state.election])d.w=d.el[state.election].w||null;});
   computeResiduals();renderAll();
 
-  // T7: bakåt/framåt-knapp ska ändra vyn
-  let _applyingHash=false;
-  window.addEventListener("hashchange",()=>{_applyingHash=true;applyHash();fillLan();fillKom();zoomToScope();renderAll();_applyingHash=false;});
+  // T7: bakåt/framåt-knapp ska ändra vyn (men ignorera vår egen writeHash)
+  window.addEventListener("hashchange",()=>{if(_writingHash){_writingHash=false;return;}
+    applyHash();fillLan();fillKom();zoomToScope();renderAll();});
 
   // Tidsstämpel: "Uppdaterad 21:47"
   (function(){const b=DATA.meta&&DATA.meta.built;if(!b)return;
@@ -1685,6 +1713,50 @@
     const b=document.getElementById("emptyBanner");if(!b)return;
     if(m.live && counted===0){b.style.display="block";
       b.innerHTML="<b>Rösträkningen har inte börjat.</b> De första preliminära siffrorna för riksdagsvalet väntas omkring kl 21.00. Sidan uppdateras automatiskt när distrikt börjar rapportera.";}})();
+
+  // Hopfällbar karta (siffror först; hopfälld som standard på mobil)
+  (function(){const btn=document.getElementById("mapToggle"),box=document.getElementById("mapCollapse");if(!btn||!box)return;
+    let open=window.innerWidth>640;
+    const apply=()=>{box.style.display=open?"":"none";btn.textContent=open?"Dölj karta ▲":"Visa karta ▼";if(open)renderMap();};
+    apply();
+    btn.addEventListener("click",()=>{open=!open;apply();});})();
+
+  // CSV-export för aktiv flik
+  function dlCSV(name,rows){
+    const esc=v=>{v=(v==null?"":String(v));return /[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+    const csv="\ufeff"+rows.map(r=>r.map(esc).join(";")).join("\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    a.download=name;document.body.appendChild(a);a.click();a.remove();}
+  function csvExport(){
+    const active=document.querySelector(".tabs button[aria-selected='true']").dataset.tab;
+    const area=areaLabel().replace(/[^\wåäöÅÄÖ]+/g,"_"),yr=ELYEARS[state.year];
+    const data=scope();
+    if(active==="hist"){
+      const rows=[["Parti",...ELYEARS]];const agg=aggSeries(data);const ar=areaSeries();
+      if(ar)for(const p of PARTIES)ELYEARS.forEach((y,t)=>{if(ar[p.id][t]!=null)agg[p.id][t]=ar[p.id][t];});
+      for(const p of PARTIES)rows.push([p.id,...agg[p.id].map(v=>v==null?"":v.toFixed(2))]);
+      const AH=((((DATA.allhist||{})[state.geo.kommun?"kommun":state.geo.lan?"lan":"riket"]||{})[state.geo.kommun?(DATA.komKod||{})[state.geo.kommun]:state.geo.lan?(DATA.lanKod||{})[state.geo.lan]:"00"]||{})[state.election])||{};
+      Object.keys(AH).filter(nm=>!PARTIES.some(p=>p.id===nm)).forEach(nm=>rows.push([nm,...ELYEARS.map(y=>AH[nm][y]!=null?AH[nm][y].toFixed(2):"")]));
+      dlCSV(`valutfall_historik_${area}.csv`,rows);return;}
+    if(active==="prognos"){const ar=areaResults();
+      if(ar&&ar.length){const rows=[["Parti","Andel_%"]];ar.forEach(x=>rows.push([x.p,x.a.toFixed(2)]));dlCSV(`valutfall_resultat_${area}_${state.election}.csv`,rows);return;}}
+    if(active==="split"){const P=state.party,years=state.splitMode==="years";
+      const ga=years?(d=>d.series&&d.series[P]?d.series[P][state.splitYearA]:null):(d=>shareEl(d,state.splitA,P));
+      const gb=years?(d=>d.series&&d.series[P]?d.series[P][state.splitYearB]:null):(d=>shareEl(d,state.splitB,P));
+      const la=years?ELYEARS[state.splitYearA]:state.splitA,lb=years?ELYEARS[state.splitYearB]:state.splitB;
+      const rows=[["Distrikt","Kommun","Län",P+"_"+la,P+"_"+lb,"Diff"]];
+      data.forEach(d=>{const a=ga(d),b=gb(d);if(a!=null&&b!=null)rows.push([d.namn,d.kommun,d.lan,a.toFixed(2),b.toFixed(2),(a-b).toFixed(2)]);});
+      dlCSV(`valutfall_rostsplittring_${area}.csv`,rows);return;}
+    if(active==="scatter"||active==="resid"){
+      const rows=[["Distrikt","Kommun","Län",state.party+"_andel_%","Röstberättigade"]];
+      data.forEach(d=>{const s=shareAt(d,state.party);if(s!=null)rows.push([d.namn,d.kommun,d.lan,s.toFixed(2),d.rost||""]);});
+      dlCSV(`valutfall_${active}_${state.party}_${area}.csv`,rows);return;}
+    // standard: tabellen – alla partier per distrikt
+    const rows=[["Distrikt","Kommun","Län","Röstberättigade","Räknat",...PARTIES.map(p=>p.id+"_%")]];
+    data.forEach(d=>rows.push([d.namn,d.kommun,d.lan,d.rost||"",d.raknat===1?"ja":"nej",...PARTIES.map(p=>{const s=shareAt(d,p.id);return s==null?"":s.toFixed(2);})]));
+    dlCSV(`valutfall_distrikt_${area}_${state.election}_${yr}.csv`,rows);
+  }
+  document.getElementById("csvBtn").addEventListener("click",csvExport);
 })();
 </script>
   <footer style="margin:36px 0 12px;padding-top:18px;border-top:1px solid var(--hair);font-size:12.5px;color:var(--muted);line-height:1.6">
