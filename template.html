@@ -947,6 +947,7 @@
     let cov="";
     if(!exact&&withH<tot)cov=` OBS: bara ${withH} av ${tot} distrikt har historik för ${ELYEARS[ti]} (resten omnumrerade sedan dess) – snittet för äldre år är därför ungefärligt i just detta område.`;
     if(exact)cov=` Historiken visar hela områdets officiella totalresultat.`;
+    if(locals.length)cov+=` Endast riksdagspartierna finns med 2018 och bakåt – lokala partier redovisas först från 2022 (källdatan buntar tidigare småpartier).`;
     if(fv!=null&&lv!=null)document.getElementById("capH").textContent=`${P.namn}: ${fv.toFixed(1)}% (${ELYEARS[0]}) → ${lv.toFixed(1)}% (${ELYEARS[ELYEARS.length-1]}), ${(lv-fv)>=0?"+":""}${(lv-fv).toFixed(1)} %-e i ${areaLabel()}. Håll muspekaren över ett år för exakta siffror.`+cov;
     // hover per år: exakta siffror för alla partier
     ELYEARS.forEach((yr,t)=>{
