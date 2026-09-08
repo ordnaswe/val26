@@ -11,7 +11,7 @@ Utdata (SWEREF99 TM, samma som valdistriktsgeometrin):
 
 Endast standardbibliotek (sqlite3 + egen WKB-tolk).
 """
-import argparse, json, sqlite3, struct
+import argparse, json, math, sqlite3, struct
 from collections import defaultdict, Counter
 from pathlib import Path
 
@@ -37,8 +37,17 @@ def gpkg_rings(blob):
     return rings
 
 
-def dissolve(feature_rings, Q=1.0):
-    """Kant-cancellering: kanter som saknar motsatt tvilling är yttre gräns; sy ihop till ringar."""
+def _ring_area(ring):
+    a = 0.0
+    for i in range(len(ring) - 1):
+        a += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+    return abs(a) / 2.0
+
+
+def dissolve(feature_rings, Q=1.0, min_area=200000.0):
+    """Kant-cancellering + korrekt gränsföljning: kanter utan motsatt tvilling är yttre
+    gräns; vid korsningar väljs nästa kant efter vinkel (så ringar sluts rätt utan streck
+    tvärs vatten). Behåller slutna ringar över min_area."""
     key = lambda p: (round(p[0] / Q), round(p[1] / Q))
     directed = set()
     for rings in feature_rings:
@@ -47,27 +56,38 @@ def dissolve(feature_rings, Q=1.0):
                 a, b = key(ring[i]), key(ring[i + 1])
                 if a != b:
                     directed.add((a, b))
-    boundary = [(a, b) for (a, b) in directed if (b, a) not in directed]
+    boundary = set((a, b) for (a, b) in directed if (b, a) not in directed)
     nxt = defaultdict(list)
     for a, b in boundary:
         nxt[a].append(b)
+    ang = lambda o, p: math.atan2(p[1] - o[1], p[0] - o[0])
     used = set(); out = []
-    for a0, b0 in boundary:
-        if (a0, b0) in used:
+    for e0 in boundary:
+        if e0 in used:
             continue
-        ring = [a0]; cur, nb = a0, b0
+        a0, b0 = e0; ring = [a0]; cur, nb = a0, b0; closed = False
         while True:
             used.add((cur, nb)); ring.append(nb)
-            outs = [x for x in nxt[nb] if (nb, x) not in used]
-            if not outs:
+            if nb == a0:
+                closed = True; break
+            cands = [x for x in nxt[nb] if (nb, x) not in used]
+            if not cands:
                 break
-            cur, nb = nb, outs[0]
-            if nb == ring[0]:
-                ring.append(nb); break
-            if len(ring) > 500000:
+            if len(cands) == 1:
+                nv = cands[0]
+            else:
+                rev = ang(nb, cur)                      # riktning tillbaka
+                def cw(x):
+                    d = (rev - ang(nb, x)) % (2 * math.pi)
+                    return d if d > 1e-9 else 2 * math.pi
+                nv = min(cands, key=cw)                  # nästa kant medurs
+            cur, nb = nb, nv
+            if len(ring) > 1000000:
                 break
-        if len(ring) >= 4:
-            out.append([(x * Q, y * Q) for x, y in ring])
+        if closed and len(ring) >= 4:
+            r = [(x * Q, y * Q) for x, y in ring]
+            if _ring_area(r) >= min_area:
+                out.append(r)
     return out
 
 
@@ -108,7 +128,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("gpkg")
     ap.add_argument("-o", "--out", default="data/granser.json")
-    ap.add_argument("--tol", type=float, default=200.0, help="Förenklingstolerans i meter (default 200)")
+    ap.add_argument("--tol", type=float, default=150.0, help="Förenklingstolerans i meter (default 150)")
+    ap.add_argument("--snap", type=float, default=1.0, help="Snäpp hörn till N meter vid sammanslagning (default 50)")
+    ap.add_argument("--minkm2", type=float, default=0.2, help="Minsta ytstorlek som behålls, km² (default 0.2)")
     args = ap.parse_args()
 
     con = sqlite3.connect(args.gpkg); cur = con.cursor()
@@ -123,11 +145,19 @@ def main():
         by_lan[str(lk).zfill(2)].append(r)
     con.close()
 
+    min_area = args.minkm2 * 1_000_000.0
+    def dissolve_or_raw(feats):
+        dz = dissolve(feats, args.snap, min_area)
+        if dz:
+            return simplify_rings(dz, args.tol)
+        # fallback: råa RegSO-ytterringar (ingen sammanslagning) – syns med svaga inre linjer
+        raw = [ring for f in feats for ring in f if len(ring) >= 4 and _ring_area(ring) >= min_area]
+        return simplify_rings(raw, args.tol)
     out = {"kommun": {}, "lan": {}}
     for kk, feats in by_kom.items():
-        out["kommun"][kk] = simplify_rings(dissolve(feats), args.tol)
+        out["kommun"][kk] = dissolve_or_raw(feats)
     for lk, feats in by_lan.items():
-        out["lan"][lk] = simplify_rings(dissolve(feats), args.tol)
+        out["lan"][lk] = dissolve_or_raw(feats)
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
