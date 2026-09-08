@@ -1,0 +1,1916 @@
+typ,nyckel,namn
+region,0114,Nordväst
+region,0115,Nordost
+region,0117,Nordost
+region,0120,Ost
+region,0123,Nordväst
+region,0125,Nordväst
+region,0126,Sydost
+region,0127,Sydväst
+region,0128,Sydväst
+region,0136,Sydost
+region,0138,Ost
+region,0139,Nordväst
+region,0140,Sydväst
+region,0160,Nordost
+region,0162,Nordost
+region,0163,Nord
+region,0180,1 Södermalm-Enskede
+region,0181,Sydväst
+region,0182,Ost
+region,0183,Nord
+region,0184,Nord
+region,0186,Ost
+region,0187,Nordost
+region,0188,Nordost
+region,0191,Nordväst
+region,0192,Sydost
+region,0305,Uppsala läns södra
+region,0319,Uppsala läns norra
+region,0330,Uppsala läns mellersta
+region,0331,Uppsala läns norra
+region,0360,Uppsala läns norra
+region,0380,Uppsala läns mellersta
+region,0381,Uppsala läns södra
+region,0382,Uppsala läns norra
+region,0428,Region Södermanland
+region,0461,Region Södermanland
+region,0480,Region Södermanland
+region,0481,Region Södermanland
+region,0482,Region Södermanland
+region,0483,Region Södermanland
+region,0484,Region Södermanland
+region,0486,Region Södermanland
+region,0488,Region Södermanland
+region,0509,Ödeshög Ydre Boxholm Mjölby Vadstena
+region,0512,Ödeshög Ydre Boxholm Mjölby Vadstena
+region,0513,Kinda Åtvid Valdemarsvik Söderköping
+region,0560,Ödeshög Ydre Boxholm Mjölby Vadstena
+region,0561,Kinda Åtvid Valdemarsvik Söderköping
+region,0562,Motala Finspång
+region,0563,Kinda Åtvid Valdemarsvik Söderköping
+region,0580,Linköping
+region,0581,Norrköping
+region,0582,Kinda Åtvid Valdemarsvik Söderköping
+region,0583,Motala Finspång
+region,0584,Ödeshög Ydre Boxholm Mjölby Vadstena
+region,0586,Ödeshög Ydre Boxholm Mjölby Vadstena
+region,0604,Andra valkretsen
+region,0617,Tredje valkretsen
+region,0642,Första valkretsen
+region,0643,Första valkretsen
+region,0662,Tredje valkretsen
+region,0665,Tredje valkretsen
+region,0680,Första valkretsen
+region,0682,Andra valkretsen
+region,0683,Tredje valkretsen
+region,0684,Andra valkretsen
+region,0685,Andra valkretsen
+region,0686,Andra valkretsen
+region,0687,Andra valkretsen
+region,0760,Kronoberg
+region,0761,Kronoberg
+region,0763,Kronoberg
+region,0764,Kronoberg
+region,0765,Kronoberg
+region,0767,Kronoberg
+region,0780,Kronoberg
+region,0781,Kronoberg
+region,0821,Kalmar 3 Högsby Mönsterås Oskarshamn
+region,0834,Kalmar 4  Emmaboda Nybro Torsås
+region,0840,Kalmar 6 Borgholm Mörbylånga
+region,0860,Kalmar 2 Hultsfred Vimmerby
+region,0861,Kalmar 3 Högsby Mönsterås Oskarshamn
+region,0862,Kalmar 4  Emmaboda Nybro Torsås
+region,0880,Kalmar 5 Kalmar
+region,0881,Kalmar 4  Emmaboda Nybro Torsås
+region,0882,Kalmar 3 Högsby Mönsterås Oskarshamn
+region,0883,Kalmar 1 Västervik
+region,0884,Kalmar 2 Hultsfred Vimmerby
+region,0885,Kalmar 6 Borgholm Mörbylånga
+region,1060,Listerkretsen
+region,1080,Karlskronakretsen
+region,1081,Ronnebykretsen
+region,1082,Karlshamnskretsen
+region,1083,Listerkretsen
+region,1214,Mellankretsen
+region,1230,Mellankretsen
+region,1231,Sydvästkretsen II
+region,1233,Sydvästkretsen II
+region,1256,Nordostkretsen
+region,1257,Nordvästkretsen
+region,1260,Nordvästkretsen
+region,1261,Mellankretsen
+region,1262,Sydvästkretsen II
+region,1263,Sydvästkretsen II
+region,1264,Sydostkretsen
+region,1265,Sydostkretsen
+region,1266,Mellankretsen
+region,1267,Mellankretsen
+region,1270,Sydostkretsen
+region,1272,Nordostkretsen
+region,1273,Nordostkretsen
+region,1275,Nordostkretsen
+region,1276,Nordvästkretsen
+region,1277,Nordvästkretsen
+region,1278,Nordvästkretsen
+region,1280,Sydvästkretsen I
+region,1281,Mellankretsen
+region,1282,Mellankretsen
+region,1283,Nordvästkretsen
+region,1284,Nordvästkretsen
+region,1285,Mellankretsen
+region,1286,Sydostkretsen
+region,1287,Sydvästkretsen II
+region,1290,Nordostkretsen
+region,1291,Sydostkretsen
+region,1292,Nordvästkretsen
+region,1293,Nordostkretsen
+region,1315,Halland
+region,1380,Halland
+region,1381,Halland
+region,1382,Halland
+region,1383,Halland
+region,1384,Halland
+region,1401,Västra Götalands läns västra
+region,1402,Västra Götalands läns västra
+region,1407,Västra Götalands läns västra
+region,1415,Västra Götalands läns västra
+region,1419,Västra Götalands läns västra
+region,1421,Västra Götalands läns norra
+region,1427,Västra Götalands läns norra
+region,1430,Västra Götalands läns norra
+region,1435,Västra Götalands läns norra
+region,1438,Västra Götalands läns norra
+region,1439,Västra Götalands läns norra
+region,1440,Västra Götalands läns västra
+region,1441,Västra Götalands läns västra
+region,1442,Västra Götalands läns södra
+region,1443,Västra Götalands läns södra
+region,1444,Västra Götalands läns östra
+region,1445,Västra Götalands läns östra
+region,1446,Västra Götalands läns östra
+region,1447,Västra Götalands läns östra
+region,1452,Västra Götalands läns södra
+region,1460,Västra Götalands läns norra
+region,1461,Västra Götalands läns norra
+region,1462,Västra Götalands läns västra
+region,1463,Västra Götalands läns södra
+region,1465,Västra Götalands läns södra
+region,1466,Västra Götalands läns södra
+region,1470,Västra Götalands läns östra
+region,1471,Västra Götalands läns östra
+region,1472,Västra Götalands läns östra
+region,1473,Västra Götalands läns östra
+region,1480,Göteborgs kommun
+region,1481,Västra Götalands läns västra
+region,1482,Västra Götalands läns västra
+region,1484,Västra Götalands läns norra
+region,1485,Västra Götalands läns norra
+region,1486,Västra Götalands läns norra
+region,1487,Västra Götalands läns norra
+region,1488,Västra Götalands läns norra
+region,1489,Västra Götalands läns västra
+region,1490,Västra Götalands läns södra
+region,1491,Västra Götalands läns södra
+region,1492,Västra Götalands läns norra
+region,1493,Västra Götalands läns östra
+region,1494,Västra Götalands läns östra
+region,1495,Västra Götalands läns östra
+region,1496,Västra Götalands läns östra
+region,1497,Västra Götalands läns östra
+region,1498,Västra Götalands läns östra
+region,1499,Västra Götalands läns östra
+region,1715,Region Värmland
+region,1730,Region Värmland
+region,1737,Region Värmland
+region,1760,Region Värmland
+region,1761,Region Värmland
+region,1762,Region Värmland
+region,1763,Region Värmland
+region,1764,Region Värmland
+region,1765,Region Värmland
+region,1766,Region Värmland
+region,1780,Region Värmland
+region,1781,Region Värmland
+region,1782,Region Värmland
+region,1783,Region Värmland
+region,1784,Region Värmland
+region,1785,Region Värmland
+region,1814,Örebro-Lekeberg
+region,1860,Örebro läns Södra
+region,1861,Örebro läns Södra
+region,1862,Örebro läns Västra
+region,1863,Örebro läns Norra
+region,1864,Örebro läns Norra
+region,1880,Örebro-Lekeberg
+region,1881,Örebro läns Södra
+region,1882,Örebro läns Södra
+region,1883,Örebro läns Västra
+region,1884,Örebro läns Norra
+region,1885,Örebro läns Norra
+region,1904,Västra valkretsen
+region,1907,Västra valkretsen
+region,1960,Västra valkretsen
+region,1961,Västra valkretsen
+region,1962,Västra valkretsen
+region,1980,Östra valkretsen
+region,1981,Östra valkretsen
+region,1982,Västra valkretsen
+region,1983,Västra valkretsen
+region,1984,Västra valkretsen
+region,2021,Region Dalarna
+region,2023,Region Dalarna
+region,2026,Region Dalarna
+region,2029,Region Dalarna
+region,2031,Region Dalarna
+region,2034,Region Dalarna
+region,2039,Region Dalarna
+region,2061,Region Dalarna
+region,2062,Region Dalarna
+region,2080,Region Dalarna
+region,2081,Region Dalarna
+region,2082,Region Dalarna
+region,2083,Region Dalarna
+region,2084,Region Dalarna
+region,2085,Region Dalarna
+region,2101,Region Gävleborg
+region,2104,Region Gävleborg
+region,2121,Region Gävleborg
+region,2132,Region Gävleborg
+region,2161,Region Gävleborg
+region,2180,Region Gävleborg
+region,2181,Region Gävleborg
+region,2182,Region Gävleborg
+region,2183,Region Gävleborg
+region,2184,Region Gävleborg
+region,2260,Region Västernorrland
+region,2262,Region Västernorrland
+region,2280,Region Västernorrland
+region,2281,Region Västernorrland
+region,2282,Region Västernorrland
+region,2283,Region Västernorrland
+region,2284,Region Västernorrland
+region,2303,Jämtland/Härjedalen
+region,2305,Jämtland/Härjedalen
+region,2309,Jämtland/Härjedalen
+region,2313,Jämtland/Härjedalen
+region,2321,Jämtland/Härjedalen
+region,2326,Jämtland/Härjedalen
+region,2361,Jämtland/Härjedalen
+region,2380,Jämtland/Härjedalen
+region,2401,Västerbottens läns södra
+region,2403,Västerbottens läns södra
+region,2404,Västerbottens läns södra
+region,2409,Västerbottens läns södra
+region,2417,Västerbottens läns norra
+region,2418,Västerbottens läns västra
+region,2421,Västerbottens läns västra
+region,2422,Västerbottens läns västra
+region,2425,Västerbottens läns västra
+region,2460,Västerbottens läns södra
+region,2462,Västerbottens läns västra
+region,2463,Västerbottens läns västra
+region,2480,Västerbottens läns södra
+region,2481,Västerbottens läns västra
+region,2482,Västerbottens läns norra
+region,2505,Norrbottens läns valkrets
+region,2506,Norrbottens läns valkrets
+region,2510,Norrbottens läns valkrets
+region,2513,Norrbottens läns valkrets
+region,2514,Norrbottens läns valkrets
+region,2518,Norrbottens läns valkrets
+region,2521,Norrbottens läns valkrets
+region,2523,Norrbottens läns valkrets
+region,2560,Norrbottens läns valkrets
+region,2580,Norrbottens läns valkrets
+region,2581,Norrbottens läns valkrets
+region,2582,Norrbottens läns valkrets
+region,2583,Norrbottens läns valkrets
+region,2584,Norrbottens läns valkrets
+kommunvk,01360101,Haninge Norra
+kommunvk,01360102,Haninge Norra
+kommunvk,01360103,Haninge Norra
+kommunvk,01360104,Haninge Norra
+kommunvk,01360105,Haninge Norra
+kommunvk,01360106,Haninge Norra
+kommunvk,01360107,Haninge Norra
+kommunvk,01360108,Haninge Norra
+kommunvk,01360109,Haninge Norra
+kommunvk,01360110,Haninge Norra
+kommunvk,01360111,Haninge Norra
+kommunvk,01360112,Haninge Norra
+kommunvk,01360113,Haninge Norra
+kommunvk,01360114,Haninge Norra
+kommunvk,01360115,Haninge Norra
+kommunvk,01360116,Haninge Norra
+kommunvk,01360117,Haninge Norra
+kommunvk,01360118,Haninge Norra
+kommunvk,01360119,Haninge Norra
+kommunvk,01360120,Haninge Norra
+kommunvk,01360121,Haninge Norra
+kommunvk,01360123,Haninge Norra
+kommunvk,01360124,Haninge Norra
+kommunvk,01360125,Haninge Norra
+kommunvk,01360126,Haninge Norra
+kommunvk,01360131,Haninge Södra
+kommunvk,01360132,Haninge Södra
+kommunvk,01360133,Haninge Södra
+kommunvk,01360134,Haninge Södra
+kommunvk,01360140,Haninge Södra
+kommunvk,01360144,Haninge Södra
+kommunvk,01360145,Haninge Södra
+kommunvk,01360146,Haninge Södra
+kommunvk,01360147,Haninge Södra
+kommunvk,01360148,Haninge Södra
+kommunvk,01360537,Haninge Södra
+kommunvk,01360649,Haninge Södra
+kommunvk,01360650,Haninge Södra
+kommunvk,01360651,Haninge Södra
+kommunvk,01360652,Haninge Södra
+kommunvk,01360653,Haninge Södra
+kommunvk,01360654,Haninge Södra
+kommunvk,01360655,Haninge Södra
+kommunvk,01360656,Haninge Södra
+kommunvk,01360657,Haninge Södra
+kommunvk,01360658,Haninge Södra
+kommunvk,01360659,Haninge Södra
+kommunvk,01360660,Haninge Södra
+kommunvk,01360760,Haninge Södra
+kommunvk,01600101,Täby  Västra
+kommunvk,01600102,Täby  Västra
+kommunvk,01600103,Täby  Västra
+kommunvk,01600104,Täby  Västra
+kommunvk,01600105,Täby  Västra
+kommunvk,01600106,Täby  Västra
+kommunvk,01600107,Täby  Västra
+kommunvk,01600108,Täby  Västra
+kommunvk,01600109,Täby  Västra
+kommunvk,01600110,Täby  Västra
+kommunvk,01600111,Täby  Västra
+kommunvk,01600112,Täby  Västra
+kommunvk,01600113,Täby  Västra
+kommunvk,01600114,Täby  Västra
+kommunvk,01600115,Täby  Västra
+kommunvk,01600116,Täby  Västra
+kommunvk,01600117,Täby  Västra
+kommunvk,01600118,Täby  Västra
+kommunvk,01600119,Täby  Västra
+kommunvk,01600120,Täby Östra
+kommunvk,01600121,Täby Östra
+kommunvk,01600122,Täby Östra
+kommunvk,01600123,Täby Östra
+kommunvk,01600124,Täby Östra
+kommunvk,01600125,Täby Östra
+kommunvk,01600126,Täby Östra
+kommunvk,01600127,Täby Östra
+kommunvk,01600128,Täby Östra
+kommunvk,01600129,Täby Östra
+kommunvk,01600130,Täby Östra
+kommunvk,01600131,Täby Östra
+kommunvk,01600132,Täby Östra
+kommunvk,01600133,Täby Östra
+kommunvk,01600134,Täby Östra
+kommunvk,01600135,Täby Östra
+kommunvk,01600136,Täby Östra
+kommunvk,01600137,Täby Östra
+kommunvk,01600138,Täby Östra
+kommunvk,01600139,Täby Östra
+kommunvk,01600140,Täby Östra
+kommunvk,01600141,Täby Östra
+kommunvk,01800101,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800102,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800103,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800401,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800402,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800403,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800404,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800405,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800406,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800407,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800408,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800501,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800502,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800503,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800504,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800505,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800506,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800601,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800602,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800603,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800604,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800605,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800606,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800607,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800608,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800609,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800701,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800702,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800703,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800704,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800705,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800706,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800707,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800708,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800709,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800710,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800711,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800712,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800713,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800714,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800715,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800716,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800717,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800718,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800719,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800720,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800901,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800902,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800903,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800904,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800905,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800906,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800907,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800908,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800909,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800910,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800911,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800912,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800913,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800914,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800915,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800916,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800917,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800918,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01800919,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801001,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801002,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801003,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801004,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801005,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801006,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801007,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801008,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801101,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801102,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801103,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801104,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801105,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801106,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801107,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801108,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801109,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801110,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801111,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801112,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801113,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801114,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801115,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801116,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801117,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801118,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801119,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801120,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801121,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801122,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801123,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801124,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801125,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801126,3 Norrmalm-Östermalm-Gamla Stan
+kommunvk,01801301,1 Södermalm-Enskede
+kommunvk,01801302,1 Södermalm-Enskede
+kommunvk,01801303,1 Södermalm-Enskede
+kommunvk,01801304,1 Södermalm-Enskede
+kommunvk,01801305,1 Södermalm-Enskede
+kommunvk,01801306,1 Södermalm-Enskede
+kommunvk,01801307,1 Södermalm-Enskede
+kommunvk,01801308,1 Södermalm-Enskede
+kommunvk,01801309,1 Södermalm-Enskede
+kommunvk,01801310,1 Södermalm-Enskede
+kommunvk,01801311,1 Södermalm-Enskede
+kommunvk,01801312,1 Södermalm-Enskede
+kommunvk,01801313,1 Södermalm-Enskede
+kommunvk,01801401,1 Södermalm-Enskede
+kommunvk,01801402,1 Södermalm-Enskede
+kommunvk,01801403,1 Södermalm-Enskede
+kommunvk,01801404,1 Södermalm-Enskede
+kommunvk,01801405,1 Södermalm-Enskede
+kommunvk,01801406,1 Södermalm-Enskede
+kommunvk,01801407,1 Södermalm-Enskede
+kommunvk,01801408,1 Södermalm-Enskede
+kommunvk,01801409,1 Södermalm-Enskede
+kommunvk,01801410,1 Södermalm-Enskede
+kommunvk,01801411,1 Södermalm-Enskede
+kommunvk,01801412,1 Södermalm-Enskede
+kommunvk,01801413,1 Södermalm-Enskede
+kommunvk,01801414,1 Södermalm-Enskede
+kommunvk,01801415,1 Södermalm-Enskede
+kommunvk,01801416,1 Södermalm-Enskede
+kommunvk,01801417,1 Södermalm-Enskede
+kommunvk,01801418,1 Södermalm-Enskede
+kommunvk,01801419,1 Södermalm-Enskede
+kommunvk,01801420,1 Södermalm-Enskede
+kommunvk,01801421,1 Södermalm-Enskede
+kommunvk,01801422,1 Södermalm-Enskede
+kommunvk,01801501,1 Södermalm-Enskede
+kommunvk,01801502,1 Södermalm-Enskede
+kommunvk,01801503,1 Södermalm-Enskede
+kommunvk,01801504,1 Södermalm-Enskede
+kommunvk,01801505,1 Södermalm-Enskede
+kommunvk,01801506,1 Södermalm-Enskede
+kommunvk,01801507,1 Södermalm-Enskede
+kommunvk,01801508,1 Södermalm-Enskede
+kommunvk,01801509,1 Södermalm-Enskede
+kommunvk,01801510,1 Södermalm-Enskede
+kommunvk,01801511,1 Södermalm-Enskede
+kommunvk,01801512,1 Södermalm-Enskede
+kommunvk,01801513,1 Södermalm-Enskede
+kommunvk,01801514,1 Södermalm-Enskede
+kommunvk,01801515,1 Södermalm-Enskede
+kommunvk,01801516,1 Södermalm-Enskede
+kommunvk,01801517,1 Södermalm-Enskede
+kommunvk,01801518,1 Södermalm-Enskede
+kommunvk,01801519,1 Södermalm-Enskede
+kommunvk,01801520,1 Södermalm-Enskede
+kommunvk,01801521,1 Södermalm-Enskede
+kommunvk,01801701,1 Södermalm-Enskede
+kommunvk,01801702,1 Södermalm-Enskede
+kommunvk,01801703,1 Södermalm-Enskede
+kommunvk,01801704,1 Södermalm-Enskede
+kommunvk,01801705,1 Södermalm-Enskede
+kommunvk,01801706,1 Södermalm-Enskede
+kommunvk,01801707,1 Södermalm-Enskede
+kommunvk,01801708,1 Södermalm-Enskede
+kommunvk,01801709,1 Södermalm-Enskede
+kommunvk,01801710,1 Södermalm-Enskede
+kommunvk,01801711,1 Södermalm-Enskede
+kommunvk,01801712,1 Södermalm-Enskede
+kommunvk,01801713,1 Södermalm-Enskede
+kommunvk,01801714,1 Södermalm-Enskede
+kommunvk,01801715,1 Södermalm-Enskede
+kommunvk,01801716,1 Södermalm-Enskede
+kommunvk,01801717,1 Södermalm-Enskede
+kommunvk,01801718,1 Södermalm-Enskede
+kommunvk,01801719,1 Södermalm-Enskede
+kommunvk,01801720,1 Södermalm-Enskede
+kommunvk,01801721,1 Södermalm-Enskede
+kommunvk,01801722,1 Södermalm-Enskede
+kommunvk,01801723,1 Södermalm-Enskede
+kommunvk,01801724,1 Södermalm-Enskede
+kommunvk,01801801,2 Bromma-Kungsholmen
+kommunvk,01801802,2 Bromma-Kungsholmen
+kommunvk,01801803,2 Bromma-Kungsholmen
+kommunvk,01801804,2 Bromma-Kungsholmen
+kommunvk,01801805,2 Bromma-Kungsholmen
+kommunvk,01801806,2 Bromma-Kungsholmen
+kommunvk,01801807,2 Bromma-Kungsholmen
+kommunvk,01801808,2 Bromma-Kungsholmen
+kommunvk,01801809,2 Bromma-Kungsholmen
+kommunvk,01801810,2 Bromma-Kungsholmen
+kommunvk,01801811,2 Bromma-Kungsholmen
+kommunvk,01801812,2 Bromma-Kungsholmen
+kommunvk,01801813,2 Bromma-Kungsholmen
+kommunvk,01801901,2 Bromma-Kungsholmen
+kommunvk,01801902,2 Bromma-Kungsholmen
+kommunvk,01801903,2 Bromma-Kungsholmen
+kommunvk,01801904,2 Bromma-Kungsholmen
+kommunvk,01801905,2 Bromma-Kungsholmen
+kommunvk,01801906,2 Bromma-Kungsholmen
+kommunvk,01801907,2 Bromma-Kungsholmen
+kommunvk,01801908,2 Bromma-Kungsholmen
+kommunvk,01801909,2 Bromma-Kungsholmen
+kommunvk,01801910,2 Bromma-Kungsholmen
+kommunvk,01801911,2 Bromma-Kungsholmen
+kommunvk,01801912,2 Bromma-Kungsholmen
+kommunvk,01801913,2 Bromma-Kungsholmen
+kommunvk,01801914,2 Bromma-Kungsholmen
+kommunvk,01801915,2 Bromma-Kungsholmen
+kommunvk,01801916,2 Bromma-Kungsholmen
+kommunvk,01801917,2 Bromma-Kungsholmen
+kommunvk,01801918,2 Bromma-Kungsholmen
+kommunvk,01801919,2 Bromma-Kungsholmen
+kommunvk,01801920,2 Bromma-Kungsholmen
+kommunvk,01801921,2 Bromma-Kungsholmen
+kommunvk,01801922,2 Bromma-Kungsholmen
+kommunvk,01801923,2 Bromma-Kungsholmen
+kommunvk,01801924,2 Bromma-Kungsholmen
+kommunvk,01801925,2 Bromma-Kungsholmen
+kommunvk,01801926,2 Bromma-Kungsholmen
+kommunvk,01802101,5 Västra Söderort
+kommunvk,01802102,5 Västra Söderort
+kommunvk,01802103,5 Västra Söderort
+kommunvk,01802104,5 Västra Söderort
+kommunvk,01802105,5 Västra Söderort
+kommunvk,01802106,5 Västra Söderort
+kommunvk,01802107,5 Västra Söderort
+kommunvk,01802108,5 Västra Söderort
+kommunvk,01802109,5 Västra Söderort
+kommunvk,01802110,5 Västra Söderort
+kommunvk,01802111,5 Västra Söderort
+kommunvk,01802112,5 Västra Söderort
+kommunvk,01802113,5 Västra Söderort
+kommunvk,01802114,5 Västra Söderort
+kommunvk,01802115,5 Västra Söderort
+kommunvk,01802116,5 Västra Söderort
+kommunvk,01802117,5 Västra Söderort
+kommunvk,01802118,5 Västra Söderort
+kommunvk,01802119,5 Västra Söderort
+kommunvk,01802120,5 Västra Söderort
+kommunvk,01802121,5 Västra Söderort
+kommunvk,01802122,5 Västra Söderort
+kommunvk,01802123,5 Västra Söderort
+kommunvk,01802124,5 Västra Söderort
+kommunvk,01802125,5 Västra Söderort
+kommunvk,01802126,5 Västra Söderort
+kommunvk,01802127,5 Västra Söderort
+kommunvk,01802128,5 Västra Söderort
+kommunvk,01802129,5 Västra Söderort
+kommunvk,01802130,5 Västra Söderort
+kommunvk,01802131,5 Västra Söderort
+kommunvk,01802301,4 Östra Söderort
+kommunvk,01802302,4 Östra Söderort
+kommunvk,01802303,4 Östra Söderort
+kommunvk,01802304,4 Östra Söderort
+kommunvk,01802305,4 Östra Söderort
+kommunvk,01802306,4 Östra Söderort
+kommunvk,01802307,4 Östra Söderort
+kommunvk,01802308,4 Östra Söderort
+kommunvk,01802309,4 Östra Söderort
+kommunvk,01802310,4 Östra Söderort
+kommunvk,01802311,4 Östra Söderort
+kommunvk,01802312,4 Östra Söderort
+kommunvk,01802313,4 Östra Söderort
+kommunvk,01802314,4 Östra Söderort
+kommunvk,01802315,4 Östra Söderort
+kommunvk,01802316,4 Östra Söderort
+kommunvk,01802317,4 Östra Söderort
+kommunvk,01802318,4 Östra Söderort
+kommunvk,01802319,4 Östra Söderort
+kommunvk,01802320,4 Östra Söderort
+kommunvk,01802321,4 Östra Söderort
+kommunvk,01802322,4 Östra Söderort
+kommunvk,01802323,4 Östra Söderort
+kommunvk,01802324,4 Östra Söderort
+kommunvk,01802325,4 Östra Söderort
+kommunvk,01802326,4 Östra Söderort
+kommunvk,01802327,4 Östra Söderort
+kommunvk,01802328,4 Östra Söderort
+kommunvk,01802329,4 Östra Söderort
+kommunvk,01802330,4 Östra Söderort
+kommunvk,01802331,4 Östra Söderort
+kommunvk,01802332,4 Östra Söderort
+kommunvk,01802501,4 Östra Söderort
+kommunvk,01802502,4 Östra Söderort
+kommunvk,01802503,4 Östra Söderort
+kommunvk,01802504,4 Östra Söderort
+kommunvk,01802505,4 Östra Söderort
+kommunvk,01802506,4 Östra Söderort
+kommunvk,01802507,4 Östra Söderort
+kommunvk,01802508,4 Östra Söderort
+kommunvk,01802509,4 Östra Söderort
+kommunvk,01802510,4 Östra Söderort
+kommunvk,01802511,4 Östra Söderort
+kommunvk,01802512,4 Östra Söderort
+kommunvk,01802513,4 Östra Söderort
+kommunvk,01802514,4 Östra Söderort
+kommunvk,01802515,4 Östra Söderort
+kommunvk,01802516,4 Östra Söderort
+kommunvk,01802517,4 Östra Söderort
+kommunvk,01802518,4 Östra Söderort
+kommunvk,01802519,4 Östra Söderort
+kommunvk,01802520,4 Östra Söderort
+kommunvk,01802521,4 Östra Söderort
+kommunvk,01802522,4 Östra Söderort
+kommunvk,01802523,4 Östra Söderort
+kommunvk,01802524,4 Östra Söderort
+kommunvk,01802525,4 Östra Söderort
+kommunvk,01802526,4 Östra Söderort
+kommunvk,01802527,4 Östra Söderort
+kommunvk,01802528,4 Östra Söderort
+kommunvk,01802529,4 Östra Söderort
+kommunvk,01802530,4 Östra Söderort
+kommunvk,01802531,4 Östra Söderort
+kommunvk,01802532,4 Östra Söderort
+kommunvk,01802533,4 Östra Söderort
+kommunvk,01802534,4 Östra Söderort
+kommunvk,01802535,4 Östra Söderort
+kommunvk,01802536,4 Östra Söderort
+kommunvk,01802537,4 Östra Söderort
+kommunvk,01802538,4 Östra Söderort
+kommunvk,01802539,4 Östra Söderort
+kommunvk,01802701,2 Bromma-Kungsholmen
+kommunvk,01802702,2 Bromma-Kungsholmen
+kommunvk,01802703,2 Bromma-Kungsholmen
+kommunvk,01802704,2 Bromma-Kungsholmen
+kommunvk,01802705,2 Bromma-Kungsholmen
+kommunvk,01802706,2 Bromma-Kungsholmen
+kommunvk,01802707,2 Bromma-Kungsholmen
+kommunvk,01802708,2 Bromma-Kungsholmen
+kommunvk,01802709,2 Bromma-Kungsholmen
+kommunvk,01802710,2 Bromma-Kungsholmen
+kommunvk,01802711,2 Bromma-Kungsholmen
+kommunvk,01802712,2 Bromma-Kungsholmen
+kommunvk,01802713,2 Bromma-Kungsholmen
+kommunvk,01802714,2 Bromma-Kungsholmen
+kommunvk,01802715,2 Bromma-Kungsholmen
+kommunvk,01802716,2 Bromma-Kungsholmen
+kommunvk,01802717,2 Bromma-Kungsholmen
+kommunvk,01802718,2 Bromma-Kungsholmen
+kommunvk,01802719,2 Bromma-Kungsholmen
+kommunvk,01802720,2 Bromma-Kungsholmen
+kommunvk,01802721,2 Bromma-Kungsholmen
+kommunvk,01802722,2 Bromma-Kungsholmen
+kommunvk,01802723,2 Bromma-Kungsholmen
+kommunvk,01802724,2 Bromma-Kungsholmen
+kommunvk,01802725,2 Bromma-Kungsholmen
+kommunvk,01802726,2 Bromma-Kungsholmen
+kommunvk,01802727,2 Bromma-Kungsholmen
+kommunvk,01802728,2 Bromma-Kungsholmen
+kommunvk,01802729,2 Bromma-Kungsholmen
+kommunvk,01802730,2 Bromma-Kungsholmen
+kommunvk,01802731,2 Bromma-Kungsholmen
+kommunvk,01802732,2 Bromma-Kungsholmen
+kommunvk,01802733,2 Bromma-Kungsholmen
+kommunvk,01802801,2 Bromma-Kungsholmen
+kommunvk,01802802,2 Bromma-Kungsholmen
+kommunvk,01802803,2 Bromma-Kungsholmen
+kommunvk,01802804,2 Bromma-Kungsholmen
+kommunvk,01802805,2 Bromma-Kungsholmen
+kommunvk,01802806,2 Bromma-Kungsholmen
+kommunvk,01802901,2 Bromma-Kungsholmen
+kommunvk,01802902,2 Bromma-Kungsholmen
+kommunvk,01802903,2 Bromma-Kungsholmen
+kommunvk,01802904,2 Bromma-Kungsholmen
+kommunvk,01802905,2 Bromma-Kungsholmen
+kommunvk,01802906,2 Bromma-Kungsholmen
+kommunvk,01802907,2 Bromma-Kungsholmen
+kommunvk,01802908,2 Bromma-Kungsholmen
+kommunvk,01802909,2 Bromma-Kungsholmen
+kommunvk,01802910,2 Bromma-Kungsholmen
+kommunvk,01802911,2 Bromma-Kungsholmen
+kommunvk,01802912,2 Bromma-Kungsholmen
+kommunvk,01802913,2 Bromma-Kungsholmen
+kommunvk,01802914,2 Bromma-Kungsholmen
+kommunvk,01802915,2 Bromma-Kungsholmen
+kommunvk,01802916,2 Bromma-Kungsholmen
+kommunvk,01802917,2 Bromma-Kungsholmen
+kommunvk,01802918,2 Bromma-Kungsholmen
+kommunvk,01802919,2 Bromma-Kungsholmen
+kommunvk,01803101,6 Yttre Västerort
+kommunvk,01803102,6 Yttre Västerort
+kommunvk,01803103,6 Yttre Västerort
+kommunvk,01803104,6 Yttre Västerort
+kommunvk,01803105,6 Yttre Västerort
+kommunvk,01803106,6 Yttre Västerort
+kommunvk,01803107,6 Yttre Västerort
+kommunvk,01803108,6 Yttre Västerort
+kommunvk,01803109,6 Yttre Västerort
+kommunvk,01803110,6 Yttre Västerort
+kommunvk,01803111,6 Yttre Västerort
+kommunvk,01803112,6 Yttre Västerort
+kommunvk,01803113,6 Yttre Västerort
+kommunvk,01803114,6 Yttre Västerort
+kommunvk,01803115,6 Yttre Västerort
+kommunvk,01803116,6 Yttre Västerort
+kommunvk,01803117,6 Yttre Västerort
+kommunvk,01803118,6 Yttre Västerort
+kommunvk,01803119,6 Yttre Västerort
+kommunvk,01803120,6 Yttre Västerort
+kommunvk,01803121,6 Yttre Västerort
+kommunvk,01803122,6 Yttre Västerort
+kommunvk,01803401,1 Södermalm-Enskede
+kommunvk,01803402,1 Södermalm-Enskede
+kommunvk,01803403,1 Södermalm-Enskede
+kommunvk,01803404,1 Södermalm-Enskede
+kommunvk,01803405,1 Södermalm-Enskede
+kommunvk,01803406,1 Södermalm-Enskede
+kommunvk,01803407,1 Södermalm-Enskede
+kommunvk,01803408,1 Södermalm-Enskede
+kommunvk,01803409,1 Södermalm-Enskede
+kommunvk,01803410,1 Södermalm-Enskede
+kommunvk,01803411,1 Södermalm-Enskede
+kommunvk,01803412,1 Södermalm-Enskede
+kommunvk,01803413,1 Södermalm-Enskede
+kommunvk,01803414,1 Södermalm-Enskede
+kommunvk,01803415,1 Södermalm-Enskede
+kommunvk,01803416,1 Södermalm-Enskede
+kommunvk,01803417,1 Södermalm-Enskede
+kommunvk,01803418,1 Södermalm-Enskede
+kommunvk,01803419,1 Södermalm-Enskede
+kommunvk,01803420,1 Södermalm-Enskede
+kommunvk,01803421,1 Södermalm-Enskede
+kommunvk,01803422,1 Södermalm-Enskede
+kommunvk,01803423,1 Södermalm-Enskede
+kommunvk,01803424,1 Södermalm-Enskede
+kommunvk,01803425,1 Södermalm-Enskede
+kommunvk,01803426,1 Södermalm-Enskede
+kommunvk,01803601,4 Östra Söderort
+kommunvk,01803602,4 Östra Söderort
+kommunvk,01803603,4 Östra Söderort
+kommunvk,01803604,4 Östra Söderort
+kommunvk,01803605,4 Östra Söderort
+kommunvk,01803606,4 Östra Söderort
+kommunvk,01803607,4 Östra Söderort
+kommunvk,01803608,4 Östra Söderort
+kommunvk,01803609,4 Östra Söderort
+kommunvk,01803610,4 Östra Söderort
+kommunvk,01803611,4 Östra Söderort
+kommunvk,01803612,4 Östra Söderort
+kommunvk,01803613,4 Östra Söderort
+kommunvk,01803614,4 Östra Söderort
+kommunvk,01803615,4 Östra Söderort
+kommunvk,01803616,4 Östra Söderort
+kommunvk,01803617,4 Östra Söderort
+kommunvk,01803618,4 Östra Söderort
+kommunvk,01803619,4 Östra Söderort
+kommunvk,01803620,4 Östra Söderort
+kommunvk,01803621,4 Östra Söderort
+kommunvk,01803622,4 Östra Söderort
+kommunvk,01803623,4 Östra Söderort
+kommunvk,01803624,4 Östra Söderort
+kommunvk,01803625,4 Östra Söderort
+kommunvk,01803626,4 Östra Söderort
+kommunvk,01803627,4 Östra Söderort
+kommunvk,01803628,4 Östra Söderort
+kommunvk,01803629,4 Östra Söderort
+kommunvk,01803801,6 Yttre Västerort
+kommunvk,01803802,6 Yttre Västerort
+kommunvk,01803803,6 Yttre Västerort
+kommunvk,01803804,6 Yttre Västerort
+kommunvk,01803805,6 Yttre Västerort
+kommunvk,01803806,6 Yttre Västerort
+kommunvk,01803807,6 Yttre Västerort
+kommunvk,01803808,6 Yttre Västerort
+kommunvk,01803809,6 Yttre Västerort
+kommunvk,01803810,6 Yttre Västerort
+kommunvk,01803811,6 Yttre Västerort
+kommunvk,01803812,6 Yttre Västerort
+kommunvk,01803813,6 Yttre Västerort
+kommunvk,01803814,6 Yttre Västerort
+kommunvk,01803815,6 Yttre Västerort
+kommunvk,01803816,6 Yttre Västerort
+kommunvk,01803817,6 Yttre Västerort
+kommunvk,01803818,6 Yttre Västerort
+kommunvk,01803819,6 Yttre Västerort
+kommunvk,01803820,6 Yttre Västerort
+kommunvk,01803821,6 Yttre Västerort
+kommunvk,01803901,5 Västra Söderort
+kommunvk,01803902,5 Västra Söderort
+kommunvk,01803903,5 Västra Söderort
+kommunvk,01803904,5 Västra Söderort
+kommunvk,01803905,5 Västra Söderort
+kommunvk,01803906,5 Västra Söderort
+kommunvk,01803907,5 Västra Söderort
+kommunvk,01803908,5 Västra Söderort
+kommunvk,01803909,5 Västra Söderort
+kommunvk,01803910,5 Västra Söderort
+kommunvk,01803911,5 Västra Söderort
+kommunvk,01803912,5 Västra Söderort
+kommunvk,01803913,5 Västra Söderort
+kommunvk,01803914,5 Västra Söderort
+kommunvk,01803915,5 Västra Söderort
+kommunvk,01803916,5 Västra Söderort
+kommunvk,01803917,5 Västra Söderort
+kommunvk,01803918,5 Västra Söderort
+kommunvk,01803919,5 Västra Söderort
+kommunvk,01803920,5 Västra Söderort
+kommunvk,01803921,5 Västra Söderort
+kommunvk,01803922,5 Västra Söderort
+kommunvk,01803923,5 Västra Söderort
+kommunvk,01803924,5 Västra Söderort
+kommunvk,01803925,5 Västra Söderort
+kommunvk,01803926,5 Västra Söderort
+kommunvk,01803927,5 Västra Söderort
+kommunvk,01803928,5 Västra Söderort
+kommunvk,01803929,5 Västra Söderort
+kommunvk,01803930,5 Västra Söderort
+kommunvk,01803931,5 Västra Söderort
+kommunvk,01803932,5 Västra Söderort
+kommunvk,01803933,5 Västra Söderort
+kommunvk,01803934,5 Västra Söderort
+kommunvk,01803935,5 Västra Söderort
+kommunvk,01803936,5 Västra Söderort
+kommunvk,01803937,5 Västra Söderort
+kommunvk,01803938,5 Västra Söderort
+kommunvk,01803939,5 Västra Söderort
+kommunvk,01803940,5 Västra Söderort
+kommunvk,01803941,5 Västra Söderort
+kommunvk,01803942,5 Västra Söderort
+kommunvk,01803943,5 Västra Söderort
+kommunvk,01803944,5 Västra Söderort
+kommunvk,01803945,5 Västra Söderort
+kommunvk,01804001,5 Västra Söderort
+kommunvk,01804002,5 Västra Söderort
+kommunvk,01804003,5 Västra Söderort
+kommunvk,01804004,5 Västra Söderort
+kommunvk,01804005,5 Västra Söderort
+kommunvk,01804006,5 Västra Söderort
+kommunvk,01804007,5 Västra Söderort
+kommunvk,01804008,5 Västra Söderort
+kommunvk,01804009,5 Västra Söderort
+kommunvk,01804010,5 Västra Söderort
+kommunvk,01804011,5 Västra Söderort
+kommunvk,01804012,5 Västra Söderort
+kommunvk,01804013,5 Västra Söderort
+kommunvk,01804014,5 Västra Söderort
+kommunvk,01804015,5 Västra Söderort
+kommunvk,01804016,5 Västra Söderort
+kommunvk,01804017,5 Västra Söderort
+kommunvk,01804018,5 Västra Söderort
+kommunvk,01804019,5 Västra Söderort
+kommunvk,01804020,5 Västra Söderort
+kommunvk,01804021,5 Västra Söderort
+kommunvk,01804101,6 Yttre Västerort
+kommunvk,01804102,6 Yttre Västerort
+kommunvk,01804103,6 Yttre Västerort
+kommunvk,01804104,6 Yttre Västerort
+kommunvk,01804105,6 Yttre Västerort
+kommunvk,01804106,6 Yttre Västerort
+kommunvk,01804107,6 Yttre Västerort
+kommunvk,01804108,6 Yttre Västerort
+kommunvk,01804109,6 Yttre Västerort
+kommunvk,01804110,6 Yttre Västerort
+kommunvk,01804111,6 Yttre Västerort
+kommunvk,01804112,6 Yttre Västerort
+kommunvk,01804113,6 Yttre Västerort
+kommunvk,01804114,6 Yttre Västerort
+kommunvk,01804115,6 Yttre Västerort
+kommunvk,01804116,6 Yttre Västerort
+kommunvk,01804117,6 Yttre Västerort
+kommunvk,01804118,6 Yttre Västerort
+kommunvk,01804119,6 Yttre Västerort
+kommunvk,01804120,6 Yttre Västerort
+kommunvk,01804121,6 Yttre Västerort
+kommunvk,01804122,6 Yttre Västerort
+kommunvk,01804123,6 Yttre Västerort
+kommunvk,01804124,6 Yttre Västerort
+kommunvk,01804125,6 Yttre Västerort
+kommunvk,01804126,6 Yttre Västerort
+kommunvk,01804127,6 Yttre Västerort
+kommunvk,01804128,6 Yttre Västerort
+kommunvk,01804129,6 Yttre Västerort
+kommunvk,01804201,6 Yttre Västerort
+kommunvk,01804202,6 Yttre Västerort
+kommunvk,01804203,6 Yttre Västerort
+kommunvk,01804204,6 Yttre Västerort
+kommunvk,01804205,6 Yttre Västerort
+kommunvk,01804206,6 Yttre Västerort
+kommunvk,01804207,6 Yttre Västerort
+kommunvk,01804208,6 Yttre Västerort
+kommunvk,01804209,6 Yttre Västerort
+kommunvk,01804210,6 Yttre Västerort
+kommunvk,01804211,6 Yttre Västerort
+kommunvk,01804212,6 Yttre Västerort
+kommunvk,01804213,6 Yttre Västerort
+kommunvk,01804214,6 Yttre Västerort
+kommunvk,01804215,6 Yttre Västerort
+kommunvk,01804216,6 Yttre Västerort
+kommunvk,01804217,6 Yttre Västerort
+kommunvk,01804218,6 Yttre Västerort
+kommunvk,01804219,6 Yttre Västerort
+kommunvk,01804220,6 Yttre Västerort
+kommunvk,01804221,6 Yttre Västerort
+kommunvk,01820101,Nacka Västra
+kommunvk,01820102,Nacka Västra
+kommunvk,01820103,Nacka Västra
+kommunvk,01820104,Nacka Västra
+kommunvk,01820105,Nacka Västra
+kommunvk,01820106,Nacka Västra
+kommunvk,01820107,Nacka Västra
+kommunvk,01820108,Nacka Västra
+kommunvk,01820109,Nacka Västra
+kommunvk,01820110,Nacka Västra
+kommunvk,01820111,Nacka Västra
+kommunvk,01820112,Nacka Västra
+kommunvk,01820113,Nacka Västra
+kommunvk,01820114,Nacka Västra
+kommunvk,01820115,Nacka Västra
+kommunvk,01820116,Nacka Västra
+kommunvk,01820117,Nacka Västra
+kommunvk,01820118,Nacka Västra
+kommunvk,01820119,Nacka Västra
+kommunvk,01820120,Nacka Västra
+kommunvk,01820121,Nacka Västra
+kommunvk,01820122,Nacka Västra
+kommunvk,01820123,Nacka Västra
+kommunvk,01820124,Nacka Västra
+kommunvk,01820125,Nacka Västra
+kommunvk,01820126,Nacka Västra
+kommunvk,01820127,Nacka Västra
+kommunvk,01820132,Nacka  Östra
+kommunvk,01820133,Nacka  Östra
+kommunvk,01820134,Nacka  Östra
+kommunvk,01820135,Nacka  Östra
+kommunvk,01820141,Nacka Västra
+kommunvk,01820142,Nacka Västra
+kommunvk,01820143,Nacka Västra
+kommunvk,01820201,Nacka  Östra
+kommunvk,01820202,Nacka  Östra
+kommunvk,01820203,Nacka  Östra
+kommunvk,01820204,Nacka  Östra
+kommunvk,01820205,Nacka  Östra
+kommunvk,01820206,Nacka  Östra
+kommunvk,01820301,Nacka  Östra
+kommunvk,01820302,Nacka  Östra
+kommunvk,01820303,Nacka  Östra
+kommunvk,01820304,Nacka  Östra
+kommunvk,01820305,Nacka  Östra
+kommunvk,01820306,Nacka  Östra
+kommunvk,01820307,Nacka  Östra
+kommunvk,01820308,Nacka  Östra
+kommunvk,01820309,Nacka  Östra
+kommunvk,01820310,Nacka  Östra
+kommunvk,01820311,Nacka  Östra
+kommunvk,01820312,Nacka  Östra
+kommunvk,01820314,Nacka  Östra
+kommunvk,01820315,Nacka  Östra
+kommunvk,01820316,Nacka  Östra
+kommunvk,01820317,Nacka  Östra
+kommunvk,01820318,Nacka  Östra
+kommunvk,05800101,Linköping Nordväst
+kommunvk,05800102,Linköping Sydväst
+kommunvk,05800103,Linköping Nordväst
+kommunvk,05800104,Linköping Nordväst
+kommunvk,05800105,Linköping Nordväst
+kommunvk,05800106,Linköping Sydväst
+kommunvk,05800107,Linköping Sydväst
+kommunvk,05800108,Linköping Sydväst
+kommunvk,05800109,Linköping Nordväst
+kommunvk,05800110,Linköping Nordväst
+kommunvk,05800111,Linköping Nordväst
+kommunvk,05800112,Linköping Nordväst
+kommunvk,05800113,Linköping Nordväst
+kommunvk,05800114,Linköping Sydväst
+kommunvk,05800115,Linköping Sydväst
+kommunvk,05800116,Linköping Sydväst
+kommunvk,05800117,Linköping Sydväst
+kommunvk,05800118,Linköping Nordväst
+kommunvk,05800119,Linköping Nordväst
+kommunvk,05800120,Linköping Sydväst
+kommunvk,05800121,Linköping Sydväst
+kommunvk,05800122,Linköping Sydväst
+kommunvk,05800201,Linköping Nordost
+kommunvk,05800202,Linköping Nordost
+kommunvk,05800203,Linköping Nordost
+kommunvk,05800204,Linköping Nordost
+kommunvk,05800205,Linköping Nordost
+kommunvk,05800206,Linköping Nordost
+kommunvk,05800207,Linköping Nordost
+kommunvk,05800208,Linköping Nordost
+kommunvk,05800301,Linköping Nordost
+kommunvk,05800302,Linköping Nordost
+kommunvk,05800303,Linköping Nordost
+kommunvk,05800304,Linköping Nordost
+kommunvk,05800305,Linköping Nordost
+kommunvk,05800306,Linköping Nordost
+kommunvk,05800307,Linköping Nordost
+kommunvk,05800308,Linköping Nordost
+kommunvk,05800309,Linköping Nordost
+kommunvk,05800401,Linköping Sydväst
+kommunvk,05800402,Linköping Sydväst
+kommunvk,05800403,Linköping Sydväst
+kommunvk,05800404,Linköping Sydväst
+kommunvk,05800405,Linköping Sydväst
+kommunvk,05800501,Linköping Nordväst
+kommunvk,05800502,Linköping Nordväst
+kommunvk,05800503,Linköping Nordväst
+kommunvk,05800504,Linköping Nordväst
+kommunvk,05800601,Linköping Nordväst
+kommunvk,05800801,Linköping Nordost
+kommunvk,05800802,Linköping Nordost
+kommunvk,05800901,Linköping Sydväst
+kommunvk,05801001,Linköping Sydväst
+kommunvk,05801101,Linköping Sydväst
+kommunvk,05801201,Linköping Sydväst
+kommunvk,05801401,Linköping Sydväst
+kommunvk,05801501,Linköping Sydväst
+kommunvk,05801701,Linköping Sydväst
+kommunvk,05801801,Linköping Sydväst
+kommunvk,05801901,Linköping Nordväst
+kommunvk,05801902,Linköping Nordväst
+kommunvk,05801903,Linköping Nordväst
+kommunvk,05801904,Linköping Nordväst
+kommunvk,05801905,Linköping Nordväst
+kommunvk,05802001,Linköping Nordväst
+kommunvk,05802201,Linköping Nordväst
+kommunvk,05802401,Linköping Nordost
+kommunvk,05802402,Linköping Nordost
+kommunvk,05802403,Linköping Nordost
+kommunvk,05802404,Linköping Nordost
+kommunvk,05802501,Linköping Nordost
+kommunvk,05802701,Linköping Nordost
+kommunvk,05802901,Linköping Nordost
+kommunvk,05803101,Linköping Nordost
+kommunvk,05803201,Linköping Nordost
+kommunvk,05803301,Linköping Sydväst
+kommunvk,05803302,Linköping Sydväst
+kommunvk,05803303,Linköping Sydväst
+kommunvk,05803304,Linköping Sydväst
+kommunvk,05803305,Linköping Sydväst
+kommunvk,05803306,Linköping Sydväst
+kommunvk,05803307,Linköping Sydväst
+kommunvk,05803308,Linköping Sydväst
+kommunvk,05803309,Linköping Sydväst
+kommunvk,05803310,Linköping Sydväst
+kommunvk,05803311,Linköping Sydväst
+kommunvk,05803401,Linköping Nordost
+kommunvk,05803402,Linköping Nordost
+kommunvk,05803403,Linköping Nordost
+kommunvk,05803404,Linköping Nordost
+kommunvk,05803405,Linköping Nordost
+kommunvk,05803406,Linköping Nordost
+kommunvk,05803501,Linköping Nordväst
+kommunvk,05803502,Linköping Nordväst
+kommunvk,05803503,Linköping Nordväst
+kommunvk,05803504,Linköping Nordväst
+kommunvk,05803505,Linköping Nordväst
+kommunvk,05803601,Linköping Nordväst
+kommunvk,05803602,Linköping Nordväst
+kommunvk,05803603,Linköping Nordväst
+kommunvk,05803604,Linköping Nordväst
+kommunvk,05803605,Linköping Nordväst
+kommunvk,08800101,Kalmar Södra
+kommunvk,08800107,Kalmar Södra
+kommunvk,08800108,Kalmar Södra
+kommunvk,08800122,Kalmar Södra
+kommunvk,08800124,Kalmar Södra
+kommunvk,08800201,Kalmar Norra
+kommunvk,08800202,Kalmar Norra
+kommunvk,08800203,Kalmar Norra
+kommunvk,08800204,Kalmar Norra
+kommunvk,08800205,Kalmar Norra
+kommunvk,08800206,Kalmar Norra
+kommunvk,08800301,Kalmar Södra
+kommunvk,08800302,Kalmar Södra
+kommunvk,08800303,Kalmar Södra
+kommunvk,08800401,Kalmar Södra
+kommunvk,08800501,Kalmar Norra
+kommunvk,08800502,Kalmar Norra
+kommunvk,08800601,Kalmar Norra
+kommunvk,08800801,Kalmar Södra
+kommunvk,08800802,Kalmar Södra
+kommunvk,08800901,Kalmar Södra
+kommunvk,08801001,Kalmar Södra
+kommunvk,08801301,Kalmar Södra
+kommunvk,08801401,Kalmar Södra
+kommunvk,08801502,Kalmar Södra
+kommunvk,08801503,Kalmar Södra
+kommunvk,08801504,Kalmar Södra
+kommunvk,08801505,Kalmar Södra
+kommunvk,08801506,Kalmar Södra
+kommunvk,08801609,Kalmar Norra
+kommunvk,08801610,Kalmar Norra
+kommunvk,08801611,Kalmar Norra
+kommunvk,08801621,Kalmar Norra
+kommunvk,08801712,Kalmar Norra
+kommunvk,08801713,Kalmar Norra
+kommunvk,08801714,Kalmar Norra
+kommunvk,08801715,Kalmar Norra
+kommunvk,08801716,Kalmar Norra
+kommunvk,08801817,Kalmar Norra
+kommunvk,08801818,Kalmar Norra
+kommunvk,08801820,Kalmar Norra
+kommunvk,08801823,Kalmar Norra
+kommunvk,10800127,Karlskrona C
+kommunvk,10800128,Karlskrona C
+kommunvk,10800131,Karlskrona C
+kommunvk,10800132,Karlskrona C
+kommunvk,10800133,Karlskrona C
+kommunvk,10800134,Karlskrona C
+kommunvk,10800135,Karlskrona C
+kommunvk,10800136,Karlskrona C
+kommunvk,10800137,Karlskrona C
+kommunvk,10800138,Karlskrona C
+kommunvk,10800139,Karlskrona C
+kommunvk,10800140,Karlskrona C
+kommunvk,10800141,Karlskrona V
+kommunvk,10800142,Karlskrona V
+kommunvk,10800143,Karlskrona V
+kommunvk,10800430,Karlskrona C
+kommunvk,10800508,Karlskrona Ö
+kommunvk,10800509,Karlskrona Ö
+kommunvk,10800510,Karlskrona Ö
+kommunvk,10800606,Karlskrona Ö
+kommunvk,10800611,Karlskrona Ö
+kommunvk,10800612,Karlskrona Ö
+kommunvk,10800613,Karlskrona Ö
+kommunvk,10800801,Karlskrona Ö
+kommunvk,10800903,Karlskrona Ö
+kommunvk,10800904,Karlskrona Ö
+kommunvk,10801002,Karlskrona Ö
+kommunvk,10801107,Karlskrona Ö
+kommunvk,10801205,Karlskrona Ö
+kommunvk,10801214,Karlskrona Ö
+kommunvk,10801421,Karlskrona V
+kommunvk,10801422,Karlskrona V
+kommunvk,10801423,Karlskrona V
+kommunvk,10801518,Karlskrona V
+kommunvk,10801616,Karlskrona V
+kommunvk,10801720,Karlskrona V
+kommunvk,10801824,Karlskrona V
+kommunvk,10801825,Karlskrona V
+kommunvk,10801844,Karlskrona V
+kommunvk,10801926,Karlskrona V
+kommunvk,12800101,Malmö Östra
+kommunvk,12800102,Malmö Östra
+kommunvk,12800103,Malmö Östra
+kommunvk,12800104,Malmö Östra
+kommunvk,12800105,Malmö Östra
+kommunvk,12800106,Malmö Östra
+kommunvk,12800107,Malmö Östra
+kommunvk,12800108,Malmö Östra
+kommunvk,12800109,Malmö Östra
+kommunvk,12800110,Malmö Östra
+kommunvk,12800111,Malmö Östra
+kommunvk,12800112,Malmö Östra
+kommunvk,12800113,Malmö Östra
+kommunvk,12800114,Malmö Östra
+kommunvk,12800115,Malmö Östra
+kommunvk,12800116,Malmö Östra
+kommunvk,12800117,Malmö Östra
+kommunvk,12800118,Malmö Östra
+kommunvk,12800119,Malmö Östra
+kommunvk,12800120,Malmö Östra
+kommunvk,12800121,Malmö Östra
+kommunvk,12800122,Malmö Östra
+kommunvk,12800123,Malmö Östra
+kommunvk,12800124,Malmö Östra
+kommunvk,12800125,Malmö Östra
+kommunvk,12800126,Malmö Östra
+kommunvk,12800127,Malmö Östra
+kommunvk,12800128,Malmö Östra
+kommunvk,12800129,Malmö Östra
+kommunvk,12800130,Malmö Östra
+kommunvk,12800131,Malmö Östra
+kommunvk,12800132,Malmö Östra
+kommunvk,12800133,Malmö Östra
+kommunvk,12800134,Malmö Östra
+kommunvk,12800135,Malmö Östra
+kommunvk,12800136,Malmö Östra
+kommunvk,12800137,Malmö Östra
+kommunvk,12800201,Malmö Västra
+kommunvk,12800202,Malmö Västra
+kommunvk,12800203,Malmö Västra
+kommunvk,12800204,Malmö Västra
+kommunvk,12800205,Malmö Västra
+kommunvk,12800206,Malmö Västra
+kommunvk,12800207,Malmö Västra
+kommunvk,12800208,Malmö Västra
+kommunvk,12800209,Malmö Västra
+kommunvk,12800210,Malmö Västra
+kommunvk,12800211,Malmö Västra
+kommunvk,12800212,Malmö Västra
+kommunvk,12800213,Malmö Västra
+kommunvk,12800214,Malmö Västra
+kommunvk,12800215,Malmö Västra
+kommunvk,12800216,Malmö Västra
+kommunvk,12800217,Malmö Västra
+kommunvk,12800218,Malmö Västra
+kommunvk,12800219,Malmö Västra
+kommunvk,12800220,Malmö Västra
+kommunvk,12800221,Malmö Västra
+kommunvk,12800222,Malmö Västra
+kommunvk,12800301,Malmö Västra
+kommunvk,12800302,Malmö Västra
+kommunvk,12800303,Malmö Västra
+kommunvk,12800304,Malmö Västra
+kommunvk,12800305,Malmö Västra
+kommunvk,12800306,Malmö Västra
+kommunvk,12800307,Malmö Västra
+kommunvk,12800308,Malmö Västra
+kommunvk,12800309,Malmö Östra
+kommunvk,12800310,Malmö Västra
+kommunvk,12800311,Malmö Västra
+kommunvk,12800312,Malmö Västra
+kommunvk,12800313,Malmö Västra
+kommunvk,12800314,Malmö Västra
+kommunvk,12800315,Malmö Västra
+kommunvk,12800316,Malmö Västra
+kommunvk,12800317,Malmö Västra
+kommunvk,12800318,Malmö Västra
+kommunvk,12800319,Malmö Västra
+kommunvk,12800320,Malmö Västra
+kommunvk,12800321,Malmö Västra
+kommunvk,12800322,Malmö Västra
+kommunvk,12800323,Malmö Västra
+kommunvk,12800324,Malmö Västra
+kommunvk,12800401,Malmö Västra
+kommunvk,12800402,Malmö Västra
+kommunvk,12800403,Malmö Västra
+kommunvk,12800404,Malmö Västra
+kommunvk,12800405,Malmö Västra
+kommunvk,12800406,Malmö Västra
+kommunvk,12800407,Malmö Västra
+kommunvk,12800408,Malmö Västra
+kommunvk,12800409,Malmö Västra
+kommunvk,12800410,Malmö Västra
+kommunvk,12800411,Malmö Västra
+kommunvk,12800412,Malmö Västra
+kommunvk,12800413,Malmö Västra
+kommunvk,12800414,Malmö Västra
+kommunvk,12800415,Malmö Västra
+kommunvk,12800416,Malmö Västra
+kommunvk,12800417,Malmö Västra
+kommunvk,12800418,Malmö Västra
+kommunvk,12800419,Malmö Västra
+kommunvk,12800420,Malmö Västra
+kommunvk,12800421,Malmö Västra
+kommunvk,12800422,Malmö Västra
+kommunvk,12800423,Malmö Västra
+kommunvk,12800424,Malmö Västra
+kommunvk,12800425,Malmö Västra
+kommunvk,12800426,Malmö Västra
+kommunvk,12800427,Malmö Västra
+kommunvk,12800428,Malmö Västra
+kommunvk,12800429,Malmö Västra
+kommunvk,12800430,Malmö Västra
+kommunvk,12800431,Malmö Västra
+kommunvk,12800432,Malmö Västra
+kommunvk,12800433,Malmö Västra
+kommunvk,12800501,Malmö Västra
+kommunvk,12800502,Malmö Västra
+kommunvk,12800503,Malmö Västra
+kommunvk,12800504,Malmö Västra
+kommunvk,12800505,Malmö Västra
+kommunvk,12800506,Malmö Västra
+kommunvk,12800507,Malmö Västra
+kommunvk,12800508,Malmö Västra
+kommunvk,12800509,Malmö Västra
+kommunvk,12800510,Malmö Västra
+kommunvk,12800511,Malmö Västra
+kommunvk,12800512,Malmö Västra
+kommunvk,12800513,Malmö Västra
+kommunvk,12800514,Malmö Västra
+kommunvk,12800515,Malmö Västra
+kommunvk,12800516,Malmö Västra
+kommunvk,12800517,Malmö Västra
+kommunvk,12800518,Malmö Västra
+kommunvk,12800519,Malmö Västra
+kommunvk,12800520,Malmö Västra
+kommunvk,12800521,Malmö Västra
+kommunvk,12800522,Malmö Västra
+kommunvk,12800523,Malmö Västra
+kommunvk,12800524,Malmö Västra
+kommunvk,12800525,Malmö Västra
+kommunvk,12800601,Malmö Östra
+kommunvk,12800602,Malmö Östra
+kommunvk,12800603,Malmö Östra
+kommunvk,12800604,Malmö Östra
+kommunvk,12800605,Malmö Östra
+kommunvk,12800606,Malmö Östra
+kommunvk,12800607,Malmö Östra
+kommunvk,12800608,Malmö Östra
+kommunvk,12800609,Malmö Östra
+kommunvk,12800610,Malmö Östra
+kommunvk,12800611,Malmö Östra
+kommunvk,12800612,Malmö Östra
+kommunvk,12800613,Malmö Östra
+kommunvk,12800614,Malmö Östra
+kommunvk,12800615,Malmö Östra
+kommunvk,12800616,Malmö Östra
+kommunvk,12800617,Malmö Östra
+kommunvk,12800618,Malmö Östra
+kommunvk,12800619,Malmö Östra
+kommunvk,12800620,Malmö Östra
+kommunvk,12800621,Malmö Östra
+kommunvk,12800622,Malmö Östra
+kommunvk,12800623,Malmö Östra
+kommunvk,12800624,Malmö Östra
+kommunvk,12800625,Malmö Östra
+kommunvk,12800701,Malmö Östra
+kommunvk,12800702,Malmö Östra
+kommunvk,12800703,Malmö Östra
+kommunvk,12800704,Malmö Östra
+kommunvk,12800705,Malmö Östra
+kommunvk,12800706,Malmö Östra
+kommunvk,12800707,Malmö Östra
+kommunvk,12800708,Malmö Östra
+kommunvk,12800801,Malmö Östra
+kommunvk,12800802,Malmö Östra
+kommunvk,12800803,Malmö Östra
+kommunvk,12800804,Malmö Östra
+kommunvk,12800805,Malmö Östra
+kommunvk,12800806,Malmö Östra
+kommunvk,12800807,Malmö Östra
+kommunvk,12800808,Malmö Östra
+kommunvk,12800809,Malmö Östra
+kommunvk,12800810,Malmö Östra
+kommunvk,12800811,Malmö Östra
+kommunvk,12800812,Malmö Östra
+kommunvk,12800901,Malmö Östra
+kommunvk,12800902,Malmö Östra
+kommunvk,12800903,Malmö Östra
+kommunvk,12800904,Malmö Östra
+kommunvk,12800905,Malmö Östra
+kommunvk,12800906,Malmö Östra
+kommunvk,12800907,Malmö Östra
+kommunvk,12800908,Malmö Östra
+kommunvk,12800909,Malmö Östra
+kommunvk,12800910,Malmö Östra
+kommunvk,12800911,Malmö Östra
+kommunvk,12800912,Malmö Östra
+kommunvk,12800913,Malmö Östra
+kommunvk,12800914,Malmö Östra
+kommunvk,12801001,Malmö Östra
+kommunvk,12801002,Malmö Östra
+kommunvk,12801003,Malmö Östra
+kommunvk,12801004,Malmö Östra
+kommunvk,12801005,Malmö Östra
+kommunvk,12801006,Malmö Östra
+kommunvk,12801007,Malmö Östra
+kommunvk,12801008,Malmö Östra
+kommunvk,12801009,Malmö Östra
+kommunvk,12801010,Malmö Östra
+kommunvk,12870101,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870102,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870103,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870104,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870105,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870106,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870107,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870108,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870109,"Trelleborgs Andra, Östra"
+kommunvk,12870110,"Trelleborgs Andra, Östra"
+kommunvk,12870111,"Trelleborgs Andra, Östra"
+kommunvk,12870112,"Trelleborgs Andra, Östra"
+kommunvk,12870113,"Trelleborgs Andra, Östra"
+kommunvk,12870114,"Trelleborgs Andra, Östra"
+kommunvk,12870115,"Trelleborgs Andra, Östra"
+kommunvk,12870116,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870201,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12870301,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12871001,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12871301,"Trelleborgs Andra, Östra"
+kommunvk,12871401,"Trelleborgs Andra, Östra"
+kommunvk,12871501,"Trelleborgs Andra, Östra"
+kommunvk,12871701,"Trelleborgs Andra, Östra"
+kommunvk,12872101,"Trelleborgs Andra, Östra"
+kommunvk,12872501,"Trelleborgs Andra, Östra"
+kommunvk,12872801,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12873101,"Trelleborgs  Första, Västra-Norra"
+kommunvk,12900101,Väster
+kommunvk,12900102,Väster
+kommunvk,12900103,Väster
+kommunvk,12900104,Öster
+kommunvk,12900105,Öster
+kommunvk,12900106,Öster
+kommunvk,12900107,Öster
+kommunvk,12900108,Öster
+kommunvk,12900109,Öster
+kommunvk,12900111,Öster
+kommunvk,12900112,Väster
+kommunvk,12900113,Väster
+kommunvk,12900114,Öster
+kommunvk,12900115,Väster
+kommunvk,12900116,Öster
+kommunvk,12900209,Väster
+kommunvk,12900210,Väster
+kommunvk,12900216,Väster
+kommunvk,12900402,Väster
+kommunvk,12900702,Väster
+kommunvk,12900803,Väster
+kommunvk,12900901,Öster
+kommunvk,12900902,Öster
+kommunvk,12900903,Öster
+kommunvk,12901103,Väster
+kommunvk,12901303,Väster
+kommunvk,12901401,Väster
+kommunvk,12901501,Öster
+kommunvk,12901502,Öster
+kommunvk,12901503,Öster
+kommunvk,12901505,Öster
+kommunvk,12901506,Öster
+kommunvk,12901507,Öster
+kommunvk,12901701,Väster
+kommunvk,12902301,Öster
+kommunvk,12902401,Öster
+kommunvk,12902501,Öster
+kommunvk,12902901,Väster
+kommunvk,12903001,Öster
+kommunvk,12903103,Väster
+kommunvk,12903201,Väster
+kommunvk,12903202,Väster
+kommunvk,12903501,Öster
+kommunvk,13830121,Varbergs norra valkrets
+kommunvk,13830122,Varbergs norra valkrets
+kommunvk,13830123,Varbergs norra valkrets
+kommunvk,13830124,Varbergs norra valkrets
+kommunvk,13830125,Varbergs norra valkrets
+kommunvk,13830126,Varbergs norra valkrets
+kommunvk,13830127,Varbergs norra valkrets
+kommunvk,13830128,Varbergs norra valkrets
+kommunvk,13830129,Varbergs norra valkrets
+kommunvk,13830130,Varbergs norra valkrets
+kommunvk,13830131,Varbergs norra valkrets
+kommunvk,13830132,Varbergs norra valkrets
+kommunvk,13830133,Varbergs norra valkrets
+kommunvk,13830134,Varbergs norra valkrets
+kommunvk,13830135,Varbergs norra valkrets
+kommunvk,13830136,Varbergs norra valkrets
+kommunvk,13830137,Varbergs norra valkrets
+kommunvk,13830138,Varbergs norra valkrets
+kommunvk,13830139,Varbergs norra valkrets
+kommunvk,13830140,Varbergs norra valkrets
+kommunvk,13830221,Varbergs södra valkrets
+kommunvk,13830222,Varbergs södra valkrets
+kommunvk,13830223,Varbergs södra valkrets
+kommunvk,13830224,Varbergs södra valkrets
+kommunvk,13830225,Varbergs södra valkrets
+kommunvk,13830226,Varbergs södra valkrets
+kommunvk,13830227,Varbergs södra valkrets
+kommunvk,13830228,Varbergs södra valkrets
+kommunvk,13830229,Varbergs södra valkrets
+kommunvk,13830230,Varbergs södra valkrets
+kommunvk,13830231,Varbergs södra valkrets
+kommunvk,13830232,Varbergs södra valkrets
+kommunvk,13830233,Varbergs södra valkrets
+kommunvk,13830234,Varbergs södra valkrets
+kommunvk,13830235,Varbergs södra valkrets
+kommunvk,13830236,Varbergs södra valkrets
+kommunvk,13830237,Varbergs södra valkrets
+kommunvk,13830238,Varbergs södra valkrets
+kommunvk,13830239,Varbergs södra valkrets
+kommunvk,13830240,Varbergs södra valkrets
+kommunvk,13830241,Varbergs södra valkrets
+kommunvk,14880106,Trollhättan Norra
+kommunvk,14880107,Trollhättan Norra
+kommunvk,14880108,Trollhättan Norra
+kommunvk,14880109,Trollhättan Norra
+kommunvk,14880110,Trollhättan Norra
+kommunvk,14880111,Trollhättan Norra
+kommunvk,14880113,Trollhättan Norra
+kommunvk,14880114,Trollhättan Norra
+kommunvk,14880119,Trollhättan Södra
+kommunvk,14880120,Trollhättan Södra
+kommunvk,14880125,Trollhättan Norra
+kommunvk,14880135,Trollhättan Norra
+kommunvk,14880137,Trollhättan Södra
+kommunvk,14880327,Trollhättan Södra
+kommunvk,14880428,Trollhättan Södra
+kommunvk,14880429,Trollhättan Södra
+kommunvk,14880530,Trollhättan Södra
+kommunvk,14880632,Trollhättan Södra
+kommunvk,14880731,Trollhättan Södra
+kommunvk,14880916,Trollhättan Södra
+kommunvk,14880917,Trollhättan Södra
+kommunvk,14880918,Trollhättan Södra
+kommunvk,14880921,Trollhättan Södra
+kommunvk,14880922,Trollhättan Södra
+kommunvk,14880923,Trollhättan Södra
+kommunvk,14880924,Trollhättan Södra
+kommunvk,14880936,Trollhättan Södra
+kommunvk,14881001,Trollhättan Norra
+kommunvk,14881002,Trollhättan Norra
+kommunvk,14881003,Trollhättan Norra
+kommunvk,14881004,Trollhättan Norra
+kommunvk,14881005,Trollhättan Norra
+kommunvk,14881033,Trollhättan Norra
+kommunvk,14881034,Trollhättan Norra
+kommunvk,14900101,Borås 1
+kommunvk,14900102,Borås 1
+kommunvk,14900103,Borås 1
+kommunvk,14900104,Borås 1
+kommunvk,14900105,Borås 1
+kommunvk,14900106,Borås 1
+kommunvk,14900107,Borås 1
+kommunvk,14900108,Borås 1
+kommunvk,14900109,Borås 1
+kommunvk,14900110,Borås 1
+kommunvk,14900112,Borås 1
+kommunvk,14900114,Borås 1
+kommunvk,14900115,Borås 1
+kommunvk,14900116,Borås 1
+kommunvk,14900117,Borås 1
+kommunvk,14900118,Borås 1
+kommunvk,14900119,Borås 1
+kommunvk,14900122,Borås 1
+kommunvk,14900123,Borås 1
+kommunvk,14900124,Borås 1
+kommunvk,14900125,Borås 1
+kommunvk,14900126,Borås 1
+kommunvk,14900168,Borås 1
+kommunvk,14900227,Borås 2
+kommunvk,14900228,Borås 2
+kommunvk,14900229,Borås 2
+kommunvk,14900230,Borås 2
+kommunvk,14900231,Borås 2
+kommunvk,14900232,Borås 2
+kommunvk,14900233,Borås 2
+kommunvk,14900234,Borås 2
+kommunvk,14900235,Borås 2
+kommunvk,14900236,Borås 2
+kommunvk,14900237,Borås 2
+kommunvk,14900238,Borås 2
+kommunvk,14900240,Borås 2
+kommunvk,14900242,Borås 2
+kommunvk,14900243,Borås 2
+kommunvk,14900244,Borås 2
+kommunvk,14900245,Borås 2
+kommunvk,14900246,Borås 2
+kommunvk,14900247,Borås 2
+kommunvk,14900248,Borås 2
+kommunvk,14900249,Borås 2
+kommunvk,14900251,Borås 2
+kommunvk,14900252,Borås 2
+kommunvk,14900253,Borås 2
+kommunvk,14900254,Borås 2
+kommunvk,14900255,Borås 2
+kommunvk,14900320,Borås 3
+kommunvk,14900356,Borås 3
+kommunvk,14900357,Borås 3
+kommunvk,14900358,Borås 3
+kommunvk,14900359,Borås 3
+kommunvk,14900360,Borås 3
+kommunvk,14900361,Borås 3
+kommunvk,14900362,Borås 3
+kommunvk,14900363,Borås 3
+kommunvk,14900365,Borås 3
+kommunvk,14900366,Borås 3
+kommunvk,14900367,Borås 3
+kommunvk,14900369,Borås 3
+kommunvk,14900370,Borås 3
+kommunvk,14900371,Borås 3
+kommunvk,14900372,Borås 3
+kommunvk,14900373,Borås 3
+kommunvk,14900374,Borås 3
+kommunvk,14900375,Borås 3
+kommunvk,14900376,Borås 3
+kommunvk,14900377,Borås 3
+kommunvk,14900378,Borås 3
+kommunvk,14900379,Borås 3
+kommunvk,14900380,Borås 3
+kommunvk,14900381,Borås 3
+kommunvk,14900382,Borås 3
+kommunvk,14900383,Borås 3
+kommunvk,14900384,Borås 3
+kommunvk,14900385,Borås 3
+kommunvk,14900386,Borås 3
+kommunvk,14900387,Borås 3
+kommunvk,18800101,Örebro Södra
+kommunvk,18800102,Örebro Södra
+kommunvk,18800103,Örebro Södra
+kommunvk,18800104,Örebro Södra
+kommunvk,18800105,Örebro Södra
+kommunvk,18800106,Örebro Södra
+kommunvk,18800107,Örebro Södra
+kommunvk,18800108,Örebro Södra
+kommunvk,18800109,Örebro Södra
+kommunvk,18800110,Örebro Södra
+kommunvk,18800111,Örebro Södra
+kommunvk,18800112,Örebro Södra
+kommunvk,18800113,Örebro Södra
+kommunvk,18800114,Örebro Södra
+kommunvk,18800115,Örebro Södra
+kommunvk,18800116,Örebro Södra
+kommunvk,18800216,Örebro Norra
+kommunvk,18800217,Örebro Södra
+kommunvk,18800218,Örebro Norra
+kommunvk,18800219,Örebro Norra
+kommunvk,18800220,Örebro Norra
+kommunvk,18800221,Örebro Norra
+kommunvk,18800222,Örebro Norra
+kommunvk,18800223,Örebro Norra
+kommunvk,18800224,Örebro Norra
+kommunvk,18800225,Örebro Norra
+kommunvk,18800226,Örebro Norra
+kommunvk,18800227,Örebro Södra
+kommunvk,18800228,Örebro Norra
+kommunvk,18800229,Örebro Norra
+kommunvk,18800230,Örebro Norra
+kommunvk,18800231,Örebro Södra
+kommunvk,18800232,Örebro Södra
+kommunvk,18800233,Örebro Södra
+kommunvk,18800339,Örebro Norra
+kommunvk,18800340,Örebro Norra
+kommunvk,18800341,Örebro Norra
+kommunvk,18800342,Örebro Norra
+kommunvk,18800343,Örebro Norra
+kommunvk,18800344,Örebro Norra
+kommunvk,18800345,Örebro Norra
+kommunvk,18800346,Örebro Norra
+kommunvk,18800347,Örebro Norra
+kommunvk,18800348,Örebro Norra
+kommunvk,18800349,Örebro Norra
+kommunvk,18800350,Örebro Norra
+kommunvk,18800479,Örebro Södra
+kommunvk,18800480,Örebro Södra
+kommunvk,18800481,Örebro Södra
+kommunvk,18800482,Örebro Södra
+kommunvk,18800483,Örebro Södra
+kommunvk,18800484,Örebro Södra
+kommunvk,18800485,Örebro Södra
+kommunvk,18800486,Örebro Södra
+kommunvk,18800487,Örebro Södra
+kommunvk,18800488,Örebro Södra
+kommunvk,18800489,Örebro Södra
+kommunvk,18800490,Örebro Södra
+kommunvk,18800491,Örebro Södra
+kommunvk,18800492,Örebro Södra
+kommunvk,18800501,Örebro Södra
+kommunvk,18800502,Örebro Södra
+kommunvk,18800701,Örebro Södra
+kommunvk,18800801,Örebro Norra
+kommunvk,18800802,Örebro Norra
+kommunvk,18801001,Örebro Norra
+kommunvk,18801101,Örebro Norra
+kommunvk,18801201,Örebro Norra
+kommunvk,18801301,Örebro Norra
+kommunvk,18801302,Örebro Norra
+kommunvk,18801303,Örebro Norra
+kommunvk,18801304,Örebro Norra
+kommunvk,18801401,Örebro Södra
+kommunvk,18801501,Örebro Södra
+kommunvk,18801502,Örebro Södra
+kommunvk,18801503,Örebro Södra
+kommunvk,18801601,Örebro Södra
+kommunvk,18801701,Örebro Södra
+kommunvk,18801801,Örebro Södra
+kommunvk,18802601,Örebro Norra
+kommunvk,18802701,Örebro Norra
+kommunvk,18802901,Örebro Norra
+kommunvk,18803060,Örebro Norra
+kommunvk,18803061,Örebro Norra
+kommunvk,18803062,Örebro Norra
+kommunvk,18803063,Örebro Norra
+kommunvk,18803064,Örebro Norra
+kommunvk,18803066,Örebro Norra
+kommunvk,18803067,Örebro Norra
+kommunvk,18803068,Örebro Norra
+kommunvk,18803070,Örebro Norra
+kommunvk,18803071,Örebro Norra
+kommunvk,18803072,Örebro Norra
+kommunvk,18803073,Örebro Norra
+kommunvk,18803074,Örebro Norra
+kommunvk,18803189,Örebro Södra
+kommunvk,18803190,Örebro Södra
+kommunvk,18803191,Örebro Södra
+kommunvk,18803192,Örebro Södra
+kommunvk,18803193,Örebro Södra
+kommunvk,22810106,Sundsvalls  Första
+kommunvk,22810107,Sundsvalls  Första
+kommunvk,22810108,Sundsvalls  Första
+kommunvk,22810109,Sundsvalls  Första
+kommunvk,22810110,Sundsvalls  Första
+kommunvk,22810111,Sundsvalls  Första
+kommunvk,22810112,Sundsvalls  Första
+kommunvk,22810113,Sundsvalls  Första
+kommunvk,22810114,Sundsvalls  Första
+kommunvk,22810115,Sundsvalls  Första
+kommunvk,22810116,Sundsvalls  Första
+kommunvk,22810118,Sundsvalls  Första
+kommunvk,22810119,Sundsvalls  Första
+kommunvk,22810201,Sundsvalls  Första
+kommunvk,22810203,Sundsvalls  Första
+kommunvk,22810204,Sundsvalls  Första
+kommunvk,22810330,Sundsvalls  Första
+kommunvk,22810331,Sundsvalls  Första
+kommunvk,22810333,Sundsvalls  Första
+kommunvk,22810334,Sundsvalls  Första
+kommunvk,22810335,Sundsvalls  Första
+kommunvk,22810336,Sundsvalls  Första
+kommunvk,22810337,Sundsvalls  Första
+kommunvk,22810338,Sundsvalls  Första
+kommunvk,22810339,Sundsvalls  Första
+kommunvk,22810340,Sundsvalls  Första
+kommunvk,22810341,Sundsvalls  Första
+kommunvk,22810420,Sundsvalls Andra
+kommunvk,22810421,Sundsvalls Andra
+kommunvk,22810422,Sundsvalls Andra
+kommunvk,22810423,Sundsvalls Andra
+kommunvk,22810424,Sundsvalls Andra
+kommunvk,22810545,Sundsvalls Andra
+kommunvk,22810624,Sundsvalls Andra
+kommunvk,22810625,Sundsvalls Andra
+kommunvk,22810626,Sundsvalls Andra
+kommunvk,22810627,Sundsvalls Andra
+kommunvk,22810628,Sundsvalls Andra
+kommunvk,22810646,Sundsvalls Andra
+kommunvk,22810647,Sundsvalls Andra
+kommunvk,22810701,Sundsvalls Andra
+kommunvk,22810702,Sundsvalls Andra
+kommunvk,22810802,Sundsvalls Andra
+kommunvk,22810803,Sundsvalls Andra
+kommunvk,22810804,Sundsvalls Andra
+kommunvk,22810805,Sundsvalls Andra
+kommunvk,22810901,Sundsvalls Andra
+kommunvk,22811002,Sundsvalls Andra
+kommunvk,22811003,Sundsvalls Andra
+kommunvk,22811004,Sundsvalls Andra
+kommunvk,22811006,Sundsvalls Andra
+kommunvk,22811007,Sundsvalls Andra
+kommunvk,22811008,Sundsvalls Andra
+kommunvk,22811009,Sundsvalls Andra
+kommunvk,22811010,Sundsvalls Andra
+kommunvk,22811103,Sundsvalls Andra
+kommunvk,22811301,Sundsvalls Andra
+kommunvk,22840101,Örnsköldsviks Norra
+kommunvk,22840102,Örnsköldsviks Norra
+kommunvk,22840103,Örnsköldsviks Norra
+kommunvk,22840105,Örnsköldsviks Norra
+kommunvk,22840106,Örnsköldsviks Norra
+kommunvk,22840107,Örnsköldsviks Norra
+kommunvk,22840108,Örnsköldsviks Norra
+kommunvk,22840201,Örnsköldsviks Norra
+kommunvk,22840202,Örnsköldsviks Norra
+kommunvk,22840205,Örnsköldsviks Norra
+kommunvk,22840206,Örnsköldsviks Norra
+kommunvk,22840207,Örnsköldsviks Norra
+kommunvk,22840208,Örnsköldsviks Norra
+kommunvk,22840401,Örnsköldsviks Södra
+kommunvk,22840402,Örnsköldsviks Södra
+kommunvk,22840403,Örnsköldsviks Södra
+kommunvk,22840501,Örnsköldsviks Södra
+kommunvk,22840701,Örnsköldsviks Södra
+kommunvk,22840702,Örnsköldsviks Södra
+kommunvk,22840704,Örnsköldsviks Södra
+kommunvk,22840801,Örnsköldsviks Södra
+kommunvk,22840802,Örnsköldsviks Södra
+kommunvk,22840803,Örnsköldsviks Södra
+kommunvk,22840804,Örnsköldsviks Södra
+kommunvk,22840806,Örnsköldsviks Södra
+kommunvk,22840807,Örnsköldsviks Södra
+kommunvk,22840809,Örnsköldsviks Södra
+kommunvk,22840812,Örnsköldsviks Södra
+kommunvk,22840813,Örnsköldsviks Södra
+kommunvk,22840814,Örnsköldsviks Södra
+kommunvk,22840815,Örnsköldsviks Södra
+kommunvk,22840818,Örnsköldsviks Södra
+kommunvk,22840901,Örnsköldsviks Södra
+kommunvk,22841001,Örnsköldsviks Norra
+kommunvk,22841002,Örnsköldsviks Norra
+kommunvk,22841003,Örnsköldsviks Norra
+kommunvk,22841101,Örnsköldsviks Norra
+kommunvk,22841201,Örnsköldsviks Norra
+kommunvk,22841202,Örnsköldsviks Norra
+kommunvk,24800101,Umeå centrala
+kommunvk,24800102,Umeå centrala
+kommunvk,24800103,Umeå centrala
+kommunvk,24800104,Umeå centrala
+kommunvk,24800105,Umeå centrala
+kommunvk,24800106,Umeå centrala
+kommunvk,24800107,Umeå centrala
+kommunvk,24800108,Umeå centrala
+kommunvk,24800109,Umeå centrala
+kommunvk,24800110,Umeå centrala
+kommunvk,24800111,Umeå centrala
+kommunvk,24800112,Umeå centrala
+kommunvk,24800114,Umeå centrala
+kommunvk,24800115,Umeå centrala
+kommunvk,24800116,Umeå centrala
+kommunvk,24800117,Umeå centrala
+kommunvk,24800119,Umeå centrala
+kommunvk,24800120,Umeå centrala
+kommunvk,24800121,Umeå centrala
+kommunvk,24800122,Umeå centrala
+kommunvk,24800123,Umeå centrala
+kommunvk,24800124,Umeå centrala
+kommunvk,24800220,Umeå omland
+kommunvk,24800221,Umeå omland
+kommunvk,24800222,Umeå omland
+kommunvk,24800223,Umeå omland
+kommunvk,24800224,Umeå omland
+kommunvk,24800225,Umeå omland
+kommunvk,24800226,Umeå omland
+kommunvk,24800227,Umeå omland
+kommunvk,24800228,Umeå omland
+kommunvk,24800330,Umeå omland
+kommunvk,24800440,Umeå omland
+kommunvk,24800441,Umeå omland
+kommunvk,24800442,Umeå omland
+kommunvk,24800443,Umeå omland
+kommunvk,24800444,Umeå omland
+kommunvk,24800445,Umeå omland
+kommunvk,24800446,Umeå omland
+kommunvk,24800447,Umeå omland
+kommunvk,24800448,Umeå omland
+kommunvk,24800449,Umeå omland
+kommunvk,24800450,Umeå omland
+kommunvk,24800535,Umeå centrala
+kommunvk,24800536,Umeå centrala
+kommunvk,24800538,Umeå centrala
+kommunvk,24800549,Umeå centrala
+kommunvk,24800550,Umeå centrala
+kommunvk,24800551,Umeå centrala
+kommunvk,24800552,Umeå centrala
+kommunvk,24800553,Umeå centrala
+kommunvk,24800554,Umeå centrala
+kommunvk,24800555,Umeå centrala
+kommunvk,24800556,Umeå centrala
+kommunvk,24800557,Umeå centrala
+kommunvk,24800660,Umeå omland
+kommunvk,24800661,Umeå omland
+kommunvk,24800662,Umeå omland
+kommunvk,24800663,Umeå omland
+kommunvk,24800770,Umeå omland
+kommunvk,24800771,Umeå omland
+kommunvk,24800772,Umeå omland
+kommunvk,24800990,Umeå omland
+kommunvk,24800991,Umeå omland
+kommunvk,24800992,Umeå omland
+kommunvk,24800993,Umeå omland
+kommunvk,24801137,Umeå centrala
+kommunvk,24801155,Umeå centrala
+kommunvk,24801157,Umeå centrala
+kommunvk,24801158,Umeå centrala
+kommunvk,24801159,Umeå centrala
+kommunvk,24801160,Umeå centrala
