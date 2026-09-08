@@ -274,6 +274,40 @@ def inspect(path):
         print("Format: BRETT. Partikolumner:", {headers[i]: p for i, p in pidx.items()} or "INGA")
 
 
+def load_all_shares(path):
+    """Som load_shares men fångar ALLA partier (långformat). De 8 får sin PID, övriga
+    sitt fulla namn. Breda filer (2014/2018) hoppas över (småpartier buntas där)."""
+    headers, rows = read_rows(path)
+    if not headers or not rows:
+        return {}
+    code_fn, kind = resolve_code(headers, rows[0])
+    if not code_fn:
+        return {}
+    parti_i, roster_i = find_long(headers)
+    if parti_i is None or roster_i is None:
+        return {}   # bara långformat
+    acc, valid = {}, {}
+    for r in rows:
+        kod = code_fn(r)
+        if not kod:
+            continue
+        raw = _val_at(r, parti_i).strip()
+        pn = norm(raw)
+        v = to_num(_val_at(r, roster_i)) or 0.0
+        if "giltiga" in pn and "ogilt" not in pn and "blank" not in pn:
+            valid[kod] = v; continue
+        if not raw or "ogilt" in pn or "blank" in pn or "valdeltag" in pn or "övriga anmäl" in pn:
+            continue
+        name = PARTY_ALIAS.get(pn) or raw     # 8 -> PID, annars partinamn
+        acc.setdefault(kod, {})[name] = acc.setdefault(kod, {}).get(name, 0.0) + v
+    out = {}
+    for kod, votes in acc.items():
+        tv = valid.get(kod) or sum(votes.values())
+        if tv > 0:
+            out[kod] = {"shares": {p: votes[p] / tv * 100.0 for p in votes}, "w": tv}
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description="Historiska per-valdistrikt-filer -> historik.csv")
     ap.add_argument("--src", nargs=3, action="append", metavar=("ÅR", "NIVÅ", "FIL"), default=[],
@@ -323,6 +357,33 @@ def main():
             for p in PIDS:
                 w.writerow([niva, key, yr, val, p, round(a["v"][p] / a["w"] * 100.0, 2), int(round(a["w"]))])
     print(f"Skrev {apath} (exakta totaler per riket/län/kommun).")
+    # all-parti-historik per område (för att visa lokala partier i historiken)
+    allareas = {}   # (niva, kod, year, val) -> {"v":{namn:votes}, "w":total}
+    for yr, val, path in sources:
+        ad = apply_remap_all(load_all_shares(path))
+        for kod, rec in ad.items():
+            for niva, key in (("riket", "00"), ("lan", kod[:2]), ("kommun", kod[:4])):
+                a = allareas.setdefault((niva, key, yr, val), {"v": {}, "w": 0.0})
+                for nm, sh in rec["shares"].items():
+                    a["v"][nm] = a["v"].get(nm, 0.0) + sh / 100.0 * rec["w"]
+                a["w"] += rec["w"]
+    if allareas:
+        ap2 = Path(args.out).with_name("omraden_alla_hist.csv")
+        with open(ap2, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["niva", "kod", "year", "val", "parti", "andel"])
+            for (niva, key, yr, val), a in sorted(allareas.items()):
+                if a["w"] <= 0:
+                    continue
+                for nm, votes in a["v"].items():
+                    andel = votes / a["w"] * 100.0
+                    if andel >= 1.0:
+                        w.writerow([niva, key, yr, val, nm, round(andel, 2)])
+        print(f"Skrev {ap2} (alla partier ≥1% per område – för historiken).")
+
+
+def apply_remap_all(data):
+    return data   # (remap ej nödvändig för all-parti-historiken)
 
 
 if __name__ == "__main__":

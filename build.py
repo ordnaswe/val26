@@ -675,6 +675,21 @@ def load_allresults(path):
     return out
 
 
+def load_allhist(path):
+    """omraden_alla_hist.csv -> {niva:{kod:{val:{parti:{year:andel}}}}} (alla partier ≥1%)."""
+    out = {}
+    if not path or not Path(path).exists():
+        return out
+    for r in read_csv(path):
+        niva = (r.get("niva") or "").strip(); kod = (r.get("kod") or "").strip()
+        val = (r.get("val") or "").strip(); parti = (r.get("parti") or "").strip()
+        yr = to_float(r.get("year")); a = to_float(r.get("andel"))
+        if not (niva and val and parti) or yr is None or a is None:
+            continue
+        out.setdefault(niva, {}).setdefault(kod, {}).setdefault(val, {}).setdefault(parti, {})[int(yr)] = round(a, 2)
+    return out
+
+
 def load_candidates(path):
     """Läs kandidater.csv -> {valtyp: {omrade: {parti: [namn i ordning]}}}."""
     out = {}
@@ -695,6 +710,21 @@ def load_candidates(path):
         for om, ps in oms.items():
             out[vt][om] = {pa: [n for _, n in sorted(lst)] for pa, lst in ps.items()}
     return out
+
+
+def load_valkretsar(path):
+    """valkretsar.csv -> (regionvk {kommunkod:namn}, komvk {distriktskod:namn})."""
+    regionvk, komvk = {}, {}
+    if path and Path(path).exists():
+        for r in read_csv(path):
+            typ = (r.get("typ") or "").strip()
+            nyckel = (r.get("nyckel") or "").strip()
+            namn = (r.get("namn") or "").strip()
+            if typ == "region" and nyckel:
+                regionvk[nyckel] = namn
+            elif typ == "kommunvk" and nyckel:
+                komvk[nyckel] = namn
+    return regionvk, komvk
 
 
 def load_valkrets(path):
@@ -835,7 +865,7 @@ def build_data(districts, meta, geo_w, geo_h, has_geo):
     for i, d in enumerate(districts):
         rec = {
             "i": i, "namn": d["namn"], "kommun": d["kommun"], "lan": d["lan"],
-            "rost": d.get("rost", 0), "top": d["top"], "raknat": int(d.get("raknat", 1)), "vk": d.get("vk"),
+            "rost": d.get("rost", 0), "top": d["top"], "raknat": int(d.get("raknat", 1)), "vk": d.get("vk"), "komvk": d.get("komvk"),
             "shares": {p: round(d["shares"][p], 2) for p in PIDS},
             "changes": {p: round(d["changes"][p], 2) for p in PIDS},
             "series": {p: [round_opt(v, 2) for v in d["series"][p]] for p in PIDS},
@@ -939,8 +969,10 @@ def main():
     ap.add_argument("--kommuner", default="data/kommuner.csv", help="CSV kommun_kod,kommun_namn (för förhandsvisning)")
     ap.add_argument("--mandat", default="data/mandat.csv", help="CSV niva,kod,antal med mandat per kommun/region (valfri)")
     ap.add_argument("--valkrets", default="data/valkrets.csv", help="CSV kommunkod,valkretskod,valkretsnamn,fasta (riksdag)")
+    ap.add_argument("--valkretsar", default="data/valkretsar.csv", help="CSV typ,nyckel,namn – region-/kommunvalkretslager (från valkretsar.py)")
     ap.add_argument("--kandidater", default="data/kandidater.csv", help="CSV valtyp,omrade,parti,ordning,namn (från kandidater.py)")
     ap.add_argument("--allresults", default="data/omraden_alla.csv", help="CSV niva,kod,namn,val,parti,andel – alla partier ≥ tröskel (från omraden_alla.py)")
+    ap.add_argument("--allhist", default="data/omraden_alla_hist.csv", help="CSV niva,kod,year,val,parti,andel – all-parti-historik (från historik.py)")
     ap.add_argument("--granser", default="data/granser.json", help="Kommun-/länsgränser (från granser.py) för hierarkisk karta")
     ap.add_argument("--template", default=str(Path(__file__).with_name("template.html")))
     ap.add_argument("--out", default="dist/valdistrikt.html")
@@ -994,10 +1026,14 @@ def main():
     meta = {"title": args.title, "source_label": source, "status": args.status, "live": bool(args.live)}
     # riksdagens valkretsar: koppla varje distrikt till sin valkrets före bygget
     KOM2VK, RIKSVK = load_valkrets(args.valkrets)
+    REGIONVK, KOMVK = load_valkretsar(args.valkretsar)
     for d in districts:
         kk = (d.get("distrikt_kod") or "")[:4]
         if kk in KOM2VK:
             d["vk"] = KOM2VK[kk]
+        dk = (d.get("distrikt_kod") or "")
+        if dk in KOMVK:
+            d["komvk"] = KOMVK[dk]
     data = build_data(districts, meta, geo_w, geo_h, has_geo)
     # exakta områdestotaler + namn->kod-uppslag
     data["areaHist"] = load_areas(args.areas)
@@ -1021,6 +1057,10 @@ def main():
     data["valkretsar"] = valkretsar
     data["thresholds"] = {"RD": 4.0, "RF": 3.0, "KF": 2.0}   # KF: 2% (1 valkrets) / 3% (fler) väljs i klienten
     data["riksvalkretsar"] = RIKSVK
+    data["regionvk"] = REGIONVK
+    data["candidates"] = load_candidates(args.kandidater)
+    data["allresults"] = load_allresults(args.allresults)
+    data["allhist"] = load_allhist(args.allhist)
     try:
         graw = json.loads(Path(args.granser).read_text(encoding="utf-8")) if args.granser and Path(args.granser).exists() else {}
     except Exception:

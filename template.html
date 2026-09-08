@@ -602,30 +602,46 @@
   function hierBounds(rings){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const r of rings)for(const pt of r){if(pt[0]<x0)x0=pt[0];if(pt[0]>x1)x1=pt[0];if(pt[1]<y0)y0=pt[1];if(pt[1]>y1)y1=pt[1];}return[x0,y0,x1,y1];}
   function zoomHier(rings){const b=hierBounds(rings);const pad=Math.max(b[2]-b[0],b[3]-b[1])*0.04;
     vb={x:b[0]-pad,y:b[1]-pad,w:(b[2]-b[0])+2*pad,h:(b[3]-b[1])+2*pad};applyVB();}
+  function nameColor(s){let h=0;for(let i=0;i<(s||"").length;i++)h=(h*31+s.charCodeAt(i))>>>0;return VKPAL[h%VKPAL.length];}
+  function setHierToggle(opts){
+    const lb=document.getElementById("hierLayers");if(!lb)return;
+    if(!opts||!opts.length){lb.style.display="none";return;}
+    if(!opts.some(o=>o[0]===hierLayer))hierLayer=opts[0][0];
+    lb.style.display="";
+    lb.innerHTML=opts.map(([v,l])=>`<button data-l="${v}" aria-pressed="${v===hierLayer}">${l}</button>`).join("");
+    lb.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{hierLayer=b.dataset.l;renderHier();}));
+  }
   function renderHier(){
     const G=DATA.granser||{};mapSvg.textContent="";
-    const lanToggle=document.getElementById("hierLayers");
     if(state.geo.kommun){                       // NIVÅ: valdistrikt i kommunen
-      lanToggle.style.display="none";
+      const koms=dist.filter(d=>d.kommun===state.geo.kommun&&d.poly);
+      const hasKomvk=koms.some(d=>d.komvk);
+      setHierToggle(hasKomvk?[["party","Partifärg"],["komvk","Kommunvalkretsar"]]:null);
       let any=[];
-      for(const d of dist){if(d.kommun!==state.geo.kommun||!d.poly)continue;
-        const path=el("path",{d:polyD(d),fill:mapFill(d),stroke:hi(d.i)?"#171a1c":"#fff","stroke-width":hi(d.i)?1.2:0.4});
-        path.__d=d;mapSvg.appendChild(path);any=any.concat(d.poly);}
+      for(const d of koms){
+        const fill=(hierLayer==="komvk"&&d.komvk)?nameColor(d.komvk):mapFill(d);
+        const path=el("path",{d:polyD(d),fill,stroke:hi(d.i)?"#171a1c":"#fff","stroke-width":hi(d.i)?1.2:0.4});
+        path.__d=d;
+        if(hierLayer==="komvk"&&d.komvk){path.addEventListener("pointerenter",ev=>{tipM.innerHTML=`<b>${d.namn}</b><br><span class="row">Kommunvalkrets: ${d.komvk}</span>`;tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(ev.clientX-w.left)+"px";tipM.style.top=(ev.clientY-w.top)+"px";});path.addEventListener("pointerleave",()=>tipM.style.opacity=0);}
+        mapSvg.appendChild(path);any=any.concat(d.poly);}
       if(any.length)zoomHier([any]);
       return;
     }
     if(state.geo.lan){                          // NIVÅ: kommuner i länet (+ lager-spak)
-      lanToggle.style.display="";
+      const opts=[["kommuner","Kommuner"],["riks","Riksdagsvalkretsar"]];
+      if(DATA.regionvk&&Object.keys(DATA.regionvk).length)opts.push(["region","Regionvalkretsar"]);
+      setHierToggle(opts);
       const lk=LANKOD_BY_NAMN[state.geo.lan];const koms=Object.keys(G.kommun||{}).filter(kk=>kk.slice(0,2)===lk);
       let all=[];
       for(const kk of koms){const rings=G.kommun[kk];if(!rings||!rings.length)continue;all=all.concat(rings);
-        let fill;
-        if(hierLayer==="riks"){const vk=KOMKOD2VK[kk];fill=vk?VKPAL[(parseInt(vk,10)||0)%VKPAL.length]:"#ccc";}
-        else {fill=PC[largest8(d=>KOMKOD_BY_NAMN[d.kommun]===kk)]||"#bbb";}
+        let fill,tip;
+        if(hierLayer==="riks"){const vk=KOMKOD2VK[kk];fill=vk?VKPAL[(parseInt(vk,10)||0)%VKPAL.length]:"#ccc";tip=vk?`Riksdagsvalkrets: ${(DATA.riksvalkretsar[vk]||{}).namn||vk}`:"";}
+        else if(hierLayer==="region"){const rn=(DATA.regionvk||{})[kk];fill=rn?nameColor(rn):"#ccc";tip=rn?`Regionvalkrets: ${rn}`:"";}
+        else {fill=PC[largest8(d=>KOMKOD_BY_NAMN[d.kommun]===kk)]||"#bbb";tip="";}
         const path=el("path",{d:ringsPath(rings),fill,"fill-opacity":0.9,stroke:"#fff","stroke-width":1.2});
         path.style.cursor="pointer";path.__komkod=kk;
-        path.addEventListener("pointerenter",ev=>{const namn=KOM_BY_KOD[kk]||kk;const vk=KOMKOD2VK[kk];
-          tipM.innerHTML=`<b>${namn}</b>${hierLayer==="riks"&&vk?`<br><span class="row">Riksdagsvalkrets: ${(DATA.riksvalkretsar[vk]||{}).namn||vk}</span>`:""}`;
+        path.addEventListener("pointerenter",ev=>{const namn=KOM_BY_KOD[kk]||kk;
+          tipM.innerHTML=`<b>${namn}</b>${tip?`<br><span class="row">${tip}</span>`:""}`;
           tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(ev.clientX-w.left)+"px";tipM.style.top=(ev.clientY-w.top)+"px";});
         path.addEventListener("pointerleave",()=>tipM.style.opacity=0);
         mapSvg.appendChild(path);}
@@ -633,7 +649,7 @@
       return;
     }
     // NIVÅ: län (riksnivå)
-    lanToggle.style.display="none";
+    setHierToggle(null);
     let all=[];
     for(const [lk,rings] of Object.entries(G.lan||{})){if(!rings||!rings.length)continue;all=all.concat(rings);
       const namn=LAN_BY_KOD[lk];const fill=PC[largest8(d=>d.lan===namn)]||"#bbb";
@@ -647,7 +663,7 @@
   }
   function renderMap(){
     applyVB();mapSvg.textContent="";
-    document.getElementById("hierLayers").style.display=(mapMode==="nivaer"&&state.geo.lan&&!state.geo.kommun)?"":"none";
+    if(mapMode!=="nivaer")document.getElementById("hierLayers").style.display="none";
     if(mapMode==="nivaer"&&DATA.granser&&DATA.granser.lan){renderHier();return;}
     if(mapMode==="tiles"){renderTiles();return;}
     const inScope=d=>(!state.geo.lan||d.lan===state.geo.lan)&&(!state.geo.kommun||d.kommun===state.geo.kommun);
@@ -755,13 +771,6 @@
     box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
       box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
       b.setAttribute("aria-pressed","true");mapMode=b.dataset.m;if(mapMode!=="nivaer")zoomToScope();renderMap();}));
-    // lager-spak (i Nivåer-läget, på länsnivå)
-    const lb=document.getElementById("hierLayers");
-    const layers=[["kommuner","Kommuner"],["riks","Riksdagsvalkretsar"]];
-    lb.innerHTML=layers.map(([v,l])=>`<button data-l="${v}" aria-pressed="${v===hierLayer}">${l}</button>`).join("");
-    lb.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
-      lb.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
-      b.setAttribute("aria-pressed","true");hierLayer=b.dataset.l;renderHier();}));
   })();
 
   // ================= tabs =================
@@ -897,8 +906,18 @@
     // ersätt historiska år (ej 2026) med EXAKTA områdestotaler där de finns
     const area=areaSeries();let exact=false;
     if(area){for(const p of PARTIES)ELYEARS.forEach((yr,t)=>{if(area[p.id][t]!=null){agg[p.id][t]=area[p.id][t];exact=true;}});}
-    const W2=800,H2=460,m={l:52,r:120,t:20,b:44},pw2=W2-m.l-m.r,ph2=H2-m.t-m.b;
-    let ymax=0;for(const p of PARTIES)for(const v of agg[p.id])if(v!=null)ymax=Math.max(ymax,v);ymax=Math.ceil(ymax/5)*5+2;
+    // lokala/icke-riksdagspartier ur all-parti-historiken för området
+    let ha; if(state.geo.kommun)ha={niva:"kommun",kod:(DATA.komKod||{})[state.geo.kommun]};
+    else if(state.geo.lan)ha={niva:"lan",kod:(DATA.lanKod||{})[state.geo.lan]};
+    else ha={niva:"riket",kod:"00"};
+    const AH=((((DATA.allhist||{})[ha.niva]||{})[ha.kod]||{})[state.election])||{};
+    const locals=Object.keys(AH).filter(nm=>!PARTIES.some(p=>p.id===nm))
+      .sort((a,b)=>Math.max(...Object.values(AH[b]))-Math.max(...Object.values(AH[a]))).slice(0,6);
+    const localSer={};for(const nm of locals)localSer[nm]=ELYEARS.map(yr=>AH[nm][yr]!=null?AH[nm][yr]:null);
+    const W2=800,H2=460,m={l:52,r:150,t:20,b:44},pw2=W2-m.l-m.r,ph2=H2-m.t-m.b;
+    let ymax=0;for(const p of PARTIES)for(const v of agg[p.id])if(v!=null)ymax=Math.max(ymax,v);
+    for(const nm of locals)for(const v of localSer[nm])if(v!=null)ymax=Math.max(ymax,v);
+    ymax=Math.ceil(ymax/5)*5+2;
     const nX=ELYEARS.length;
     const sx=t=>m.l+(nX>1?t/(nX-1):0.5)*pw2,sy=v=>m.t+ph2-v/ymax*ph2;
     const g=el("g",{class:"axis"});
@@ -914,6 +933,13 @@
       if(lastV!=null){const lab=el("text",{x:m.l+pw2+8,y:sy(lastV)+4,"font-size":sel?13:11,fill:p.color,"font-weight":sel?"700":"400"});lab.textContent=`${p.id} ${lastV.toFixed(1)}%`;hSvg.appendChild(lab);}
       if(sel)agg[p.id].forEach((v,t)=>{if(v!=null)hSvg.appendChild(el("circle",{cx:sx(t),cy:sy(v),r:3.5,fill:p.color}));});
     }
+    // lokala partier: streckade linjer i grått-spektrum
+    for(const nm of locals){const col=nameColor(nm);const ser=localSer[nm];
+      let pts="";ser.forEach((v,t)=>{if(v!=null)pts+=(pts?" ":"")+sx(t)+","+sy(v);});
+      if(pts)hSvg.appendChild(el("polyline",{points:pts,fill:"none",stroke:col,"stroke-opacity":0.85,"stroke-width":1.8,"stroke-dasharray":"4 3"}));
+      const lastV=[...ser].reverse().find(v=>v!=null);
+      if(lastV!=null){const lab=el("text",{x:m.l+pw2+8,y:sy(lastV)+4,"font-size":10.5,fill:col});lab.textContent=`${nm.length>16?nm.slice(0,15)+"…":nm} ${lastV.toFixed(1)}%`;hSvg.appendChild(lab);}
+    }
     const fv=agg[P.id].find(v=>v!=null),lv=[...agg[P.id]].reverse().find(v=>v!=null);
     // täckning: hur många distrikt i området har historik för senaste riktiga året
     const ti=ELYEARS.length-2;                       // näst sista året (t.ex. 2022, det senaste riktiga)
@@ -927,9 +953,11 @@
       const hit=el("rect",{x:sx(t)-26,y:m.t,width:52,height:ph2,fill:"transparent"});
       hit.style.cursor="pointer";
       hit.addEventListener("pointerenter",ev=>{
-        const rows=[...PARTIES].filter(p=>agg[p.id][t]!=null).sort((a,b)=>agg[b.id][t]-agg[a.id][t])
-          .map(p=>`<span class="row" style="color:${p.id===state.party?'#fff':'#c9cdd0'}">${p.id} ${agg[p.id][t].toFixed(1)}%</span>`).join("<br>");
-        tipH.innerHTML=`<b>${yr}</b><br>${rows}`;tipH.style.opacity=1;moveTip(tipH,hSvg,ev);});
+        const rows8=[...PARTIES].filter(p=>agg[p.id][t]!=null).sort((a,b)=>agg[b.id][t]-agg[a.id][t])
+          .map(p=>`<span class="row" style="color:${p.id===state.party?'#fff':'#c9cdd0'}">${p.id} ${agg[p.id][t].toFixed(1)}%</span>`);
+        const rowsL=locals.filter(nm=>localSer[nm][t]!=null)
+          .map(nm=>`<span class="row" style="color:${nameColor(nm)}">${nm.length>18?nm.slice(0,17)+"…":nm} ${localSer[nm][t].toFixed(1)}%</span>`);
+        tipH.innerHTML=`<b>${yr}</b><br>${rows8.concat(rowsL).join("<br>")}`;tipH.style.opacity=1;moveTip(tipH,hSvg,ev);});
       hit.addEventListener("pointermove",ev=>moveTip(tipH,hSvg,ev));
       hit.addEventListener("pointerleave",()=>tipH.style.opacity=0);
       hSvg.appendChild(hit);
