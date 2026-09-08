@@ -1023,7 +1023,10 @@ def main():
     if geojson_path and not has_geo:
         print("VARNING: inga GeoJSON-koder matchade distrikt_kod – kontrollera --geo-code-prop.", file=sys.stderr)
 
-    meta = {"title": args.title, "source_label": source, "status": args.status, "live": bool(args.live)}
+    import datetime
+    built = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+    meta = {"title": args.title, "source_label": source, "status": args.status,
+            "live": bool(args.live), "built": built}
     # riksdagens valkretsar: koppla varje distrikt till sin valkrets före bygget
     KOM2VK, RIKSVK = load_valkrets(args.valkrets)
     REGIONVK, KOMVK = load_valkretsar(args.valkretsar)
@@ -1077,6 +1080,12 @@ def main():
     else:
         data["granser"] = {}
     size, n = render_site(data, args.template, args.out)
+    # liten status.json bredvid sajten – webbläsaren pollar den för "nya siffror"-banner
+    try:
+        st = {"built": meta["built"], "status": args.status, "n": n}
+        Path(args.out).with_name("status.json").write_text(json.dumps(st), encoding="utf-8")
+    except Exception:
+        pass
     print(f"Byggde {args.out}  ·  {n} distrikt  ·  geo={'ja' if has_geo else 'nej'}  ·  {size:,} tecken".replace(",", " "))
 
 

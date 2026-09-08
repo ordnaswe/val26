@@ -364,7 +364,8 @@
     election:(DATA.vals&&DATA.vals[0])||null,splitA:"KF",splitB:"RD",year:ELYEARS.length-1,
     splitMode:"levels",splitYearA:Math.max(0,ELYEARS.length-2),splitYearB:ELYEARS.length-1,
     residX:"income",residY:"edu"};
-  const watch=new Set();
+  const watch=new Set((()=>{try{return JSON.parse(localStorage.getItem("valutfall_watch")||"[]")}catch(e){return[]}})());
+  function saveWatch(){try{localStorage.setItem("valutfall_watch",JSON.stringify([...watch]))}catch(e){}}
   let focusIdx=null;                     // distrikt som lyfts fram i vyerna
   let kandVk=null;                        // vald riksdagsvalkrets i kandidat-fliken (uppdelade län)
   const hi=i=>watch.has(i)||i===focusIdx;
@@ -394,7 +395,7 @@
       const XtX=Array.from({length:k},()=>Array(k).fill(0)),Xty=Array(k).fill(0);
       for(let r=0;r<X.length;r++)for(let a=0;a<k;a++){Xty[a]+=X[r][a]*y[r];for(let b=0;b<k;b++)XtX[a][b]+=X[r][a]*X[r][b];}
       const beta=solveLin(XtX,Xty);
-      usable.forEach((d,idx)=>{if(!d.pred){d.pred={};d.resid={};}const pr=X[idx].reduce((s,v,a)=>s+v*beta[a],0);d.pred[p.id]=pr;d.resid[p.id]=d.shares[p.id]-pr;});
+      usable.forEach((d,idx)=>{if(!d.pred){d.pred={};d.resid={};}const pr=X[idx].reduce((s,v,a)=>s+v*beta[a],0);d.pred[p.id]=pr;d.resid[p.id]=shareAt(d,p.id)-pr;});
     }
   }
   function setElection(val){
@@ -418,28 +419,38 @@
   // valväxlare (RD/RF/KF)
   (function(){
     const box=document.getElementById("valBar");
-    if(!DATA.vals||DATA.vals.length<2){box.style.display="none";return;}
-    box.innerHTML=DATA.vals.map(v=>`<button data-v="${v}" aria-pressed="${v===state.election}">${DATA.valNamn[v]||v}</button>`).join("");
-    box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
-      box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
-      b.setAttribute("aria-pressed","true");setElection(b.dataset.v);}));
+    if(DATA.vals&&DATA.vals.length>=2){
+      box.innerHTML=DATA.vals.map(v=>`<button data-v="${v}" aria-pressed="${v===state.election}">${DATA.valNamn[v]||v}</button>`).join("");
+      box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+        box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
+        b.setAttribute("aria-pressed","true");setElection(b.dataset.v);}));
+    } else { box.style.display="none"; }
+    // röstsplittringens kontroller sätts ALLTID upp (Två år funkar även med ett val)
     const sa=document.getElementById("splitA"),sb=document.getElementById("splitB");
-    const opts=DATA.vals.map(v=>`<option value="${v}">${DATA.valNamn[v]||v}</option>`).join("");
-    sa.innerHTML=opts;sb.innerHTML=opts;sa.value=state.splitA;sb.value=state.splitB;
-    sa.addEventListener("change",e=>{state.splitA=e.target.value;renderSplit();});
-    sb.addEventListener("change",e=>{state.splitB=e.target.value;renderSplit();});
+    const opts=(DATA.vals||[]).map(v=>`<option value="${v}">${DATA.valNamn[v]||v}</option>`).join("");
+    if(sa&&sb){sa.innerHTML=opts;sb.innerHTML=opts;
+      if(DATA.vals&&DATA.vals.includes(state.splitA))sa.value=state.splitA;else if(DATA.vals&&DATA.vals[0])state.splitA=sa.value=DATA.vals[0];
+      if(DATA.vals&&DATA.vals.includes(state.splitB))sb.value=state.splitB;else if(DATA.vals&&DATA.vals[1])state.splitB=sb.value=DATA.vals[1];
+      sa.addEventListener("change",e=>{state.splitA=e.target.value;renderSplit();});
+      sb.addEventListener("change",e=>{state.splitB=e.target.value;renderSplit();});}
     const ya=document.getElementById("splitYearA"),yb=document.getElementById("splitYearB");
     const yopts=ELYEARS.map((yr,t)=>`<option value="${t}">${yr}</option>`).join("");
-    ya.innerHTML=yopts;yb.innerHTML=yopts;ya.value=state.splitYearA;yb.value=state.splitYearB;
-    ya.addEventListener("change",e=>{state.splitYearA=+e.target.value;renderSplit();});
-    yb.addEventListener("change",e=>{state.splitYearB=+e.target.value;renderSplit();});
+    if(ya&&yb){ya.innerHTML=yopts;yb.innerHTML=yopts;ya.value=state.splitYearA;yb.value=state.splitYearB;
+      ya.addEventListener("change",e=>{state.splitYearA=+e.target.value;renderSplit();});
+      yb.addEventListener("change",e=>{state.splitYearB=+e.target.value;renderSplit();});}
+    // med bara ett val: starta i "Två år"-läget så fliken är meningsfull direkt
+    if(!DATA.vals||DATA.vals.length<2)state.splitMode="years";
     const mb=document.getElementById("splitMode");
-    mb.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
-      mb.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
-      b.setAttribute("aria-pressed","true");state.splitMode=b.dataset.m;
-      document.getElementById("splitLevels").style.display=state.splitMode==="levels"?"":"none";
-      document.getElementById("splitYears").style.display=state.splitMode==="years"?"":"none";
-      renderSplit();}));
+    if(mb){mb.querySelectorAll("button").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.m===state.splitMode));
+      b.addEventListener("click",()=>{
+        mb.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
+        b.setAttribute("aria-pressed","true");state.splitMode=b.dataset.m;
+        document.getElementById("splitLevels").style.display=state.splitMode==="levels"?"":"none";
+        document.getElementById("splitYears").style.display=state.splitMode==="years"?"":"none";
+        renderSplit();});});}
+    const sl=document.getElementById("splitLevels"),syb=document.getElementById("splitYears");
+    if(sl)sl.style.display=state.splitMode==="levels"?"":"none";
+    if(syb)syb.style.display=state.splitMode==="years"?"":"none";
   })();
   const xsel=document.getElementById("xvar");
   COVKEYS.forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=COVMETA[k].lab;xsel.appendChild(o);});
@@ -1461,7 +1472,7 @@
   })();
 
   // ---- orchestration ----
-  function toggleWatch(i){if(watch.has(i))watch.delete(i);else watch.add(i);renderAll();}
+  function toggleWatch(i){if(watch.has(i))watch.delete(i);else watch.add(i);saveWatch();renderAll();}
   function hemicycle(plist,total){
     const rows=Math.max(3,Math.round(Math.sqrt(total/2.2)));
     const r0=0.42,r1=1.0,radii=[];let sr=0;
@@ -1614,6 +1625,28 @@
   buildLayout();applyHash();fillLan();fillKom();resetZoom();zoomToScope();
   dist.forEach(d=>{if(d.el&&d.el[state.election])d.w=d.el[state.election].w||null;});
   computeResiduals();renderAll();
+
+  // T7: bakåt/framåt-knapp ska ändra vyn
+  let _applyingHash=false;
+  window.addEventListener("hashchange",()=>{_applyingHash=true;applyHash();fillLan();fillKom();zoomToScope();renderAll();_applyingHash=false;});
+
+  // Tidsstämpel: "Uppdaterad 21:47"
+  (function(){const b=DATA.meta&&DATA.meta.built;if(!b)return;
+    const d=new Date(b);if(isNaN(d))return;
+    const hhmm=d.toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"});
+    const note=document.getElementById("dataNote");
+    if(note)note.innerHTML=(note.innerHTML?note.innerHTML+" · ":"")+`Uppdaterad ${hhmm}`;})();
+
+  // Auto-uppdatering: polla status.json, visa banner om nya siffror finns
+  (function(){const built=DATA.meta&&DATA.meta.built;if(!built)return;
+    const bar=document.createElement("div");
+    bar.style.cssText="position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#171a1c;color:#fff;padding:10px 16px;border-radius:999px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.25);display:none;z-index:9999;cursor:pointer";
+    bar.textContent="Nya siffror finns – uppdatera ↻";
+    bar.addEventListener("click",()=>location.reload());
+    document.body.appendChild(bar);
+    setInterval(async()=>{try{const r=await fetch("status.json?_="+Date.now(),{cache:"no-store"});if(!r.ok)return;
+      const s=await r.json();if(s.built&&s.built!==built)bar.style.display="block";}catch(e){}},60000);
+  })();
 })();
 </script>
   <footer style="margin:36px 0 12px;padding-top:18px;border-top:1px solid var(--hair);font-size:12.5px;color:var(--muted);line-height:1.6">

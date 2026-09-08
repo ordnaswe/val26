@@ -47,6 +47,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import zipfile
 from pathlib import Path
 
 # --- bekräftat mot val.se (teknisk beskrivning, uppd. 24 aug 2026) ---
@@ -206,26 +207,27 @@ def one_cycle(args):
     if not index:
         log("Tomt/oläsbart index."); return False
 
-    # vilka val ska hämtas
+    # vilka val ska hämtas (tomt mönster = hoppa; RF/KF måste verifieras först)
     vals = [("RD", args.pattern_rd, args.rd_out),
             ("RF", args.pattern_rf, args.rf_out),
             ("KF", args.pattern_kf, args.kf_out)]
     if args.only:
         vals = [v for v in vals if v[0] == args.only]
-    # bakåtkomp: om användaren gav ett eget --pattern (ej default) och inget --only,
-    # tolka det som "bara detta mönster" (ett val)
     if args.pattern != "preliminar_00_RD" and not args.only:
         vals = [("RD", args.pattern, args.rd_out)]
+    vals = [v for v in vals if (v[1] or "").strip()]     # hoppa val utan mönster
 
     state = load_state()
     any_changed = False
+    nomatch = []        # val vars mönster matchade NOLL filer (konfigfel)
     built = {}          # "RD" -> csv-path (om filer fanns)
     built_alla = {}     # "RD" -> alla-partier-områdesfil
     rd_status = None
     for val, pattern, out_csv in vals:
         targets = {n: m for n, m in index.items() if pattern in n}
         if not targets:
-            log(f"{val}: inga filer matchar mönstret '{pattern}'. Kör --list och justera --pattern-{val.lower()}.")
+            log(f"{val}: inga filer matchar mönstret '{pattern}'. Kör --genrep --list och justera --pattern-{val.lower()}.")
+            nomatch.append(val)
             continue
         changed = []
         for relpath, md5 in sorted(targets.items()):
@@ -268,23 +270,32 @@ def one_cycle(args):
         run(acmd)
 
     if not built:
-        log("Inga målfiler hittades för något val. Kör --list."); return False
+        log("Inga målfiler hittades för något val. Kör --genrep --list."); return "nomatch"
     if not any_changed and not args.force:
-        log("Inga ändringar i något val. Bygger inte om."); return False
+        log("Inga ändringar i något val. Bygger inte om.")
+        return "nomatch" if nomatch else "unchanged"
     save_state(state)
 
-    # slå ihop alla-partier-områdesfilerna (RD/RF/KF) -> live omraden_alla.csv
-    alla_live = str(Path(args.rd_out).parent / "omraden_alla.csv")
+    # LIVE all-parti-fil = baslinjen (committad) med hämtade vals överlagrade
+    alla_live = str(Path(args.rd_out).parent / "omraden_alla_live.csv")
+    baseline = Path(args.rd_out).parent / "omraden_alla.csv"
+    fetched = set(built_alla)
     merged = 0
     with open(alla_live, "w", newline="", encoding="utf-8") as f:
         f.write("niva,kod,namn,val,parti,andel\n")
+        # behåll baslinjens rader för val som INTE hämtats live (t.ex. RF/KF vid RD-only)
+        if baseline.exists():
+            for ln in baseline.read_text(encoding="utf-8").splitlines()[1:]:
+                cols = ln.split(",")
+                if len(cols) >= 4 and cols[3] not in fetched:
+                    f.write(ln + "\n")
+        # live-rader för hämtade val
         for val, p in built_alla.items():
             if p and Path(p).exists():
-                lines = Path(p).read_text(encoding="utf-8").splitlines()[1:]
-                for ln in lines:
+                for ln in Path(p).read_text(encoding="utf-8").splitlines()[1:]:
                     f.write(ln + "\n"); merged += 1
     if merged:
-        log(f"omraden_alla.csv (live): {merged} rader från {', '.join(built_alla)}")
+        log(f"omraden_alla_live.csv: {merged} live-rader ({', '.join(fetched)}) + baslinje för övriga")
 
     # bygg: primärvalet (RD om det finns, annars första) + ev. RF/KF
     primary = "RD" if "RD" in built else next(iter(built))
@@ -342,10 +353,10 @@ def main():
                     help="(bakåtkomp.) enkelt mönster om bara ETT val ska hämtas.")
     ap.add_argument("--pattern-rd", default="preliminar_00_RD",
                     help="Mönster för riksdagsvalet i index.md5. Default: preliminar_00_RD")
-    ap.add_argument("--pattern-rf", default="preliminar_00_RF",
-                    help="Mönster för regionvalet. Verifiera med --list; ofta '_RF'.")
-    ap.add_argument("--pattern-kf", default="preliminar_00_KF",
-                    help="Mönster för kommunvalet. Verifiera med --list; ofta '_KF'.")
+    ap.add_argument("--pattern-rf", default="",
+                    help="Mönster för regionvalet. TOMT=hoppa. Verifiera med --genrep --list först (00 är RD; RF använder länskod).")
+    ap.add_argument("--pattern-kf", default="",
+                    help="Mönster för kommunvalet. TOMT=hoppa. Verifiera med --genrep --list först (00 är RD; KF använder kommunkod).")
     ap.add_argument("--only", choices=["RD", "RF", "KF"], help="Hämta bara ett val (annars alla tre).")
     ap.add_argument("--kommuner", default="data/kommuner.csv",
                     help="CSV kommun_kod,kommun_namn för läsbara kommunnamn (valfri)")
@@ -384,7 +395,9 @@ def main():
                 log(f"FEL i varv: {e}")
             time.sleep(args.loop)
     else:
-        one_cycle(args)
+        res = one_cycle(args)
+        if res == "nomatch":
+            sys.exit(1)
 
 
 if __name__ == "__main__":
