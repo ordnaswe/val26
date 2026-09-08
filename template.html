@@ -618,7 +618,6 @@
         else {fill=PC[largest8(d=>KOMKOD_BY_NAMN[d.kommun]===kk)]||"#bbb";}
         const path=el("path",{d:ringsPath(rings),fill,"fill-opacity":0.9,stroke:"#fff","stroke-width":1.2});
         path.style.cursor="pointer";path.__komkod=kk;
-        path.addEventListener("click",()=>{const namn=KOM_BY_KOD[kk];if(namn){state.geo.kommun=namn;fillKom();renderAll();}});
         path.addEventListener("pointerenter",ev=>{const namn=KOM_BY_KOD[kk]||kk;const vk=KOMKOD2VK[kk];
           tipM.innerHTML=`<b>${namn}</b>${hierLayer==="riks"&&vk?`<br><span class="row">Riksdagsvalkrets: ${(DATA.riksvalkretsar[vk]||{}).namn||vk}</span>`:""}`;
           tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(ev.clientX-w.left)+"px";tipM.style.top=(ev.clientY-w.top)+"px";});
@@ -633,8 +632,7 @@
     for(const [lk,rings] of Object.entries(G.lan||{})){if(!rings||!rings.length)continue;all=all.concat(rings);
       const namn=LAN_BY_KOD[lk];const fill=PC[largest8(d=>d.lan===namn)]||"#bbb";
       const path=el("path",{d:ringsPath(rings),fill,"fill-opacity":0.88,stroke:"#fff","stroke-width":1.4});
-      path.style.cursor="pointer";
-      path.addEventListener("click",()=>{if(namn){state.geo.lan=namn;state.geo.kommun=null;fillLan();fillKom();renderAll();}});
+      path.style.cursor="pointer";path.__lankod=lk;
       path.addEventListener("pointerenter",ev=>{tipM.innerHTML=`<b>${namn||lk}</b><br><span class="row">Klicka för att zooma in</span>`;
         tipM.style.opacity=1;const w=mapSvg.parentElement.getBoundingClientRect();tipM.style.left=(ev.clientX-w.left)+"px";tipM.style.top=(ev.clientY-w.top)+"px";});
       path.addEventListener("pointerleave",()=>tipM.style.opacity=0);
@@ -708,7 +706,11 @@
   function endPtr(e){pointers.delete(e.pointerId);if(pointers.size<2)pinch=null;
     if(pointers.size===0){dragging=false;mapSvg.classList.remove("grabbing");}}
   mapSvg.addEventListener("pointerup",e=>{endPtr(e);
-    if(!moved&&pointers.size===0){const t=document.elementFromPoint(e.clientX,e.clientY);if(t&&t.__d){openDetail(t.__d.i);}}});
+    if(!moved&&pointers.size===0){const t=document.elementFromPoint(e.clientX,e.clientY);if(!t)return;
+      if(t.__d){openDetail(t.__d.i);}
+      else if(t.__komkod){const namn=KOM_BY_KOD[t.__komkod];if(namn){state.geo.kommun=namn;fillKom();renderAll();}}
+      else if(t.__lankod){const namn=LAN_BY_KOD[t.__lankod];if(namn){state.geo.lan=namn;state.geo.kommun=null;fillLan();fillKom();renderAll();}}
+    }});
   mapSvg.addEventListener("pointercancel",endPtr);
   mapSvg.addEventListener("pointerleave",()=>{tipM.style.opacity=0;});
   mapSvg.addEventListener("wheel",e=>{e.preventDefault();
