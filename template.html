@@ -514,7 +514,9 @@
   }
   let vb={x:0,y:0,w:MAPW,h:200};
   function applyVB(){mapSvg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
-    const s=space(),aspect=s.h/s.w;mapSvg.style.height=Math.min(560,Math.max(150,s.w*aspect*(mapMode==="tiles"?0.62:0.72)))+"px";}
+    const cw=mapSvg.clientWidth||(mapSvg.parentElement&&mapSvg.parentElement.clientWidth)||900;
+    const aspect=(vb.h/vb.w)||0.7;
+    mapSvg.style.height=Math.min(720,Math.max(260,cw*aspect))+"px";}
   function resetZoom(){const s=space();vb={x:0,y:0,w:s.w,h:s.h};applyVB();}
   function zoomToScope(){
     if(mapMode==="tiles"){
