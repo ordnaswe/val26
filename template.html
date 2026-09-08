@@ -461,6 +461,12 @@
   lanSel.addEventListener("change",()=>{state.geo.lan=lanSel.value||null;state.geo.kommun=null;fillKom();zoomToScope();renderAll();});
   komSel.addEventListener("change",()=>{state.geo.kommun=komSel.value||null;if(state.geo.kommun)state.geo.lan=KOM2LAN[state.geo.kommun];fillLan();fillKom();zoomToScope();renderAll();});
   document.getElementById("resetGeo").addEventListener("click",()=>{state.geo={lan:null,kommun:null};fillLan();fillKom();resetZoom();renderAll();});
+  (function(){const brand=document.getElementById("brand");if(!brand)return;
+    brand.style.cursor="pointer";brand.title="Till startläget";
+    brand.addEventListener("click",()=>{state.geo={lan:null,kommun:null};
+      if(DATA.granser&&DATA.granser.lan)mapMode="nivaer";
+      const mm=document.getElementById("mapModes");if(mm)mm.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===mapMode)));
+      fillLan();fillKom();resetZoom();renderAll();window.scrollTo({top:0,behavior:"smooth"});});})();
   function areaLabel(){return state.geo.kommun?(state.geo.kommun+" kommun"):state.geo.lan?(state.geo.lan):"Hela riket";}
   function syncGeo(){const s=scope();
     document.getElementById("scopeTag").textContent=(state.geo.kommun||state.geo.lan||"Hela riket")+" · "+s.length+" distrikt";
@@ -594,7 +600,7 @@
     let bp=null,bv=-1;for(const p of PARTIES)if(s[p.id]>bv){bv=s[p.id];bp=p.id;}return bp||"S";}
   function ringsPath(rings){let p="";for(const r of rings){r.forEach((pt,i)=>{p+=(i?"L":"M")+pt[0].toFixed(1)+" "+pt[1].toFixed(1)+" ";});p+="Z ";}return p;}
   function hierBounds(rings){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const r of rings)for(const pt of r){if(pt[0]<x0)x0=pt[0];if(pt[0]>x1)x1=pt[0];if(pt[1]<y0)y0=pt[1];if(pt[1]>y1)y1=pt[1];}return[x0,y0,x1,y1];}
-  function zoomHier(rings){const b=hierBounds(rings);const pad=Math.max(b[2]-b[0],b[3]-b[1])*0.06+2000;
+  function zoomHier(rings){const b=hierBounds(rings);const pad=Math.max(b[2]-b[0],b[3]-b[1])*0.04;
     vb={x:b[0]-pad,y:b[1]-pad,w:(b[2]-b[0])+2*pad,h:(b[3]-b[1])+2*pad};applyVB();}
   function renderHier(){
     const G=DATA.granser||{};mapSvg.textContent="";
