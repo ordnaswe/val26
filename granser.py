@@ -146,22 +146,26 @@ def main():
     con.close()
 
     min_area = args.minkm2 * 1_000_000.0
-    def dissolve_or_raw(feats):
-        dz = dissolve(feats, args.snap, min_area)
-        if dz:
-            return simplify_rings(dz, args.tol)
-        raw = [ring for f in feats for ring in f if len(ring) >= 4 and _ring_area(ring) >= min_area]
-        return simplify_rings(raw, args.tol)
-    out = {"kommun": {}, "lan": {}}
+    # steg 1: exakta kommun-ringar (Q=1, ingen förenkling ännu)
+    kom_exact = {}
     for kk, feats in by_kom.items():
-        out["kommun"][kk] = dissolve_or_raw(feats)
-    for lk, feats in by_lan.items():
         dz = dissolve(feats, args.snap, min_area)
-        if dz:
-            out["lan"][lk] = simplify_rings(dz, args.tol)
-        else:
-            # fallback: sätt ihop länets (mestadels rena) kommun-ringar i stället för RegSO
-            out["lan"][lk] = [r for kk, rr in out["kommun"].items() if kk[:2] == lk for r in rr]
+        if not dz:   # fallback: råa RegSO-ringar för kommunen
+            dz = [ring for f in feats for ring in f if len(ring) >= 4 and _ring_area(ring) >= min_area]
+        kom_exact[kk] = dz
+    # steg 2: län = sammanslagning av länets exakta kommun-ringar (färre T-korsningar -> rena länskonturer)
+    lan_koms = defaultdict(list)
+    for kk in kom_exact:
+        lan_koms[kk[:2]].append(kk)
+    out = {"kommun": {}, "lan": {}}
+    for kk, rr in kom_exact.items():
+        out["kommun"][kk] = simplify_rings(rr, args.tol)
+    for lk, koms in lan_koms.items():
+        feats = [kom_exact[kk] for kk in koms if kom_exact[kk]]
+        dz = dissolve(feats, args.snap, min_area)
+        if not dz:   # sista fallback: länets kommun-ringar
+            dz = [r for kk in koms for r in kom_exact[kk]]
+        out["lan"][lk] = simplify_rings(dz, args.tol)
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
