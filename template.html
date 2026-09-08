@@ -20,16 +20,17 @@
   }
 
   #brand svg text{fill:var(--ink)}
-  @media (prefers-color-scheme: dark){
-    :root{
-      --paper:#14161a;--ink:#eceef0;--muted:#a2a9b0;--faint:#6b7278;
-      --hair:#2a2f35;--hair2:#23272c;--panel:#1b1f24;--focus:#5b9bf0;
-      --shadow:0 1px 2px rgba(0,0,0,.3),0 2px 10px rgba(0,0,0,.35);
-    }
-    body{background:var(--paper)}
-    .tabmap svg{background:#1b1f24}
-    select,input,button.dbtn{background:var(--panel);color:var(--ink);border-color:var(--hair)}
+  html.dark{
+    --paper:#14161a;--ink:#eceef0;--muted:#a2a9b0;--faint:#6b7278;
+    --hair:#2a2f35;--hair2:#23272c;--panel:#1b1f24;--focus:#5b9bf0;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 2px 10px rgba(0,0,0,.35);
   }
+  html.dark body{background:var(--paper)}
+  html.dark .tabmap svg{background:#1b1f24}
+  html.dark select,html.dark input,html.dark button.dbtn{background:var(--panel);color:var(--ink);border-color:var(--hair)}
+  #themeBtn{position:fixed;top:10px;right:10px;z-index:60;font:inherit;font-size:13px;
+    padding:6px 10px;border:1px solid var(--hair);border-radius:999px;background:var(--panel);
+    color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
   @media (max-width:640px){
     .tabs{-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
   }
@@ -196,6 +197,23 @@
 </style>
 </head>
 <body>
+  <button id="themeBtn" type="button" aria-label="Byt färgtema">🌗 Auto</button>
+  <script>
+    (function(){var KEY="valutfall_theme";
+      var mq=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)");
+      function isDark(){var s=localStorage.getItem(KEY);return s==="dark"||(!s&&mq&&mq.matches);}
+      function apply(){document.documentElement.classList.toggle("dark",isDark());
+        var b=document.getElementById("themeBtn");if(b){var s=localStorage.getItem(KEY);
+          b.textContent=s==="dark"?"🌙 Mörkt":s==="light"?"☀️ Ljust":"🌗 Auto";}}
+      apply();
+      if(mq&&mq.addEventListener)mq.addEventListener("change",function(){if(!localStorage.getItem(KEY))apply();});
+      window.addEventListener("DOMContentLoaded",function(){
+        var b=document.getElementById("themeBtn");if(!b)return;apply();
+        b.addEventListener("click",function(){var s=localStorage.getItem(KEY);
+          var next=!s?"dark":s==="dark"?"light":null;   // Auto -> Mörkt -> Ljust -> Auto
+          if(next)localStorage.setItem(KEY,next);else localStorage.removeItem(KEY);apply();});});
+    })();
+  </script>
   <header id="brand" style="margin:0 0 4px">
     <svg viewBox="0 0 430 120" style="height:52px;width:auto" role="img" aria-label="Valutfall">
       <g><circle cx="37.0" cy="96.0" r="4.6" fill="#7d2733"/><circle cx="24.1" cy="96.0" r="4.6" fill="#7d2733"/><circle cx="14.0" cy="96.0" r="4.6" fill="#7d2733"/><circle cx="18.6" cy="76.0" r="4.6" fill="#c0392b"/><circle cx="28.9" cy="78.1" r="4.6" fill="#c0392b"/><circle cx="41.4" cy="82.5" r="4.6" fill="#c0392b"/><circle cx="31.3" cy="60.0" r="4.6" fill="#4f9d69"/><circle cx="42.1" cy="64.9" r="4.6" fill="#4f9d69"/><circle cx="52.9" cy="74.1" r="4.6" fill="#3a8f4f"/><circle cx="49.8" cy="51.2" r="4.6" fill="#3a8f4f"/><circle cx="60.0" cy="60.1" r="4.6" fill="#3a8f4f"/><circle cx="70.2" cy="51.2" r="4.6" fill="#6fb1d6"/><circle cx="67.1" cy="74.1" r="4.6" fill="#6fb1d6"/><circle cx="77.9" cy="64.9" r="4.6" fill="#6fb1d6"/><circle cx="88.7" cy="60.0" r="4.6" fill="#2f5ea8"/><circle cx="78.6" cy="82.5" r="4.6" fill="#2f5ea8"/><circle cx="91.1" cy="78.1" r="4.6" fill="#2a4a86"/><circle cx="101.4" cy="76.0" r="4.6" fill="#2a4a86"/><circle cx="83.0" cy="96.0" r="4.6" fill="#2a4a86"/><circle cx="95.9" cy="96.0" r="4.6" fill="#d6a92b"/><circle cx="106.0" cy="96.0" r="4.6" fill="#d6a92b"/></g>
@@ -245,14 +263,14 @@
   <div class="partybar" style="margin:8px 0 0;flex-wrap:wrap"><span>År</span><div id="yearBar" class="seg" style="width:max-content;flex-shrink:0"></div><span id="yearHint" style="font-size:12px;color:var(--muted)">– äldre år visar historik, senaste = nuvarande val</span></div>
 
   <div class="tabs" role="tablist">
-    <button role="tab" aria-selected="true" data-tab="table">Tabell</button>
-    <button role="tab" aria-selected="false" data-tab="prognos">Prognos</button>
+    <button role="tab" aria-selected="true" data-tab="prognos">Resultat och Prognos</button>
     <button role="tab" aria-selected="false" data-tab="kandidater">Kandidater</button>
     <button role="tab" aria-selected="false" data-tab="hist">Historik</button>
     <button role="tab" aria-selected="false" data-tab="scatter">Samband</button>
     <button role="tab" aria-selected="false" data-tab="resid">Avvikelse</button>
     <button role="tab" aria-selected="false" data-tab="split">Röstsplittring</button>
     <button role="tab" aria-selected="false" data-tab="watch">Bevakning</button>
+    <button role="tab" aria-selected="false" data-tab="table">Distrikt</button>
   </div>
   <div class="partybar" id="partyFilter" style="margin:8px 0 0;flex-wrap:wrap">
     <span>Parti</span><select id="party"></select>
@@ -324,7 +342,7 @@
     <p class="caption" id="capSp"></p>
   </section>
 
-  <section class="panelview" id="view-prognos">
+  <section class="panelview active" id="view-prognos">
     <p class="sub" style="margin-bottom:6px">Prognos för slutresultatet utifrån hittills räknade distrikt. Tre modeller; alla räknar på <b id="progArea"></b>.</p>
     <div id="allResBox" style="margin:8px 0 14px"></div>
     <div style="display:flex;align-items:center;gap:14px;margin:8px 0 4px;flex-wrap:wrap">
@@ -349,7 +367,8 @@
     <div id="kandBody"></div>
   </section>
 
-  <section class="panelview active" id="view-table">
+  <section class="panelview" id="view-table">
+    <p class="sub" style="margin:0 0 10px">Detaljtabell <b>per valdistrikt</b> i valt område – ett sätt att borra ner i enskilda distrikt och sortera. Övergripande resultat och mandat finns i fliken <b>Resultat och Prognos</b>.</p>
     <input class="search" id="search" placeholder="Sök distrikt eller kommun…">
     <div class="tablescroll"><table id="tbl"><thead></thead><tbody></tbody></table></div>
     <p class="caption">Klicka på en kolumnrubrik för att sortera. Stjärnan lägger distriktet i bevakning.</p>
@@ -524,7 +543,7 @@
     if(g.kommun)parts.push("k="+encodeURIComponent(g.kommun));
     else if(g.lan)parts.push("l="+encodeURIComponent(g.lan));
     const tb=document.querySelector(".tabs button[aria-selected='true']");
-    if(tb&&tb.dataset.tab&&tb.dataset.tab!=="table")parts.push("t="+tb.dataset.tab);
+    if(tb&&tb.dataset.tab&&tb.dataset.tab!=="prognos")parts.push("t="+tb.dataset.tab);
     if(DATA.vals&&DATA.vals.length>1&&state.election&&state.election!==DATA.vals[0])parts.push("val="+state.election);
     if(state.party)parts.push("p="+state.party);
     if(state.year!=null&&state.year!==ELYEARS.length-1)parts.push("y="+ELYEARS[state.year]);
@@ -1762,6 +1781,7 @@
   <footer style="margin:36px 0 12px;padding-top:18px;border-top:1px solid var(--hair);font-size:12.5px;color:var(--muted);line-height:1.6">
     <b style="color:var(--ink)">valutfall.se</b> är en tjänst från <b>Influera Sverige AB</b>.
     Byggd med hjälp av AI (Anthropic). Fördjupade analyser av datan publiceras efter valet den 13 september 2026.
+    Utvecklad av Sandro Wennberg (<a href="mailto:sandrowennberg@gmail.com" style="color:var(--focus)">sandrowennberg@gmail.com</a>).
   </footer>
 </body>
 </html>
