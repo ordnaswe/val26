@@ -604,6 +604,26 @@ def apply_covariates(districts, cov_path):
     return n
 
 
+def mirror_2022_to_current(districts):
+    """FÖRHANDSVISNING: sätt syntetiska 2026 = riktiga 2022 för alla val, per distrikt.
+    Då visar exempelsajten 2022 års utfall som 'nuläge' (ingen påhittad förändring)."""
+    i22, i26 = ELYEARS.index(2022), ELYEARS.index(CURRENT_YEAR)
+    for d in districts:
+        for val, e in (d.get("el") or {}).items():
+            ser = e.get("series") or {}
+            for pid in PIDS:
+                col = ser.get(pid)
+                if col and col[i22] is not None:
+                    col[i26] = col[i22]
+            e["shares"] = {p: (ser[p][i26] if ser.get(p) and ser[p][i26] is not None else 0.0) for p in PIDS}
+            e["changes"] = {p: 0.0 for p in PIDS}
+            e["top"] = max(PIDS, key=lambda p: e["shares"].get(p, 0.0))
+        prim = d.get("el", {})
+        if prim:
+            first = next(iter(prim.values()))
+            d["shares"] = dict(first["shares"])
+
+
 def apply_history(districts, hist_path):
     """Lägg in riktig historik på distrikten där koden matchar. Stödjer val-kolumn
     (RD/RF/KF); saknas den antas RD. Skriver in i el[val]['series'] och även d['series']
@@ -964,6 +984,9 @@ def main():
         source = args.source_label or "SYNTETISKT EXEMPELDATA – siffrorna och geometrin är påhittade"
         print("Ingen --districts angiven: bygger med syntetiskt exempeldata (med geometri).", file=sys.stderr)
 
+    if not args.districts:
+        mirror_2022_to_current(districts)
+        source = (source or "").replace("siffrorna är påhittade", "visar 2022 års utfall som exempel")
     geo_w, geo_h, has_geo, GEOPROJ = attach_geometry(districts, rings, args.geo_max_points)
     if geojson_path and not has_geo:
         print("VARNING: inga GeoJSON-koder matchade distrikt_kod – kontrollera --geo-code-prop.", file=sys.stderr)

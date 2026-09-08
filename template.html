@@ -211,11 +211,7 @@
   <div class="maplegend" id="mapLegend"></div>
 
   <div id="valBar" class="seg" style="margin:14px 0 0;width:max-content"></div>
-  <div class="partybar" style="margin:8px 0 0"><span>År</span><div id="yearBar" class="seg" style="width:max-content"></div><span id="yearHint" style="font-size:12px;color:var(--muted)">– äldre år visar historik, senaste = nuvarande val</span></div>
-  <div class="partybar">
-    <span>Parti</span><select id="party"></select>
-    <span id="watchcount" style="margin-left:auto"></span>
-  </div>
+  <div class="partybar" style="margin:8px 0 0;flex-wrap:wrap"><span>År</span><div id="yearBar" class="seg" style="width:max-content;flex-shrink:0"></div><span id="yearHint" style="font-size:12px;color:var(--muted)">– äldre år visar historik, senaste = nuvarande val</span></div>
 
   <div class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="table">Tabell</button>
@@ -226,6 +222,10 @@
     <button role="tab" aria-selected="false" data-tab="resid">Avvikelse</button>
     <button role="tab" aria-selected="false" data-tab="split">Röstsplittring</button>
     <button role="tab" aria-selected="false" data-tab="watch">Bevakning</button>
+  </div>
+  <div class="partybar" id="partyFilter" style="margin:8px 0 0;flex-wrap:wrap">
+    <span>Parti</span><select id="party"></select>
+    <span id="watchcount" style="margin-left:auto"></span>
   </div>
 
   <div class="scopeBanner" id="scopeBanner"></div>
@@ -1027,6 +1027,7 @@
     if(ah)for(const p of PARTIES)ELYEARS.forEach((yr,t)=>{if(ah[yr]&&ah[yr][p.id]!=null)ser[p.id][t]=ah[yr][p.id];});
     return {cur,ser,n:data.length};
   }
+  let detParty=null;   // parti valt inuti popupen (null = hela distriktet)
   function openDetail(i){
     const d=dist[i];const ka=komAgg(d.kommun);
     const sorted=[...PARTIES].sort((a,b)=>d.shares[b.id]-d.shares[a.id]);
@@ -1035,41 +1036,52 @@
     if(vals&&vals.length>1){
       let head=`<tr><th>Parti</th>`+vals.map(v=>`<th>${DATA.valNamn[v]||v}</th>`).join("")+`</tr>`;
       let rows="";
-      for(const p of sorted){rows+=`<tr><td>${p.id}</td>`+vals.map(v=>{const s=d.el[v].shares[p.id],ch=d.el[v].changes[p.id];
+      for(const p of sorted){rows+=`<tr${detParty===p.id?' style="outline:2px solid '+p.color+'"':''}><td>${p.id}</td>`+vals.map(v=>{const s=d.el[v].shares[p.id],ch=d.el[v].changes[p.id];
         return `<td>${s.toFixed(1)}% <span class="${ch>=0?'pos':'neg'}" style="font-size:11px">(${ch>=0?'+':''}${ch.toFixed(1)})</span></td>`;}).join("")+`</tr>`;}
       bars=`<table class="dtbl">${head}${rows}</table>`;
     } else {
       const maxShare=Math.max(...PARTIES.map(p=>d.shares[p.id]));
       bars=`<table class="dtbl"><tr><th>Parti</th><th></th><th>Andel</th><th>Förändr.</th><th>Kommun</th><th>vs kom.</th></tr>`;
       for(const p of sorted){const s=d.shares[p.id],ch=d.changes[p.id],ks=ka.cur[p.id]||0,diff=s-ks;
-        bars+=`<tr><td>${p.id}</td><td><span class="dbar" style="width:${Math.max(2,s/maxShare*80)}px;background:${p.color}"></span></td>`+
+        bars+=`<tr${detParty===p.id?' style="outline:2px solid '+p.color+'"':''}><td>${p.id}</td><td><span class="dbar" style="width:${Math.max(2,s/maxShare*80)}px;background:${p.color}"></span></td>`+
           `<td>${s.toFixed(1)}%</td><td class="${ch>=0?'pos':'neg'}">${ch>=0?'+':''}${ch.toFixed(1)}</td>`+
           `<td>${ks.toFixed(1)}%</td><td class="${diff>=0?'pos':'neg'}">${diff>=0?'+':''}${diff.toFixed(1)}</td></tr>`;}
       bars+=`</table>`;
     }
     const cov=COVKEYS.filter(k=>d[k]!=null).map(k=>`<div>${COVMETA[k].lab.split(" (")[0]}<b>${fmtCov(k,d[k])}</b></div>`).join("");
-    const rv=d.resid?d.resid[state.party]:null,pv=d.pred?d.pred[state.party]:null;
-    const sims=nearest(d,5).map(o=>`<div class="simrow clickable" data-i="${o.i}"><span>${o.namn} (${o.kommun})</span><span>${o.shares[state.party].toFixed(1)}%</span></div>`).join("");
+    // partispecifik sektion (styrs av väljaren i popupen)
+    let partySec="";
+    if(detParty){const P=PARTIES.find(p=>p.id===detParty);const rv=d.resid?d.resid[detParty]:null,pv=d.pred?d.pred[detParty]:null;
+      partySec=`<div class="dsec"><h4>${P.namn} i ${d.namn}</h4>`+
+        `<div class="sub2"><b style="color:${P.color}">${(shareAt(d,detParty)||0).toFixed(1)}%</b>`+
+        (rv!=null&&pv!=null?` mot modellens förväntade ${pv.toFixed(1)}% – <span class="${rv>=0?'pos':'neg'}">${rv>=0?'+':''}${rv.toFixed(1)} procentenheter</span> ${rv>=0?'starkare':'svagare'} än inkomst/utbildning/bakgrund förutsäger.`:"")+
+        `</div></div>`;}
+    const partyOpts=`<option value="">Hela distriktet</option>`+PARTIES.map(p=>`<option value="${p.id}" ${detParty===p.id?"selected":""}>${p.id} – ${p.namn}</option>`).join("");
+    const menu=`<div class="dsec" style="margin-top:6px">`+
+      `<div id="detAnalys" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">`+
+        `<span style="font-size:12px;color:var(--muted)">Analysera ${d.kommun} med distriktet markerat:</span>`+
+        [["scatter","Samband"],["resid","Avvikelse"],["hist","Historik"],["split","Röstsplittring"],["table","Tabell"]]
+          .map(([t,l])=>`<button class="dbtn" style="margin:0" data-tab="${t}">${l}</button>`).join("")+`</div>`+
+      `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">`+
+        `<button class="dbtn" id="detFilter" style="margin:0">Filtrera alla vyer till ${d.kommun}</button>`+
+        `<button class="dbtn" id="detRefresh" style="margin:0">⟳ Uppdatera i ${d.kommun}</button>`+
+        `<label style="margin-left:auto;font-size:12px;color:var(--muted)">Segmentera: <select id="detParty">${partyOpts}</select></label>`+
+      `</div></div>`;
     detailBox.innerHTML=
       `<button class="close" id="detClose">✕</button>`+
       `<h2>${d.namn}</h2><div class="sub2">${d.kommun} · ${d.lan} · ${(d.rost||0).toLocaleString("sv-SE")} röstberättigade</div>`+
-      `<div class="dsec"><h4>Så röstade distriktet</h4>${bars}</div>`+
+      menu+
+      `<div class="dsec"><h4>Så röstade distriktet – alla partier</h4>${bars}</div>`+
       `<div class="dsec"><h4>Historik</h4>${detailTrendSVG(d.series)}</div>`+
       (cov?`<div class="dsec"><h4>Distriktets profil</h4><div class="kpi">${cov}</div></div>`:"")+
-      (rv!=null?`<div class="dsec"><h4>Avvikelse mot modell (${state.party})</h4><div class="sub2">${(shareAt(d,state.party)||0).toFixed(1)}% mot förväntat ${pv.toFixed(1)}% – <span class="${rv>=0?'pos':'neg'}">${rv>=0?'+':''}${rv.toFixed(1)} procentenheter</span> ${rv>=0?'bättre':'sämre'} än vad inkomst/utbildning/bakgrund förutsäger.</div></div>`:"")+
-      `<div class="dsec"><h4>Kommunen ${d.kommun} (${ka.n} distrikt)</h4>${detailTrendSVG(ka.ser)}</div>`+
-      `<div class="dsec"><h4>Analysera ${d.kommun} – med distriktet markerat</h4>`+
-      `<div id="detAnalys" style="display:flex;flex-wrap:wrap;gap:6px">`+
-        [["scatter","Samband"],["resid","Avvikelse"],["hist","Historik"],["split","Röstsplittring"],["table","Tabell"]]
-          .map(([t,l])=>`<button class="dbtn" style="margin:0" data-tab="${t}">${l}</button>`).join("")+`</div></div>`+
-      `<button class="dbtn" id="detFilter">Filtrera alla vyer till ${d.kommun}</button>`+
-      `<button class="dbtn" id="detRefresh" style="margin-left:8px">⟳ Uppdatera i ${d.kommun}</button>`;
+      partySec+
+      `<div class="dsec"><h4>Kommunen ${d.kommun} (${ka.n} distrikt)</h4>${detailTrendSVG(ka.ser)}</div>`;
     detailBg.classList.add("open");
     document.getElementById("detClose").onclick=closeDetail;
     document.getElementById("detFilter").onclick=()=>{focusIdx=d.i;state.geo.kommun=d.kommun;state.geo.lan=KOM2LAN[d.kommun];fillLan();fillKom();zoomToScope();closeDetail();renderAll();};
     document.getElementById("detRefresh").onclick=()=>{state.geo.kommun=d.kommun;state.geo.lan=KOM2LAN[d.kommun];writeHash();location.reload();};
+    const dp=document.getElementById("detParty");if(dp)dp.onchange=()=>{detParty=dp.value||null;openDetail(i);};
     detailBox.querySelectorAll("#detAnalys button").forEach(b=>b.addEventListener("click",()=>analyseHere(d.i,b.dataset.tab)));
-    detailBox.querySelectorAll(".simrow[data-i]").forEach(el2=>el2.onclick=()=>openDetail(+el2.dataset.i));
   }
   function closeDetail(){detailBg.classList.remove("open");}
   function analyseHere(i,tab){
@@ -1543,8 +1555,10 @@
   }
   function renderAll(){
     document.getElementById("watchcount").textContent=watch.size?watch.size+" bevakade":"";
-    syncGeo();renderTopline();renderMap();
     const active=document.querySelector(".tabs button[aria-selected='true']").dataset.tab;
+    const pf=document.getElementById("partyFilter");
+    if(pf)pf.style.display=["hist","scatter","resid","split"].includes(active)?"":"none";
+    syncGeo();renderTopline();renderMap();
     if(active==="scatter")renderScatter();else if(active==="resid")renderResid();
     else if(active==="hist")renderHist();else if(active==="split")renderSplit();
     else if(active==="prognos")renderPrognos();
