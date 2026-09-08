@@ -414,10 +414,10 @@ def dorling(items, canvas_w, canvas_h, iters=90, pad=0.6, spring=0.02, damping=0
 
 def attach_geometry(districts, rings_by_code, max_points):
     """Projicerar polygoner, förenklar dem, och bygger Dorling-layout.
-    Returnerar (geo_w, geo_h, has_geo)."""
+    Returnerar (geo_w, geo_h, has_geo, proj)."""
     have = {d["distrikt_kod"]: d for d in districts if d.get("distrikt_kod") in rings_by_code}
     if not have:
-        return GEO_W, GEO_W * 0.6, False
+        return GEO_W, GEO_W * 0.6, False, None
     proj, geo_w, geo_h = make_projector({k: rings_by_code[k] for k in have})
     # projicera + förenkla polygoner, räkna centroid
     anchors = []
@@ -438,7 +438,7 @@ def attach_geometry(districts, rings_by_code, max_points):
     dorling(items, geo_w, geo_h)
     for d, it in zip(order, items):
         d["dor"] = {"x": round(it["x"], 1), "y": round(it["y"], 1), "r": round(it["r"], 1)}
-    return geo_w, geo_h, True
+    return geo_w, geo_h, True, proj
 
 
 # ============================================================
@@ -964,7 +964,7 @@ def main():
         source = args.source_label or "SYNTETISKT EXEMPELDATA – siffrorna och geometrin är påhittade"
         print("Ingen --districts angiven: bygger med syntetiskt exempeldata (med geometri).", file=sys.stderr)
 
-    geo_w, geo_h, has_geo = attach_geometry(districts, rings, args.geo_max_points)
+    geo_w, geo_h, has_geo, GEOPROJ = attach_geometry(districts, rings, args.geo_max_points)
     if geojson_path and not has_geo:
         print("VARNING: inga GeoJSON-koder matchade distrikt_kod – kontrollera --geo-code-prop.", file=sys.stderr)
 
@@ -998,11 +998,20 @@ def main():
     data["valkretsar"] = valkretsar
     data["thresholds"] = {"RD": 4.0, "RF": 3.0, "KF": 2.0}   # KF: 2% (1 valkrets) / 3% (fler) väljs i klienten
     data["riksvalkretsar"] = RIKSVK
-    data["candidates"] = load_candidates(args.kandidater)
-    data["allresults"] = load_allresults(args.allresults)
     try:
-        data["granser"] = json.loads(Path(args.granser).read_text(encoding="utf-8")) if args.granser and Path(args.granser).exists() else {}
+        graw = json.loads(Path(args.granser).read_text(encoding="utf-8")) if args.granser and Path(args.granser).exists() else {}
     except Exception:
+        graw = {}
+    if graw and GEOPROJ:
+        def _projrings(rings):
+            out = []
+            for r in rings:
+                pr = [GEOPROJ(x, y) for x, y in r]
+                out.append([[round(px, 1), round(py, 1)] for px, py in pr])
+            return out
+        data["granser"] = {lvl: {kod: _projrings(rings) for kod, rings in areas.items()}
+                           for lvl, areas in graw.items()}
+    else:
         data["granser"] = {}
     size, n = render_site(data, args.template, args.out)
     print(f"Byggde {args.out}  ·  {n} distrikt  ·  geo={'ja' if has_geo else 'nej'}  ·  {size:,} tecken".replace(",", " "))
