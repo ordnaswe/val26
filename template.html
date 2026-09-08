@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Valutfall – valresultat per distrikt</title>
+<meta name="description" content="Valutfall – valresultat, historik och prognos per valdistrikt, kommun, region och riksdag. En tjänst från Influera Sverige.">
+<meta property="og:title" content="Valutfall – valresultat per distrikt">
+<meta property="og:description" content="Resultat, mandat, prognos och kandidater för riksdags-, region- och kommunval – ner på valdistrikt.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Valutfall">
+<meta property="og:image" content="og.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20120%20116%27%20width%3D%27120%27%20height%3D%27116%27%20role%3D%27img%27%20aria-label%3D%27Valutfall%27%3E%3Ccircle%20cx%3D%2737.0%27%20cy%3D%2796.0%27%20r%3D%274.6%27%20fill%3D%27%237d2733%27/%3E%3Ccircle%20cx%3D%2724.1%27%20cy%3D%2796.0%27%20r%3D%274.6%27%20fill%3D%27%237d2733%27/%3E%3Ccircle%20cx%3D%2714.0%27%20cy%3D%2796.0%27%20r%3D%274.6%27%20fill%3D%27%237d2733%27/%3E%3Ccircle%20cx%3D%2718.6%27%20cy%3D%2776.0%27%20r%3D%274.6%27%20fill%3D%27%23c0392b%27/%3E%3Ccircle%20cx%3D%2728.9%27%20cy%3D%2778.1%27%20r%3D%274.6%27%20fill%3D%27%23c0392b%27/%3E%3Ccircle%20cx%3D%2741.4%27%20cy%3D%2782.5%27%20r%3D%274.6%27%20fill%3D%27%23c0392b%27/%3E%3Ccircle%20cx%3D%2731.3%27%20cy%3D%2760.0%27%20r%3D%274.6%27%20fill%3D%27%234f9d69%27/%3E%3Ccircle%20cx%3D%2742.1%27%20cy%3D%2764.9%27%20r%3D%274.6%27%20fill%3D%27%234f9d69%27/%3E%3Ccircle%20cx%3D%2752.9%27%20cy%3D%2774.1%27%20r%3D%274.6%27%20fill%3D%27%233a8f4f%27/%3E%3Ccircle%20cx%3D%2749.8%27%20cy%3D%2751.2%27%20r%3D%274.6%27%20fill%3D%27%233a8f4f%27/%3E%3Ccircle%20cx%3D%2760.0%27%20cy%3D%2760.1%27%20r%3D%274.6%27%20fill%3D%27%233a8f4f%27/%3E%3Ccircle%20cx%3D%2770.2%27%20cy%3D%2751.2%27%20r%3D%274.6%27%20fill%3D%27%236fb1d6%27/%3E%3Ccircle%20cx%3D%2767.1%27%20cy%3D%2774.1%27%20r%3D%274.6%27%20fill%3D%27%236fb1d6%27/%3E%3Ccircle%20cx%3D%2777.9%27%20cy%3D%2764.9%27%20r%3D%274.6%27%20fill%3D%27%236fb1d6%27/%3E%3Ccircle%20cx%3D%2788.7%27%20cy%3D%2760.0%27%20r%3D%274.6%27%20fill%3D%27%232f5ea8%27/%3E%3Ccircle%20cx%3D%2778.6%27%20cy%3D%2782.5%27%20r%3D%274.6%27%20fill%3D%27%232f5ea8%27/%3E%3Ccircle%20cx%3D%2791.1%27%20cy%3D%2778.1%27%20r%3D%274.6%27%20fill%3D%27%232a4a86%27/%3E%3Ccircle%20cx%3D%27101.4%27%20cy%3D%2776.0%27%20r%3D%274.6%27%20fill%3D%27%232a4a86%27/%3E%3Ccircle%20cx%3D%2783.0%27%20cy%3D%2796.0%27%20r%3D%274.6%27%20fill%3D%27%232a4a86%27/%3E%3Ccircle%20cx%3D%2795.9%27%20cy%3D%2796.0%27%20r%3D%274.6%27%20fill%3D%27%23d6a92b%27/%3E%3Ccircle%20cx%3D%27106.0%27%20cy%3D%2796.0%27%20r%3D%274.6%27%20fill%3D%27%23d6a92b%27/%3E%3C/svg%3E">
 <style>
   :root{
@@ -11,6 +18,22 @@
     --hair:#e0e1db;--hair2:#ececE7;--panel:#ffffff;--focus:#1e5bb8;
     --over:#2a9d8f;--under:#e07a5f;--star:#e0a400;--shadow:0 1px 2px rgba(20,22,24,.04),0 2px 8px rgba(20,22,24,.05);
   }
+
+  #brand svg text{fill:var(--ink)}
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#14161a;--ink:#eceef0;--muted:#a2a9b0;--faint:#6b7278;
+      --hair:#2a2f35;--hair2:#23272c;--panel:#1b1f24;--focus:#5b9bf0;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 2px 10px rgba(0,0,0,.35);
+    }
+    body{background:var(--paper)}
+    .tabmap svg{background:#1b1f24}
+    select,input,button.dbtn{background:var(--panel);color:var(--ink);border-color:var(--hair)}
+  }
+  @media (max-width:640px){
+    .tabs{-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
+  }
+
   *{box-sizing:border-box} html,body{margin:0}
   body{background:var(--paper);color:var(--ink);
     font-family:system-ui,-apple-system,"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;
@@ -78,7 +101,7 @@
   .partybar span{font-size:11px;color:var(--muted)}
   .tabs{display:flex;gap:2px;border-bottom:1px solid var(--hair);margin-bottom:16px;flex-wrap:wrap}
   .tabs button{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;
-    font-size:14px;padding:9px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+    font-size:14px;padding:12px 14px;min-height:44px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
   .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
   .panelview{display:none}.panelview.active{display:block}
   .toolbar{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;align-items:flex-end}
@@ -109,7 +132,7 @@
   th{color:var(--muted);font-weight:500;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--paper)}
   th[aria-sort]{color:var(--ink);font-weight:600}
   tbody tr:hover{background:#fbfbf9}
-  .starbtn{appearance:none;border:0;background:transparent;cursor:pointer;font-size:15px;color:var(--faint);padding:0 2px}
+  .starbtn{appearance:none;border:0;background:transparent;cursor:pointer;font-size:17px;color:var(--faint);padding:8px;min-width:40px;min-height:40px}
   .starbtn.on{color:var(--star)}
   .search{width:100%;max-width:280px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;margin-bottom:12px;background:var(--panel)}
   .tablescroll{max-height:440px;overflow:auto;border:1px solid var(--hair);border-radius:12px}
@@ -178,9 +201,14 @@
       <g><circle cx="37.0" cy="96.0" r="4.6" fill="#7d2733"/><circle cx="24.1" cy="96.0" r="4.6" fill="#7d2733"/><circle cx="14.0" cy="96.0" r="4.6" fill="#7d2733"/><circle cx="18.6" cy="76.0" r="4.6" fill="#c0392b"/><circle cx="28.9" cy="78.1" r="4.6" fill="#c0392b"/><circle cx="41.4" cy="82.5" r="4.6" fill="#c0392b"/><circle cx="31.3" cy="60.0" r="4.6" fill="#4f9d69"/><circle cx="42.1" cy="64.9" r="4.6" fill="#4f9d69"/><circle cx="52.9" cy="74.1" r="4.6" fill="#3a8f4f"/><circle cx="49.8" cy="51.2" r="4.6" fill="#3a8f4f"/><circle cx="60.0" cy="60.1" r="4.6" fill="#3a8f4f"/><circle cx="70.2" cy="51.2" r="4.6" fill="#6fb1d6"/><circle cx="67.1" cy="74.1" r="4.6" fill="#6fb1d6"/><circle cx="77.9" cy="64.9" r="4.6" fill="#6fb1d6"/><circle cx="88.7" cy="60.0" r="4.6" fill="#2f5ea8"/><circle cx="78.6" cy="82.5" r="4.6" fill="#2f5ea8"/><circle cx="91.1" cy="78.1" r="4.6" fill="#2a4a86"/><circle cx="101.4" cy="76.0" r="4.6" fill="#2a4a86"/><circle cx="83.0" cy="96.0" r="4.6" fill="#2a4a86"/><circle cx="95.9" cy="96.0" r="4.6" fill="#d6a92b"/><circle cx="106.0" cy="96.0" r="4.6" fill="#d6a92b"/></g>
       <text x="120" y="74" font-family="system-ui,Segoe UI,Helvetica,Arial,sans-serif" font-size="52" font-weight="800" letter-spacing="-1.5" fill="#15181a">valutfall</text>
     </svg>
+    <h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">Valutfall – valresultat per valdistrikt, kommun, region och riksdag</h1>
   </header>
-  <p class="sub" id="pageTitle">Valresultat, historik och prognos – per valdistrikt, kommun, region och riksdag. Resultat, största parti och mandat visar alla partier över 1 % i valt område (inkl. lokala partier); analys och prognosmodeller avser riksdagspartierna.</p>
+  <p class="sub" id="pageTitle">Valresultat, historik och prognos – per valdistrikt, kommun, region och riksdag.
+    <a href="#" id="omSiffrorna" style="color:var(--focus)">Om siffrorna</a></p>
+  <details id="omBox" style="margin:2px 0 4px"><summary style="list-style:none;cursor:pointer;font-size:12px;color:var(--muted)"></summary>
+    <p class="sub" style="margin:6px 0">Resultat, största parti och mandat visar alla partier över 1 % i valt område (inklusive lokala partier). Analys- och prognosmodellerna avser riksdagspartierna. Mandaten räknas med jämkade uddatalsmetoden; riksdagen med fasta valkretsmandat + utjämningsmandat och spärren 4 % nationellt eller 12 % i en valkrets.</p></details>
   <div class="note" id="dataNote"></div>
+  <div id="emptyBanner" style="display:none;margin:10px 0;padding:12px 16px;border-radius:12px;background:#fff8e1;border:1px solid #f0e0a0;color:#7a5a00;font-size:14px"></div>
 
   <div class="topline" id="topline"></div>
   <div class="progress" id="progress" title="Andel räknade distrikt"><i style="width:0%"></i></div>
@@ -1647,6 +1675,16 @@
     setInterval(async()=>{try{const r=await fetch("status.json?_="+Date.now(),{cache:"no-store"});if(!r.ok)return;
       const s=await r.json();if(s.built&&s.built!==built)bar.style.display="block";}catch(e){}},60000);
   })();
+
+  // "Om siffrorna"-expander
+  (function(){const a=document.getElementById("omSiffrorna"),box=document.getElementById("omBox");
+    if(a&&box)a.addEventListener("click",e=>{e.preventDefault();box.open=!box.open;});})();
+
+  // Tomstatus: live men inga distrikt räknade än
+  (function(){const m=DATA.meta||{};const counted=dist.filter(d=>d.raknat===1).length;
+    const b=document.getElementById("emptyBanner");if(!b)return;
+    if(m.live && counted===0){b.style.display="block";
+      b.innerHTML="<b>Rösträkningen har inte börjat.</b> De första preliminära siffrorna för riksdagsvalet väntas omkring kl 21.00. Sidan uppdateras automatiskt när distrikt börjar rapportera.";}})();
 })();
 </script>
   <footer style="margin:36px 0 12px;padding-top:18px;border-top:1px solid var(--hair);font-size:12.5px;color:var(--muted);line-height:1.6">

@@ -1084,6 +1084,7 @@ def main():
     try:
         st = {"built": meta["built"], "status": args.status, "n": n}
         Path(args.out).with_name("status.json").write_text(json.dumps(st), encoding="utf-8")
+        Path(args.out).with_name("data.json").write_text(json.dumps(data, separators=(",",":")), encoding="utf-8")
     except Exception:
         pass
     print(f"Byggde {args.out}  ·  {n} distrikt  ·  geo={'ja' if has_geo else 'nej'}  ·  {size:,} tecken".replace(",", " "))
