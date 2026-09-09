@@ -84,7 +84,9 @@ def dissolve(feature_rings, Q=1.0, min_area=200000.0):
             cur, nb = nb, nv
             if len(ring) > 1000000:
                 break
-        if closed and len(ring) >= 4:
+        if len(ring) >= 4:
+            if ring[-1] != ring[0]:
+                ring.append(ring[0])   # tvinga slutning vid dödläge (T-korsningar i rådata)
             r = [(x * Q, y * Q) for x, y in ring]
             if _ring_area(r) >= min_area:
                 out.append(r)
