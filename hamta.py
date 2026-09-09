@@ -414,6 +414,11 @@ def main():
         while True:
             try:
                 one_cycle(args)
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    log("Index inte publicerat än (404) – väntar. (Normalt före valdagens räkning.)")
+                else:
+                    log(f"FEL i varv: HTTP {e.code}")
             except Exception as e:
                 log(f"FEL i varv: {e}")
             time.sleep(args.loop)
