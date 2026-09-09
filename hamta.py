@@ -224,7 +224,8 @@ def one_cycle(args):
     built_alla = {}     # "RD" -> alla-partier-områdesfil
     rd_status = None
     for val, pattern, out_csv in vals:
-        targets = {n: m for n, m in index.items() if pattern in n}
+        terms = [s.strip() for s in pattern.split(",") if s.strip()]
+        targets = {n: m for n, m in index.items() if any(term in n for term in terms)}
         if not targets:
             log(f"{val}: inga filer matchar mönstret '{pattern}'. Kör --genrep --list och justera --pattern-{val.lower()}.")
             nomatch.append(val)
@@ -350,13 +351,13 @@ def list_index(args):
 def main():
     ap = argparse.ArgumentParser(description="Hämta Valmyndighetens resultatfiler och bygg om sajten.")
     ap.add_argument("--pattern", default="preliminar_00_RD",
-                    help="(bakåtkomp.) enkelt mönster om bara ETT val ska hämtas.")
+                    help="(bakåtkomp.) enkelt mönster om bara ETT val ska hämtas. Kommaseparera för flera.")
     ap.add_argument("--pattern-rd", default="preliminar_00_RD",
                     help="Mönster för riksdagsvalet i index.md5. Default: preliminar_00_RD")
     ap.add_argument("--pattern-rf", default="",
-                    help="Mönster för regionvalet. TOMT=hoppa. Verifiera med --genrep --list först (00 är RD; RF använder länskod).")
+                    help="Regionval. TOMT=hoppa. Verifierat live: sätt 'p/rf/' för alla 21 län (22 filer).")
     ap.add_argument("--pattern-kf", default="",
-                    help="Mönster för kommunvalet. TOMT=hoppa. Verifiera med --genrep --list först (00 är RD; KF använder kommunkod).")
+                    help="Kommunval. TOMT=hoppa. 'p/kf/'=alla 290 (tungt!). Bevakningslista: 'preliminar_0120_KF,preliminar_0180_KF'.")
     ap.add_argument("--only", choices=["RD", "RF", "KF"], help="Hämta bara ett val (annars alla tre).")
     ap.add_argument("--kommuner", default="data/kommuner.csv",
                     help="CSV kommun_kod,kommun_namn för läsbara kommunnamn (valfri)")
