@@ -27,3 +27,10 @@ utländsk bakgrund.csv
 # OBS väg B: dessa SKA committas (CI bygger av dem):
 #   data/historik.csv, data/omraden.csv, data/scb.csv, data/mandat.csv,
 #   data/kommuner.csv och data/valdistrikt-riket-2026.zip (geometrin)
+
+# Simulatorns/hämtarens arbetsfiler
+data/_sim/
+data/rd_sim.csv
+data/alla_rd.csv
+data/omraden_alla_live.csv
+simulera.py
