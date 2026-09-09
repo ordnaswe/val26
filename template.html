@@ -1665,10 +1665,12 @@
     const ord=[...PARTIES].filter(p=>cur[p.id]!=null).sort((a,b)=>cur[b.id]-cur[a.id]);
     if(!ord.length){box.innerHTML="";return;}
     const lead=ord[0];
-    // störst inkl. lokala partier (från all-party-resultatet om det finns)
+    // störst inkl. lokala partier: ett lokalt parti tar täten bara om det FAKTISKT är störst.
+    // De åtta använder områdesserien (cur) – samma 2022-källa som förändringssiffran → exakt 2022 i förhandsvisning.
     const ar=areaResults();
     let leadId=lead.id, leadColor=lead.color, leadVal=cur[lead.id], leadLocal=false;
-    if(ar&&ar.length&&ar[0].a>(leadVal||0)){leadId=ar[0].p;leadColor=pcolor(ar[0].p);leadVal=ar[0].a;leadLocal=!PARTIES.some(p=>p.id===leadId);}
+    if(ar&&ar.length){const top=ar[0];const isLocal=!PARTIES.some(p=>p.id===top.p);
+      if(isLocal&&top.a>(leadVal||0)){leadId=top.p;leadColor=pcolor(top.p);leadVal=top.a;leadLocal=true;}}
     // förändring mot 2022 för ledande parti (endast för de åtta)
     const y22=ELYEARS.indexOf(2022);
     const lead22=(!leadLocal&&y22>=0&&agg[leadId]&&agg[leadId][y22]!=null)?agg[leadId][y22]:null;
