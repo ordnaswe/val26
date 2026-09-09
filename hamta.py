@@ -336,9 +336,31 @@ def deploy(out_html):
     if not (site and token):
         log("Hoppar deploy: NETLIFY_SITE_ID / NETLIFY_AUTH_TOKEN saknas i miljön.")
         return
-    pub = str(Path(out_html).parent)
-    run(["npx", "--yes", "netlify-cli@17", "deploy", "--prod", "--dir", pub,
-         "--site", site, "--auth", token])
+    pub = Path(out_html).parent
+    # zippa public/ i minnet och posta till Netlifys deploy-API (ren Python, inget Node)
+    import io as _io
+    buf = _io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for p in sorted(pub.rglob("*")):
+            if p.is_file():
+                z.write(p, p.relative_to(pub).as_posix())
+    data = buf.getvalue()
+    url = f"https://api.netlify.com/api/v1/sites/{site}/deploys"
+    req = urllib.request.Request(url, data=data, method="POST",
+        headers={"Content-Type": "application/zip", "Authorization": "Bearer " + token,
+                 "User-Agent": "valutfall-hamtare/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=240) as r:
+            body = r.read().decode("utf-8", "ignore")
+        import json as _json
+        did = ""
+        try: did = _json.loads(body).get("id", "")
+        except Exception: pass
+        log(f"Deploy skickad till Netlify ({len(data)//1024} kB){' · id '+did if did else ''}.")
+    except urllib.error.HTTPError as e:
+        log(f"Deploy-fel {e.code}: {e.read().decode('utf-8','ignore')[:200]}")
+    except urllib.error.URLError as e:
+        log(f"Deploy-fel (nätverk): {e}")
 
 
 def list_index(args):
@@ -370,7 +392,7 @@ def main():
     ap.add_argument("--geojson", default="data/valdistrikt-riket-2026.zip",
                     help="Valdistrikts-GeoJSON/zip från val.se (valfri; ger Kartogram/Geografi)")
     ap.add_argument("--valkrets", default="data/valkrets.csv", help="CSV för riksdagsvalkretsar (RD-områden)")
-    ap.add_argument("--allmin", type=float, default=1.0, help="Tröskel (%) för alla-partier-områdesfilen")
+    ap.add_argument("--allmin", type=float, default=1.0, help="Tröskel i procent för alla-partier-områdesfilen")
     ap.add_argument("--status-file", default="data/status.txt")
     ap.add_argument("--live", action="store_true")
     ap.add_argument("--deploy", action="store_true", help="Deploya till Netlify (kräver env-variabler)")
