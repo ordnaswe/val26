@@ -1470,6 +1470,11 @@
     for(const p of PARTIES){
       r2022[p.id]=(ah&&ah[2022]&&ah[2022][p.id]!=null)?ah[2022][p.id]:wavg(data,d=>d.series&&d.series[p.id]?d.series[p.id][YI22]:null);
     }
+    // FÖRHANDSVISNING (ej live): visa exakt officiella 2022 i alla kolumner, inte per-distrikt-snittet
+    if(!DATA.meta.live){
+      for(const p of PARTIES){const v=r2022[p.id];
+        if(v!=null){raknat[p.id]=v;facit[p.id]=v;m1[p.id]=v;m2[p.id]=v;m3[p.id]=v;band[p.id]=0;}}
+    }
     // mandat ur kombinerad prognos (om området väljer en församling)
     // mandat: RD (riket) via riktig valkretsmodell; annars enkel församling
     const rdRiket = state.election==="RD" && !state.geo.kommun && !state.geo.lan;
@@ -1675,8 +1680,14 @@
   }
   function renderAllRes(){
     const box=document.getElementById("allResBox");if(!box)return;
-    const res=areaResults();
+    let res=areaResults();
     if(!res||!res.length){box.innerHTML="";return;}
+    // förhandsvisning (ej live): låt de åtta visa exakt officiella 2022; lokala behåller sitt värde
+    if(!DATA.meta.live){
+      const a=areaSeries();
+      if(a){res=res.map(x=>{const v=(a[x.p]&&a[x.p][YI22]!=null)?a[x.p][YI22]:null;
+        return (v!=null)?{p:x.p,a:v}:x;}).sort((u,v)=>v.a-u.a);}
+    }
     const mx=res[0].a||1;
     const rows=res.map(x=>{const isLocal=!PARTIES.some(p=>p.id===x.p);
       return `<div style="display:flex;align-items:center;gap:8px;margin:2px 0;font-size:13px">`+
@@ -1691,6 +1702,10 @@
     const area=areaSeries();const agg=aggSeries(data);
     if(area)for(const p of PARTIES)ELYEARS.forEach((yr,t)=>{if(area[p.id][t]!=null)agg[p.id][t]=area[p.id][t];});
     const cur={};for(const p of PARTIES)cur[p.id]=agg[p.id][state.year];
+    // förhandsvisning (ej live): aktuellt år = exakt officiella 2022
+    if(!DATA.meta.live && state.year===ELYEARS.length-1 && area){
+      for(const p of PARTIES){const v=area[p.id]&&area[p.id][YI22];if(v!=null)cur[p.id]=v;}
+    }
     const ord=[...PARTIES].filter(p=>cur[p.id]!=null).sort((a,b)=>cur[b.id]-cur[a.id]);
     if(!ord.length){box.innerHTML="";return;}
     const lead=ord[0];
