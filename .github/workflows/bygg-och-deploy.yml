@@ -12,12 +12,33 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - name: Bygg sajten
+      - name: Bygg startsidan
         run: |
           python3 build.py --geojson data/valdistrikt-riket-2026.zip \
             --history data/historik.csv --kommuner data/kommuner.csv \
             --covariates data/scb.csv --mandat data/mandat.csv \
             --out public/index.html
+      - name: Bygg väljaranalysen (undersida)
+        run: |
+          python3 build_valjaranalys.py --data public/data.json \
+            --kommun data/kommun_kovariater.csv \
+            --out public/valjaranalys.html
+      - name: Bygg personvalet (om kandidatfil finns committad)
+        run: |
+          if [ -f data/kandidaturer.csv ]; then
+            python3 gor_mandat.py --data public/data.json --valkrets data/valkrets.csv \
+              --mandat data/mandat.csv --out data/mandat_person.csv \
+              --distrikt-fallback data/rd_baseline.csv --rf-approx
+            python3 invalda.py --kandidaturer data/kandidaturer.csv \
+              --nyckelpersoner nyckelpersoner.csv --mandat data/mandat_person.csv \
+              --data public/data.json --out data/invalda.csv
+            python3 build_personvalet.py --invalda data/invalda.csv \
+              --status nyckelperson_status.csv --nyckelpersoner nyckelpersoner.csv \
+              --valkrets data/valkrets.csv --data public/data.json \
+              --out public/personvalet.html
+          else
+            echo "data/kandidaturer.csv saknas – hoppar personvalet (byggs på valnatten av hamta.py)."
+          fi
       - name: Deploya till Netlify
         run: npx --yes netlify-cli@17 deploy --dir=public --prod --message "push ${GITHUB_SHA}"
         env:

@@ -33,4 +33,11 @@ utländsk bakgrund.csv
 #   data/historik.csv, data/omraden.csv, data/omraden_alla.csv, data/omraden_alla_hist.csv,
 #   data/scb.csv, data/mandat.csv, data/kommuner.csv, data/valkrets.csv,
 #   data/valkretsar.csv, data/kandidater.csv, data/granser.json,
+#   data/rd_baseline.csv (RD-baslinje 2022, ger riksdagsnamn i förhandsläget),
 #   data/valdistrikt-riket-2026.zip
+
+# personlagrets arbetsfiler (genereras live, ska inte committas)
+data/invalda.csv
+data/mandat_person.csv
+nyckelperson_status.csv
+_test_invalda_2022.csv

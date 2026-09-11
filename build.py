@@ -62,6 +62,8 @@ COV_META = {
     "turnout": {"lab": "Valdeltagande (%)",                   "unit": "%"},
     "age":     {"lab": "Medelålder (år)",                     "unit": "år"},
     "hyra":    {"lab": "Andel i hyresrätt (%)",               "unit": "%"},
+    "urban":   {"lab": "Urbanitet (0 landsbygd–2 stad)",       "unit": "0–2"},
+    "syss":    {"lab": "Sysselsättningsgrad 20–64 (%)",         "unit": "%"},
 }
 COV_KEYS = list(COV_META.keys())
 MODEL_PREDICTORS = ["income", "edu", "foreign"]
