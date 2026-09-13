@@ -315,6 +315,11 @@
     <p class="sub" style="margin-bottom:10px">Partiernas andel över tid i valt område (röstviktat). Valt parti är markerat; bevakade distrikt visas som tunna linjer.</p>
     <div class="chartwrap"><svg id="histSvg" class="chart" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid meet"></svg><div class="tip" id="tipH"></div></div>
     <p class="caption" id="capH"></p>
+    <div id="kfLangBox" style="display:none;margin-top:22px;padding-top:18px;border-top:1px solid var(--hair)">
+      <p class="sub" id="kfLangTitle" style="margin-bottom:10px"></p>
+      <div class="chartwrap"><svg id="kfLangSvg" class="chart" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid meet"></svg><div class="tip" id="tipKfL"></div></div>
+      <p class="caption" id="kfLangCap"></p>
+    </div>
   </section>
 
   <section class="panelview" id="view-split">
@@ -1002,6 +1007,7 @@
     return out;
   }
   function renderHist(){
+    renderKfLang();
     const P=PARTIES.find(p=>p.id===state.party),showAll=state.party==="all",data=scope();hSvg.textContent="";
     if(!data.length){const t=el("text",{x:400,y:230,"text-anchor":"middle",fill:"#9aa0a4"});t.textContent="Inga distrikt i valt område.";hSvg.appendChild(t);document.getElementById("capH").textContent="";return;}
     const agg=aggSeries(data);
@@ -1072,6 +1078,38 @@
     if(locals.length)cov+=` Endast riksdagspartierna finns med 2018 och bakåt – lokala partier redovisas först från 2022 (källdatan buntar tidigare småpartier).`;
     if(showAll)document.getElementById("capH").textContent=`Alla riksdagspartier i ${areaLabel()}. Håll muspekaren över ett år eller en punkt för exakta siffror.`+cov;
     else if(fv!=null&&lv!=null)document.getElementById("capH").textContent=`${P.namn}: ${fv.toFixed(1)}% (${ELYEARS[0]}) → ${lv.toFixed(1)}% (${ELYEARS[ELYEARS.length-1]}), ${(lv-fv)>=0?"+":""}${(lv-fv).toFixed(1)} %-e i ${areaLabel()}. Håll muspekaren över ett år eller en punkt för exakta siffror.`+cov;
+  }
+  // ISOLERAD lång kommunvalshistorik (DATA.kfhist) – egen graf, egen årsaxel, rör inget annat.
+  function renderKfLang(){
+    const box=document.getElementById("kfLangBox");
+    const kf=DATA.kfhist||{}, ys=DATA.kfhistYears||[];
+    const kod = state.geo.kommun ? (DATA.komKod||{})[state.geo.kommun] : null;
+    const km = (kod && kf[kod]) ? kf[kod] : null;
+    if(!km || ys.length<2){ box.style.display="none"; return; }
+    box.style.display="block";
+    const svg=document.getElementById("kfLangSvg"); svg.textContent="";
+    document.getElementById("kfLangTitle").innerHTML=`<b>Längre historik – kommunval ${ys[0]}–${ys[ys.length-1]}</b> i ${state.geo.kommun}`;
+    const W=800,H=460,mL=44,mR=14,mT=14,mB=34;
+    const order=["S","M","SD","C","V","KD","MP","L","ÖVRIGA"];
+    let mx=0; for(const p of order){const a=km[p]; if(a)for(const v of a) if(v!=null&&v>mx)mx=v;}
+    mx=Math.max(10, Math.ceil(mx/10)*10);
+    const sx=i=> mL + (W-mL-mR)*(ys.length<2?0.5:i/(ys.length-1));
+    const sy=v=> H-mB - (H-mT-mB)*(v/mx);
+    for(let g=0; g<=mx; g+=10){ const y=sy(g);
+      svg.appendChild(el("line",{x1:mL,y1:y,x2:W-mR,y2:y,stroke:"var(--hair2)","stroke-width":1}));
+      const t=el("text",{x:mL-6,y:y+4,"text-anchor":"end","font-size":11,fill:"var(--muted)"}); t.textContent=g+"%"; svg.appendChild(t); }
+    ys.forEach((yr,i)=>{ if(ys.length>10 && i%2===1) return; const t=el("text",{x:sx(i),y:H-mB+18,"text-anchor":"middle","font-size":11,fill:"var(--muted)"}); t.textContent=yr; svg.appendChild(t); });
+    const sel=state.party;
+    for(const p of order){ const a=km[p]; if(!a)continue;
+      const col = (p==="ÖVRIGA") ? "#9aa0a4" : pcolor(p);
+      let d="",started=false;
+      a.forEach((v,i)=>{ if(v==null){started=false;return;} d+=(started?"L":"M")+sx(i)+" "+sy(v)+" "; started=true; });
+      if(!d)continue;
+      const on=(sel===p);
+      svg.appendChild(el("path",{d,fill:"none",stroke:col,"stroke-width":on?3.5:2,"stroke-opacity":on?1:0.7,"stroke-linejoin":"round"}));
+      a.forEach((v,i)=>{ if(v==null)return; const c=el("circle",{cx:sx(i),cy:sy(v),r:on?3.5:2.4,fill:col,"fill-opacity":on?1:0.8});
+        const tt=el("title",{}); tt.textContent=`${p} ${ys[i]}: ${v.toFixed(1)}%`; c.appendChild(tt); svg.appendChild(c); }); }
+    document.getElementById("kfLangCap").textContent=`Kommunvalsresultat (KF) per parti, ${ys[0]}–${ys[ys.length-1]}. Markera ett parti i partifiltret för att lyfta fram det. Källa: Valmyndigheten via Faktadriven. Folkpartiet redovisas som L.`;
   }
   function sparkline(ser,color){
     const vals=ser.filter(v=>v!=null);if(vals.length<2)return "";

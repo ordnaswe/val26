@@ -62,8 +62,6 @@ COV_META = {
     "turnout": {"lab": "Valdeltagande (%)",                   "unit": "%"},
     "age":     {"lab": "Medelålder (år)",                     "unit": "år"},
     "hyra":    {"lab": "Andel i hyresrätt (%)",               "unit": "%"},
-    "urban":   {"lab": "Urbanitet (0 landsbygd–2 stad)",       "unit": "0–2"},
-    "syss":    {"lab": "Sysselsättningsgrad 20–64 (%)",         "unit": "%"},
 }
 COV_KEYS = list(COV_META.keys())
 MODEL_PREDICTORS = ["income", "edu", "foreign"]
@@ -692,6 +690,30 @@ def load_allhist(path):
     return out
 
 
+KF_PARTIER = ["V", "S", "MP", "C", "L", "KD", "M", "SD", "ÖVRIGA"]
+
+
+def load_kfhist(path):
+    """kf_historik.csv (kommunkod,valar,parti,andel) -> ({kommunkod:{parti:[andel per år]}}, [år]).
+    ISOLERAD: rör inte historik/omraden/årsaxeln. Saknas filen returneras tomt (funktionen göms)."""
+    if not path or not Path(path).exists():
+        return {}, []
+    raw, years = {}, set()
+    for r in read_csv(path):
+        kod = (r.get("kommunkod") or "").strip().zfill(4)
+        yr = to_float(r.get("valar")); a = to_float(r.get("andel"))
+        parti = (r.get("parti") or "").strip().upper()
+        if parti == "FP":
+            parti = "L"          # Folkpartiet -> Liberalerna
+        if not kod or yr is None or a is None or parti not in KF_PARTIER:
+            continue
+        years.add(int(yr))
+        raw.setdefault(kod, {}).setdefault(parti, {})[int(yr)] = round(a, 2)
+    ys = sorted(years)
+    out = {kod: {p: [pd.get(p, {}).get(y) for y in ys] for p in pd} for kod, pd in raw.items()}
+    return out, ys
+
+
 def load_candidates(path):
     """Läs kandidater.csv -> {valtyp: {omrade: {parti: [namn i ordning]}}}."""
     out = {}
@@ -975,6 +997,7 @@ def main():
     ap.add_argument("--kandidater", default="data/kandidater.csv", help="CSV valtyp,omrade,parti,ordning,namn (från kandidater.py)")
     ap.add_argument("--allresults", default="data/omraden_alla.csv", help="CSV niva,kod,namn,val,parti,andel – alla partier ≥ tröskel (från omraden_alla.py)")
     ap.add_argument("--allhist", default="data/omraden_alla_hist.csv", help="CSV niva,kod,year,val,parti,andel – all-parti-historik (från historik.py)")
+    ap.add_argument("--kfhist", default="data/kf_historik.csv", help="CSV kommunkod,valar,parti,andel – lång kommunvalshistorik 1973–2022 (ISOLERAD, valfri)")
     ap.add_argument("--granser", default="data/granser.json", help="Kommun-/länsgränser (från granser.py) för hierarkisk karta")
     ap.add_argument("--template", default=str(Path(__file__).with_name("template.html")))
     ap.add_argument("--out", default="dist/valdistrikt.html")
@@ -1066,6 +1089,7 @@ def main():
     data["candidates"] = load_candidates(args.kandidater)
     data["allresults"] = load_allresults(args.allresults)
     data["allhist"] = load_allhist(args.allhist)
+    data["kfhist"], data["kfhistYears"] = load_kfhist(args.kfhist)
     try:
         graw = json.loads(Path(args.granser).read_text(encoding="utf-8")) if args.granser and Path(args.granser).exists() else {}
     except Exception:
