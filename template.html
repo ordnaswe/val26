@@ -1752,11 +1752,6 @@
     if(!DATA.meta.live && state.year===ELYEARS.length-1 && area){
       for(const p of PARTIES){const v=area[p.id]&&area[p.id][YI22];if(v!=null)cur[p.id]=v;}
     }
-    // LIVE: aktuellt värde = snittet över RÄKNADE distrikt (annars späds det ut av oräknade tidigt på kvällen)
-    if(DATA.meta.live){
-      const countedD=data.filter(d=>d.raknat===1);
-      if(countedD.length){for(const p of PARTIES){const v=wavg(countedD,d=>shareAt(d,p.id));if(v!=null)cur[p.id]=v;}}
-    }
     const ord=[...PARTIES].filter(p=>cur[p.id]!=null).sort((a,b)=>cur[b.id]-cur[a.id]);
     if(!ord.length){box.innerHTML="";return;}
     const lead=ord[0];
