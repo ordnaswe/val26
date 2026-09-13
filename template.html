@@ -1088,6 +1088,8 @@
     if(!km || ys.length<2){ box.style.display="none"; return; }
     box.style.display="block";
     const svg=document.getElementById("kfLangSvg"); svg.textContent="";
+    const tip=document.getElementById("tipKfL"); tip.style.opacity=0;
+    const setTip=(ev,html)=>{tip.innerHTML=html;tip.style.opacity=1;const w=svg.parentElement.getBoundingClientRect();tip.style.left=(ev.clientX-w.left)+"px";tip.style.top=(ev.clientY-w.top)+"px";};
     document.getElementById("kfLangTitle").innerHTML=`<b>Längre historik – kommunval ${ys[0]}–${ys[ys.length-1]}</b> i ${state.geo.kommun}`;
     const W=800,H=460,mL=44,mR=14,mT=14,mB=34;
     const order=["S","M","SD","C","V","KD","MP","L","ÖVRIGA"];
@@ -1106,9 +1108,14 @@
       a.forEach((v,i)=>{ if(v==null){started=false;return;} d+=(started?"L":"M")+sx(i)+" "+sy(v)+" "; started=true; });
       if(!d)continue;
       const on=(sel===p);
+      const pnamn = (p==="ÖVRIGA") ? "Övriga partier" : ((PARTIES.find(q=>q.id===p)||{}).namn || p);
       svg.appendChild(el("path",{d,fill:"none",stroke:col,"stroke-width":on?3.5:2,"stroke-opacity":on?1:0.7,"stroke-linejoin":"round"}));
-      a.forEach((v,i)=>{ if(v==null)return; const c=el("circle",{cx:sx(i),cy:sy(v),r:on?3.5:2.4,fill:col,"fill-opacity":on?1:0.8});
-        const tt=el("title",{}); tt.textContent=`${p} ${ys[i]}: ${v.toFixed(1)}%`; c.appendChild(tt); svg.appendChild(c); }); }
+      a.forEach((v,i)=>{ if(v==null)return;
+        svg.appendChild(el("circle",{cx:sx(i),cy:sy(v),r:on?3.5:2.4,fill:col,"fill-opacity":on?1:0.8}));
+        const hit=el("circle",{cx:sx(i),cy:sy(v),r:10,fill:"transparent"}); hit.style.cursor="pointer";
+        hit.addEventListener("mousemove",ev=>setTip(ev,`<b style="color:${col}">${pnamn}</b><br>${ys[i]}: ${v.toFixed(1)} %`));
+        hit.addEventListener("mouseleave",()=>{tip.style.opacity=0;});
+        svg.appendChild(hit); }); }
     document.getElementById("kfLangCap").textContent=`Kommunvalsresultat (KF) per parti, ${ys[0]}–${ys[ys.length-1]}. Markera ett parti i partifiltret för att lyfta fram det. Källa: Valmyndigheten via Faktadriven. Folkpartiet redovisas som L.`;
   }
   function sparkline(ser,color){
