@@ -319,13 +319,23 @@ def one_cycle(args):
         cmd += ["--live"]
     run(cmd)
 
-    # ---- PERSONLAGER: bygg undersidan personvalet.html (efter bygget, före deploy) ----
+    # ---- UNDERSIDOR (efter bygget, före deploy) ----
+    _pub = Path(args.out).parent
+    _dj = _pub / "data.json"
+
+    # VÄLJARANALYS: fristående (behöver bara data.json + kommun_kovariater.csv). Byggs oavsett personlagret.
+    if _dj.exists():
+        try:
+            subprocess.run([sys.executable, str(HERE / "build_valjaranalys.py"),
+                "--data", str(_dj), "--kommun", str(HERE / "data" / "kommun_kovariater.csv"),
+                "--out", str(_pub / "valjaranalys.html")], check=True)
+            log("Väljaranalys: byggde public/valjaranalys.html.")
+        except Exception as _e2:
+            log(f"Väljaranalys: FEL (hoppar, deploy fortsätter): {_e2}")
+
+    # PERSONLAGER: personvalet.html (kräver kandidaturer.csv). Egen try -> stör inte väljaranalys/deploy.
     try:
-        _pub = Path(args.out).parent
-        _dj = _pub / "data.json"
         _rd = built.get("RD")
-        # RD är valfri: RF (region) och KF (kommun) räknas ur data.json även utan rd.csv,
-        # så personlagret byggs så snart data.json finns (RD-delen fylls på när rd.csv kommer).
         if _dj.exists():
             _mandat = HERE / "data" / "mandat_person.csv"
             _inv = HERE / "data" / "invalda.csv"
@@ -338,7 +348,7 @@ def one_cycle(args):
             if built.get("RF") and Path(built["RF"]).exists():
                 _pcmd += ["--distrikt-rf", built["RF"]]
             else:
-                _pcmd += ["--rf-approx"]   # RF ur regionandelar tills RF-distriktfil finns
+                _pcmd += ["--rf-approx"]
             subprocess.run(_pcmd, check=True)
             _kand = HERE.parent / "Bakgrundsfiler" / "kandidaturer.csv"
             subprocess.run([sys.executable, str(HERE / "invalda.py"),
@@ -349,19 +359,11 @@ def one_cycle(args):
                 "--nyckelpersoner", str(HERE / "nyckelpersoner.csv"), "--valkrets", args.valkrets,
                 "--data", str(_dj), "--out", str(_pub / "personvalet.html")], check=True)
             log("Personvalet: byggde public/personvalet.html.")
-            # väljaranalys (samband demografi/ekonomi <-> röstning) — egen undersida
-            try:
-                subprocess.run([sys.executable, str(HERE / "build_valjaranalys.py"),
-                    "--data", str(_dj), "--kommun", str(HERE / "data" / "kommun_kovariater.csv"),
-                    "--out", str(_pub / "valjaranalys.html")], check=True)
-                log("Väljaranalys: byggde public/valjaranalys.html.")
-            except Exception as _e2:
-                log(f"Väljaranalys: FEL (hoppar, deploy fortsätter): {_e2}")
         else:
             log("Personvalet: hoppar (saknar public/data.json).")
     except Exception as _e:
         log(f"Personvalet: FEL (hoppar, deploy fortsätter): {_e}")
-    # ---- /PERSONLAGER ----
+    # ---- /UNDERSIDOR ----
 
     if args.deploy:
         deploy(args.out)
