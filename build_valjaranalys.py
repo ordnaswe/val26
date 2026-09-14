@@ -399,6 +399,7 @@ function plainCorr(p,r,facLabLc){const namn=PN[p]||p;
  return r>0
    ? `${namn} är <b>starkare</b> i ${omr()} där ${facLabLc} är <b>hög</b>, och svagare där den är låg – <b>${styrkeOrd(r)} samband</b>.`
    : `${namn} är <b>starkare</b> i ${omr()} där ${facLabLc} är <b>låg</b>, och svagare där den är hög – <b>${styrkeOrd(r)} samband</b>.`;}
+function withUnit(lab,unit){if(!unit)return lab;const u=String(unit).trim();return lab.includes('('+u+')')?lab:lab+' ('+u+')';}
 // hopfällbar förklaring per flik
 function explain(kind){const facLc=facMeta().lab.toLowerCase();
  const scale=`<div class="scalekey"><span><b>0</b> inget</span><span><b>0,1</b> svagt</span><span><b>0,3</b> tydligt</span><span><b>0,5+</b> starkt</span></div>`;
@@ -423,9 +424,10 @@ function renderSamband(){const R=rows(),fm=facMeta();
  if(!corr.length){$('#panel').innerHTML='<div class="empty">För få områden för korrelation i valt urval.</div>';return;}
  const n=corr[0].n; const fl=fm.lab.toLowerCase();
  const top=corr[0], bot=corr[corr.length-1];
- const tolk=`<div class="takeaway">Så läser du det: ${plainCorr(top.p, top.r, fl)}`+
-   (bot.r<-0.1&&bot.p!==top.p?` Tvärtom för ${plainCorr(bot.p, bot.r, fl).replace(/^[^ ]+ /,'')}`:'')+`</div>`;
- $('#panel').innerHTML=explain('samband')+`<p class="lead">Hur <b>${esc(fl)}</b> (${esc(fm.unit)}) hänger ihop med varje partis stöd${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}. Staplar åt höger = partiet starkare där faktorn är hög, åt vänster = starkare där den är låg.</p>
+ const me=corr.find(o=>o.p===party)||top; const opp=me.r>=0?bot:top;
+ const tolk=`<div class="takeaway">Så läser du det: ${plainCorr(me.p, me.r, fl)}`+
+   (opp&&opp.p!==me.p&&Math.abs(opp.r)>=0.1&&((opp.r>0)!==(me.r>0))?` Tvärtom: ${plainCorr(opp.p, opp.r, fl)}`:'')+`</div>`;
+ $('#panel').innerHTML=explain('samband')+`<p class="lead">Hur <b>${esc(withUnit(fl,fm.unit))}</b> hänger ihop med varje partis stöd${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}. Staplar åt höger = partiet starkare där faktorn är hög, åt vänster = starkare där den är låg.</p>
    <div class="chart">${divergeBars(corr)}</div>
    ${tolk}
    <p class="lead" style="margin-top:16px">Punktdiagram: varje prick är ett ${level==='dist'?'valdistrikt':'kommun'} (större prick = fler röster). Lutar molnet uppåt åt höger följs hög ${esc(fl)} av högt stöd för ${esc(PN[party]||party)}; lutar det nedåt är det tvärtom.</p>
@@ -466,7 +468,7 @@ function drawScatter(R, p, fm){
  $('#scatter').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:660px">
    <line class="axis" x1="${mL}" y1="${H-mB}" x2="${W-mR}" y2="${H-mB}"/><line class="axis" x1="${mL}" y1="${mT}" x2="${mL}" y2="${H-mB}"/>
    ${dots}${gx}${gy}
-   <text x="${(mL+W)/2}" y="${H-2}" font-size="11" text-anchor="middle">${esc(fm.lab)} (${esc(fm.unit)})</text>
+   <text x="${(mL+W)/2}" y="${H-2}" font-size="11" text-anchor="middle">${esc(withUnit(fm.lab,fm.unit))}</text>
    <text transform="rotate(-90 12 ${(H)/2})" x="12" y="${H/2}" font-size="11" text-anchor="middle">${esc(p)} %</text></svg>`;
 }
 
