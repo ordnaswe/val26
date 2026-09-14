@@ -7,11 +7,11 @@ gor_mandat.py — räknar mandat per parti per valkrets och skriver mandat_perso
 RD (exakt): läser EXAKTA röstetal per parti per distrikt ur distrikt.csv (adaptern),
   mappar distrikt -> riksvalkrets via data/valkrets.csv, kör jämkade uddatalsmetoden
   (första deltal 1,2) med fasta valkretsmandat + 39 utjämningsmandat och spärr
-  4 % nationellt eller 12 % i en valkrets. Verifierat mot 2022 (S107/SD73/M68/V24/
-  C24/KD19/MP18/L16, summa 349).
+  4 procent nationellt eller 12 procent i en valkrets. Verifierat mot 2022 (S107/SD73/
+  M68/V24/C24/KD19/MP18/L16, summa 349).
 
-RF (approx i v1): räknas ur regionandelarna i data.json (avrundade) × seats.lan,
-  spärr 3 %. Blir exakt när den pekas mot ett RF-distrikt.csv (steg 2).
+RF (approx i v1): räknas ur regionandelarna i data.json (avrundade) x seats.lan,
+  spärr 3 procent. Blir exakt när den pekas mot ett RF-distrikt.csv (steg 2).
 
 Kör i loopen efter varje build:
   python3 gor_mandat.py --distrikt distrikt.csv --data public/data.json \
@@ -102,7 +102,7 @@ def rd_seats(vk_votes, nat, valid, riksvalkretsar):
     return seats, {p:target.get(p,0) for p in utj_eligible}
 
 def rf_seats_from_shares(d):
-    """Approx: regionandelar (avrundade) × seats.lan, spärr 3 %."""
+    """Approx: regionandelar (avrundade) x seats.lan, spärr 3 procent."""
     out = {}
     reg = d['allresults'].get('region', {})
     for lk, tot in d['seats']['lan'].items():
@@ -112,7 +112,7 @@ def rf_seats_from_shares(d):
     return out
 
 def rf_seats_exact(lan_votes, lan_valid, seats_lan):
-    """Exakt: RF-röster per region (ur data/rf.csv), spärr 3 % i regionen.
+    """Exakt: RF-röster per region (ur data/rf.csv), spärr 3 procent i regionen.
        Region behandlas som en valkrets (approx för delade regioner)."""
     out = {}
     for lk, tot in seats_lan.items():
@@ -123,9 +123,9 @@ def rf_seats_exact(lan_votes, lan_valid, seats_lan):
 
 def kf_seats_from_shares(d, valkretsar):
     """KF-mandat per kommun ur allresults.kommun (ALLA partier inkl. lokala), spärr
-       2 % (en valkrets) / 3 % (flera valkretsar). Kommunen behandlas som EN valkrets
-       (approx för delade kommuner). Andelar är avrundade (2 dec) i data.json -> KF är
-       approximativt på personlagernivå; personröster ingår heller inte. Partinyckeln
+       2 procent (en valkrets) / 3 procent (flera valkretsar). Kommunen behandlas som EN
+       valkrets (approx för delade kommuner). Andelar är avrundade (2 dec) i data.json ->
+       KF är approximativt på personlagernivå; personröster ingår heller inte. Partinyckeln
        är förkortning för de 8 riksdagspartierna och fullständigt namn för lokala partier
        (så som allresults anger dem), vilket matchar kandidaturernas PARTIBETECKNING."""
     out = {}
@@ -146,7 +146,7 @@ def main():
     ap.add_argument('--distrikt-rf', help='RF-distrikt.csv med exakta röster (adaptern: data/rf.csv) -> RF exakt')
     ap.add_argument('--data', default='public/data.json')
     ap.add_argument('--valkrets', default='data/valkrets.csv')
-    ap.add_argument('--mandat', default='data/mandat.csv', help='niva,kod,antal,valkretsar (för KF-spärr 2/3 %)')
+    ap.add_argument('--mandat', default='data/mandat.csv', help='niva,kod,antal,valkretsar (for KF-sparr 2/3 procent)')
     ap.add_argument('--out', default='data/mandat_person.csv')
     ap.add_argument('--rf-approx', action='store_true', help='räkna RF ur regionandelar i data.json (om --distrikt-rf saknas)')
     ap.add_argument('--no-kf', action='store_true', help='hoppa över KF (kommunmandat ur allresults.kommun)')
