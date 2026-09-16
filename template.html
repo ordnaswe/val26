@@ -1456,13 +1456,18 @@
     const pctCounted=data.length?counted.length/data.length:0;
     const sim=(progMode==="sim");   // sim: visa prognosmodeller; live: bara aktuell räkning
     document.getElementById("progLiveNote").textContent=
-      progMode==="live"?`${counted.length} av ${data.length} distrikt rapporterade (${Math.round(pctCounted*100)}%)`:"spaken simulerar räkningen – påverkar inte verklig data";
+      progMode==="live"?`${counted.length} av ${data.length} distrikt rapporterade (${(pctCounted*100).toFixed(1)}%)`:"spaken simulerar räkningen – påverkar inte verklig data";
     const totW=data.reduce((s,d)=>s+wOf(d),0)||1;
     // hjälp: viktat snitt av en funktion över en lista
     const wavg=(list,f)=>{let s=0,w=0;for(const d of list){const v=f(d);if(v!=null){s+=v*wOf(d);w+=wOf(d);}}return w?s/w:null;};
     // FACIT (allt räknat) och RÄKNAT hittills
     const facit={},raknat={};
     for(const p of PARTIES){facit[p.id]=wavg(data,d=>shareAt(d,p.id));raknat[p.id]=wavg(counted,d=>shareAt(d,p.id));}
+    // "Räknat nu" ska matcha staplarna (områdesaggregatet), inte snittet av distriktsandelar
+    if(progMode==="live" && DATA.meta && DATA.meta.live){
+      const arM={}; (areaResults()||[]).forEach(x=>{arM[x.p]=x.a;});
+      for(const p of PARTIES){ if(arM[p.id]!=null) raknat[p.id]=arM[p.id]; }
+    }
     // MODELL 1 – swing (mot 2022)
     const swing={},m1={};
     for(const p of PARTIES){
@@ -1629,7 +1634,7 @@
     }
     const localNote = (hasLocal && sim) ? ` Lokala partier visas med resultat, mandat och förändring mot 2022 – men modellkolumnerna (Swing/Demografi/Kombinerad) är tomma (–) eftersom prognosmodellerna bara omfattar riksdagspartierna.` : "";
     document.getElementById("progCap").textContent=
-      `${counted.length} av ${data.length} distrikt ${sim?"räknade (simulering)":"rapporterade"} (${Math.round((sim?progPct:pctCounted)*100)}%). `+
+      `${counted.length} av ${data.length} distrikt ${sim?"räknade (simulering)":"rapporterade"} (${sim?Math.round(progPct*100):(pctCounted*100).toFixed(1)}%). `+
       (sim
         ? `"Räknat nu" = de inkomna distrikten. "Swing" projicerar 2022→2026-förändringen bland räknade på de oräknade. "Demografi" skattar oräknade via en regression på SCB-variabler (inkomst, utbildning, bakgrund) tränad på 2022. "Kombinerad" väger ihop swing och demografi och är huvudprognosen; ±-siffran är osäkerhetsspann. Modellerna avser riksdagspartierna.`
         : `Siffrorna visar den faktiska räkningen så här långt – andel av rösterna i de rapporterade distrikten, och mandat enligt den. Ingen prognos; dra i "Simulering" för framräkning.`)+
@@ -1760,14 +1765,10 @@
     if(!DATA.meta.live && state.year===ELYEARS.length-1 && area){
       for(const p of PARTIES){const v=area[p.id]&&area[p.id][YI22];if(v!=null)cur[p.id]=v;}
     }
-    // LIVE: aktuellt värde = snittet över RÄKNADE distrikt (annars späds det ut av oräknade tidigt på kvällen)
+    // LIVE: aktuellt värde = områdesaggregatet (samma som staplarna/allresults, dvs summa röster / summa giltiga)
     if(DATA.meta.live){
-      const countedD=data.filter(d=>d.raknat===1);
-      if(countedD.length){for(const p of PARTIES){
-        let num=0,den=0;
-        for(const d of countedD){const s=shareAt(d,p.id);const w=d.rost||d.giltiga||1;if(s!=null){num+=s*w;den+=w;}}
-        if(den>0)cur[p.id]=num/den;
-      }}
+      const arM={}; (areaResults()||[]).forEach(x=>{arM[x.p]=x.a;});
+      for(const p of PARTIES){ if(arM[p.id]!=null) cur[p.id]=arM[p.id]; }
     }
     const ord=[...PARTIES].filter(p=>cur[p.id]!=null).sort((a,b)=>cur[b.id]-cur[a.id]);
     if(!ord.length){box.innerHTML="";return;}
@@ -1783,7 +1784,7 @@
     const lead22=(!leadLocal&&y22>=0&&agg[leadId]&&agg[leadId][y22]!=null)?agg[leadId][y22]:null;
     const leadDelta=lead22!=null?leadVal-lead22:null;
     // räknat-status
-    const counted=data.filter(d=>d.raknat===1).length,pct=data.length?Math.round(counted/data.length*100):0;
+    const counted=data.filter(d=>d.raknat===1).length,pctN=data.length?counted/data.length*100:0,pct=Math.round(pctN),pctD=pctN.toFixed(1);
     const pf=document.querySelector("#progress > i");if(pf)pf.style.width=pct+"%";
     // mandatstapel (om området väljer församling) annars röstandelsstapel
     const seatsN=mandateSeats(),thr=progThreshold();
@@ -1803,7 +1804,7 @@
       `</div><div class="tl-meta">${leadLocal?"lokalt parti":("mot 2022"+(lead22!=null?` (${lead22.toFixed(1)}%)`:""))}</div></div>`+
       `<div style="flex:1;min-width:200px"><div class="tl-lead">${areaLabel()} · ${barLabel}</div>`+
       `<div class="tl-seatbar">${barHtml}</div></div>`+
-      `<div><div class="tl-lead">Räknat</div><div class="tl-big">${pct}%</div>`+
+      `<div><div class="tl-lead">Räknat</div><div class="tl-big">${pctD}%</div>`+
       `<div class="tl-meta">${counted} av ${data.length} distrikt</div></div>`+
       `<div class="tl-meta"><span class="tl-pulse"></span>${(DATA.meta&&DATA.meta.live)?"Preliminärt resultat":"Exempel (2022)"}</div>`;
   }
