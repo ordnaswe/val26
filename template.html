@@ -1454,6 +1454,7 @@
     if(progMode==="live"){counted=data.filter(d=>d.raknat===1);uncounted=data.filter(d=>d.raknat!==1);}
     else{counted=data.filter(d=>d._rank<=progPct);uncounted=data.filter(d=>d._rank>progPct);}
     const pctCounted=data.length?counted.length/data.length:0;
+    const sim=(progMode==="sim");   // sim: visa prognosmodeller; live: bara aktuell räkning
     document.getElementById("progLiveNote").textContent=
       progMode==="live"?`${counted.length} av ${data.length} distrikt rapporterade (${Math.round(pctCounted*100)}%)`:"spaken simulerar räkningen – påverkar inte verklig data";
     const totW=data.reduce((s,d)=>s+wOf(d),0)||1;
@@ -1535,7 +1536,7 @@
     const rdRiket = state.election==="RD" && !state.geo.kommun && !state.geo.lan;
     let seatsN,thr,mand,mand22,rd=null,mandPlist=null;
     if(rdRiket){
-      rd=riksdagSeats(data,state.year); seatsN=349; thr=4;
+      rd=riksdagSeats(counted,state.year); seatsN=349; thr=4;
       mand=rd.seats; mand22=riksdagSeats(data,ELYEARS.indexOf(2022)).seats;
       mandPlist=PARTIES.map(p=>({id:p.id,color:p.color,seats:mand[p.id]||0}))
         .concat(Object.keys(mand).filter(id=>!PARTIES.some(p=>p.id===id)&&mand[id]>0)
@@ -1558,19 +1559,20 @@
       }
     }
     // tabell
-    const order=[...PARTIES].sort((a,b)=>(m3[b.id]||0)-(m3[a.id]||0));
-    let html=`<tr><th>Parti</th><th>Räknat nu</th><th>Swing</th><th>Demografi</th><th>Kombinerad</th>`+
-      (seatsN?`<th>Mandat</th>`:``)+`<th>Vid 100%</th><th>2022</th><th>Förändr.</th></tr>`;
+    const order=[...PARTIES].sort((a,b)=>((sim?m3[b.id]:raknat[b.id])||0)-((sim?m3[a.id]:raknat[a.id])||0));
+    let html=`<tr><th>Parti</th><th>Räknat nu</th>`+
+      (sim?`<th>Swing</th><th>Demografi</th><th>Kombinerad</th>`:``)+
+      (seatsN?`<th>Mandat</th>`:``)+`<th>2022</th><th>Förändr.</th></tr>`;
     const f=(v)=>v==null?"–":v.toFixed(1)+"%";
     for(const p of order){
-      const ch=(m3[p.id]!=null&&r2022[p.id]!=null)?m3[p.id]-r2022[p.id]:null;
+      const cur = sim ? m3[p.id] : raknat[p.id];
+      const ch=(cur!=null&&r2022[p.id]!=null)?cur-r2022[p.id]:null;
       const pm=band[p.id];
       const md=mand?mand[p.id]:null,md22=mand22?mand22[p.id]:null,mdc=(md!=null&&md22!=null)?md-md22:null;
       html+=`<tr><td><b style="color:${p.color}">${p.id}</b></td>`+
-        `<td>${f(raknat[p.id])}</td><td>${f(m1[p.id])}</td><td>${f(m2[p.id])}</td>`+
-        `<td><b>${f(m3[p.id])}</b>${m3[p.id]!=null&&pm>=0.3?` <span style="color:var(--muted);font-size:11px">±${pm.toFixed(1)}</span>`:""}</td>`+
+        `<td>${f(raknat[p.id])}</td>`+
+        (sim?`<td>${f(m1[p.id])}</td><td>${f(m2[p.id])}</td><td><b>${f(m3[p.id])}</b>${m3[p.id]!=null&&pm>=0.3?` <span style="color:var(--muted);font-size:11px">±${pm.toFixed(1)}</span>`:""}</td>`:``)+
         (seatsN?`<td><b>${md==null?"–":md}</b>${mdc?` <span class="${mdc>0?'pos':'neg'}" style="font-size:11px">${mdc>0?"+":""}${mdc}</span>`:""}</td>`:``)+
-        `<td style="color:var(--muted)">${f(facit[p.id])}</td>`+
         `<td style="color:var(--muted)">${f(r2022[p.id])}</td>`+
         `<td class="${ch==null?'':ch>=0?'pos':'neg'}">${ch==null?"–":(ch>=0?"+":"")+ch.toFixed(1)}</td></tr>`;
     }
@@ -1591,9 +1593,8 @@
         const nm=x.p.length>22?x.p.slice(0,21)+"…":x.p;
         html+=`<tr><td><b style="color:${pcolor(x.p)}" title="${x.p}">${nm}</b></td>`+
           `<td>${f(cur)}</td>`+
-          `<td style="color:var(--faint)">–</td><td style="color:var(--faint)">–</td><td style="color:var(--faint)">–</td>`+
+          (sim?`<td style="color:var(--faint)">–</td><td style="color:var(--faint)">–</td><td style="color:var(--faint)">–</td>`:``)+
           (seatsN?`<td><b>${mdL==null?"–":mdL}</b></td>`:``)+
-          `<td style="color:var(--muted)">${f(cur)}</td>`+
           `<td style="color:var(--muted)">${f(y22v)}</td>`+
           `<td class="${chL==null?'':chL>=0?'pos':'neg'}">${chL==null?"–":(chL>=0?"+":"")+chL.toFixed(1)}</td></tr>`;
       }
@@ -1619,23 +1620,21 @@
         `<div style="flex:0 0 300px;max-width:320px">${hemicycle(mandPlist,tot)}</div>`+
         `<div style="flex:1;min-width:280px">${barSvg}</div></div>`;
     } else mbox.innerHTML="";
-    const seatNote=seatsN?` Mandat (${seatsN} totalt, ${thr}% spärr)${rdRiket?" – riktig valkretsmodell (fasta valkretsmandat + 39 utjämningsmandat, 4% nationellt eller 12% i en valkrets)":" ur kombinerad prognos, jämkade uddatalsmetoden"}.`:` (Mandat visas för riket+riksdag, län+region och kommun+kommunval om mandattabell finns.)`;
+    const seatNote=seatsN?` Mandat (${seatsN} totalt, ${thr}% spärr)${rdRiket?" – riktig valkretsmodell (fasta valkretsmandat + 39 utjämningsmandat, 4% nationellt eller 12% i en valkrets)":(sim?" ur kombinerad prognos, jämkade uddatalsmetoden":" ur aktuell räkning, jämkade uddatalsmetoden")}.`:` (Mandat visas för riket+riksdag, län+region och kommun+kommunval om mandattabell finns.)`;
     // 12%-varning: parti under 4% nationellt men som tar valkretsmandat via 12%
     let twelveNote="";
     if(rd&&rd.twelveOnly.length){
       const names=rd.twelveOnly.map(pid=>{const P=PARTIES.find(p=>p.id===pid);const vks=Object.entries(rd.vkDetail).filter(([vk,dd])=>dd.pct[pid]>=12).map(([vk,dd])=>dd.namn);return `${P?P.id:pid} (${rd.fasta[pid]} mandat via ${vks.join(", ")})`;}).join("; ");
       twelveNote=` OBS – parti under 4% som tar valkretsmandat: ${names}.`;
     }
-    const localNote = hasLocal ? ` Lokala partier visas med resultat, mandat och förändring mot 2022 – men modellkolumnerna (Swing/Demografi/Kombinerad) är tomma (–) eftersom prognosmodellerna bara omfattar riksdagspartierna.` : "";
+    const localNote = (hasLocal && sim) ? ` Lokala partier visas med resultat, mandat och förändring mot 2022 – men modellkolumnerna (Swing/Demografi/Kombinerad) är tomma (–) eftersom prognosmodellerna bara omfattar riksdagspartierna.` : "";
     document.getElementById("progCap").textContent=
-      `${counted.length} av ${data.length} distrikt ${progMode==="live"?"rapporterade":"räknade (simulering)"} (${Math.round((progMode==="live"?pctCounted:progPct)*100)}%). `+
-      `Så läses kolumnerna: "Räknat nu" = enbart inkomna distrikt (skevt tidigt på kvällen). `+
-      `"Swing" projicerar 2022→2026-förändringen bland räknade på de oräknade. `+
-      `"Demografi" skattar oräknade via en regression på SCB-variabler (inkomst, utbildning, bakgrund) tränad på 2022. `+
-      `"Kombinerad" väger ihop swing och demografi (mer swing ju mer som räknats) och är huvudprognosen; ±-siffran är osäkerhetsspann. `+
-      `Alla tre modellerna avser riksdagspartierna – de förutsätter historik och demografisamband som lokala partier saknar.`+
+      `${counted.length} av ${data.length} distrikt ${sim?"räknade (simulering)":"rapporterade"} (${Math.round((sim?progPct:pctCounted)*100)}%). `+
+      (sim
+        ? `"Räknat nu" = de inkomna distrikten. "Swing" projicerar 2022→2026-förändringen bland räknade på de oräknade. "Demografi" skattar oräknade via en regression på SCB-variabler (inkomst, utbildning, bakgrund) tränad på 2022. "Kombinerad" väger ihop swing och demografi och är huvudprognosen; ±-siffran är osäkerhetsspann. Modellerna avser riksdagspartierna.`
+        : `Siffrorna visar den faktiska räkningen så här långt – andel av rösterna i de rapporterade distrikten, och mandat enligt den. Ingen prognos; dra i "Simulering" för framräkning.`)+
       seatNote+twelveNote+localNote+
-      ` Prognoser är osäkra, särskilt tidigt – tolka som riktning, inte facit.`;
+      (sim?` Prognoser är osäkra, särskilt tidigt – tolka som riktning, inte facit.`:``);
   }
   (function(){
     const sl=document.getElementById("progSlider");
@@ -1806,7 +1805,7 @@
       `<div class="tl-seatbar">${barHtml}</div></div>`+
       `<div><div class="tl-lead">Räknat</div><div class="tl-big">${pct}%</div>`+
       `<div class="tl-meta">${counted} av ${data.length} distrikt</div></div>`+
-      `<div class="tl-meta"><span class="tl-pulse"></span>${DATA.live?"live":"exempeldata"} · ${DATA.updated||"uppdateras på valnatten"}</div>`;
+      `<div class="tl-meta"><span class="tl-pulse"></span>${(DATA.meta&&DATA.meta.live)?"Preliminärt resultat":"Exempel (2022)"}</div>`;
   }
   function renderAll(){
     document.getElementById("watchcount").textContent=watch.size?watch.size+" bevakade":"";
