@@ -1542,7 +1542,9 @@
     let seatsN,thr,mand,mand22,rd=null,mandPlist=null;
     if(rdRiket){
       rd=riksdagSeats(counted,state.year); seatsN=349; thr=4;
-      mand=rd.seats; mand22=riksdagSeats(data,ELYEARS.indexOf(2022)).seats;
+      // exakt mandat ur röstetal (från build.py) när det finns – annars klientberäkning ur andelar
+      mand=(!sim && DATA.rdSeatsExact) ? DATA.rdSeatsExact : rd.seats;
+      mand22=riksdagSeats(data,ELYEARS.indexOf(2022)).seats;
       mandPlist=PARTIES.map(p=>({id:p.id,color:p.color,seats:mand[p.id]||0}))
         .concat(Object.keys(mand).filter(id=>!PARTIES.some(p=>p.id===id)&&mand[id]>0)
           .map(id=>({id,color:pcolor(id),seats:mand[id]})));

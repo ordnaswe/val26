@@ -55,6 +55,69 @@ PARTIES = [
 ]
 PIDS = [p["id"] for p in PARTIES]
 
+
+def _jamkad(votes, nseats, first=1.2):
+    seats = {p: 0 for p in votes}
+    for _ in range(int(nseats)):
+        best, bq = None, -1.0
+        for p, v in votes.items():
+            div = first if seats[p] == 0 else (2 * seats[p] + 1)
+            q = v / div
+            if q > bq:
+                bq, best = q, p
+        if best is None:
+            break
+        seats[best] += 1
+    return seats
+
+
+def _national_target(natvotes, total_seats, fasta_won):
+    fixed, parties, left = {}, dict(natvotes), total_seats
+    while True:
+        alloc = _jamkad(parties, left)
+        overs = [p for p in parties if fasta_won.get(p, 0) > alloc[p]]
+        if not overs:
+            out = dict(fixed); out.update(alloc); return out
+        for p in overs:
+            fixed[p] = fasta_won[p]; left -= fasta_won[p]; del parties[p]
+
+
+def compute_rd_seats(districts, riksvalkretsar):
+    """Exakt riksdagsmandat (349) ur EXAKTA röstetal per distrikt (samma metod som gor_mandat.py).
+    Returnerar {parti: mandat} eller None om inga röster finns (t.ex. förhandsvisning)."""
+    if not riksvalkretsar:
+        return None
+    nat = {p: 0.0 for p in PIDS}; vk_votes = {}
+    for d in districts:
+        if d.get("raknat") != 1:
+            continue
+        v = d.get("_votes")
+        if not v:
+            continue
+        vk = d.get("vk")
+        if vk and vk not in vk_votes:
+            vk_votes[vk] = {p: 0.0 for p in PIDS}
+        for p in PIDS:
+            c = v.get(p, 0.0); nat[p] += c
+            if vk:
+                vk_votes[vk][p] += c
+    tot = sum(nat.values())
+    if tot <= 0:
+        return None
+    qualified = {p for p in PIDS if nat[p] / tot * 100.0 >= 4.0}
+    for vk, pv in vk_votes.items():
+        s = sum(pv.values()) or 1.0
+        for p in PIDS:
+            if pv[p] / s * 100.0 >= 12.0:
+                qualified.add(p)
+    fasta_won = {p: 0 for p in qualified}
+    for vk, info in riksvalkretsar.items():
+        a = _jamkad({p: vk_votes.get(vk, {}).get(p, 0.0) for p in qualified}, info.get("fasta", 0))
+        for p, sn in a.items():
+            fasta_won[p] = fasta_won.get(p, 0) + sn
+    target = _national_target({p: nat[p] for p in qualified}, 349, fasta_won)
+    return {p: int(target.get(p, 0)) for p in PIDS}
+
 COV_META = {
     "income":  {"lab": "Medianinkomst (tkr)",                 "unit": "tkr"},
     "edu":     {"lab": "Andel eftergymnasialt utbildade (%)", "unit": "%"},
@@ -152,6 +215,7 @@ def load_real(dist_path, cov_path, hist_path):
             "rost": int(to_float(r.get("rost_berattigade")) or 0),
             "raknat": 1 if (to_float(r.get("raknat")) or (1 if (giltiga and giltiga > 0) else 0)) else 0,
             "shares": shares,
+            "_votes": votes,
             "series": {pid: [None] * len(ELYEARS) for pid in PIDS},
         }
         for pid in PIDS:
@@ -1085,6 +1149,7 @@ def main():
     data["valkretsar"] = valkretsar
     data["thresholds"] = {"RD": 4.0, "RF": 3.0, "KF": 2.0}   # KF: 2% (1 valkrets) / 3% (fler) väljs i klienten
     data["riksvalkretsar"] = RIKSVK
+    data["rdSeatsExact"] = compute_rd_seats(districts, RIKSVK)
     data["regionvk"] = REGIONVK
     data["candidates"] = load_candidates(args.kandidater)
     data["allresults"] = load_allresults(args.allresults)
