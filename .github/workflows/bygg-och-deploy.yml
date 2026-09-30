@@ -23,6 +23,11 @@ jobs:
           python3 build_valjaranalys.py --data public/data.json \
             --kommun data/kommun_kovariater.csv \
             --out public/valjaranalys.html
+      - name: Bygg eftervalsanalysen (undersida)
+        run: |
+          python3 build_analys.py --data public/data.json --out public/analys.html \
+            --styre data/styre_kommun_2022.csv --folk data/folkmangd_2024.csv \
+            --nyckelpersoner nyckelpersoner.csv --slutligt data/slutligt.json
       - name: Bygg personvalet (om kandidatfil finns committad)
         run: |
           if [ -f data/kandidaturer.csv ]; then

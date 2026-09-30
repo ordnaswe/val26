@@ -333,6 +333,19 @@ def one_cycle(args):
         except Exception as _e2:
             log(f"Väljaranalys: FEL (hoppar, deploy fortsätter): {_e2}")
 
+    # EFTERVALSANALYS (del 1): analys.html – fristående, bara data.json + committade CSV:er. Egen try.
+    if _dj.exists():
+        try:
+            subprocess.run([sys.executable, str(HERE / "build_analys.py"),
+                "--data", str(_dj), "--out", str(_pub / "analys.html"),
+                "--styre", str(HERE / "data" / "styre_kommun_2022.csv"),
+                "--folk", str(HERE / "data" / "folkmangd_2024.csv"),
+                "--nyckelpersoner", str(HERE / "nyckelpersoner.csv"),
+                "--slutligt", str(HERE / "data" / "slutligt.json")], check=True)
+            log("Eftervalsanalys: byggde public/analys.html.")
+        except Exception as _e3:
+            log(f"Eftervalsanalys: FEL (hoppar, deploy fortsätter): {_e3}")
+
     # PERSONLAGER: personvalet.html (kräver kandidaturer.csv). Egen try -> stör inte väljaranalys/deploy.
     try:
         _rd = built.get("RD")
@@ -350,7 +363,9 @@ def one_cycle(args):
             else:
                 _pcmd += ["--rf-approx"]
             subprocess.run(_pcmd, check=True)
-            _kand = HERE.parent / "Bakgrundsfiler" / "kandidaturer.csv"
+            _kand = HERE / "data" / "kandidaturer.csv"          # committad i repot (fanns tidigare bara i ../Bakgrundsfiler)
+            if not _kand.exists():
+                _kand = HERE.parent / "Bakgrundsfiler" / "kandidaturer.csv"
             subprocess.run([sys.executable, str(HERE / "invalda.py"),
                 "--kandidaturer", str(_kand), "--nyckelpersoner", str(HERE / "nyckelpersoner.csv"),
                 "--mandat", str(_mandat), "--data", str(_dj), "--out", str(_inv)], check=True, cwd=str(HERE))
