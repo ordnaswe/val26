@@ -87,6 +87,26 @@ def hist2022(h):
         if a is not None: out[p] = a
     return out
 
+ROLE_ORDER = ['ordförande', 'förste vice', '1:e vice', 'andre vice', '2:e vice', 'tredje vice', '3:e vice']
+def role_rank(roll):
+    r = (roll or '').lower()
+    for i, k in enumerate(ROLE_ORDER):
+        if r.startswith(k): return i
+    return len(ROLE_ORDER)
+
+def match_local(op_name, seats):
+    """Hitta det regionala/lokala partiet i mandatlistan utifrån SKR:s klartextnamn."""
+    if not op_name: return None
+    a = op_name.strip().lower()
+    keys = [k for k in seats if k not in PIDS and k != 'Övriga']
+    for k in keys:
+        b = k.lower()
+        if a == b or a in b or b in a: return k
+    init = ''.join(w[0] for w in a.replace('(', ' ').split() if w)
+    for k in keys:
+        if ''.join(w[0] for w in k.lower().split() if w) == init: return k
+    return None
+
 def blocks(seats):
     l = sum(seats.get(p, 0) for p in LEFT); r = sum(seats.get(p, 0) for p in RIGHT)
     o = sum(v for p, v in seats.items() if p not in LEFT and p not in RIGHT)
@@ -159,6 +179,7 @@ def build(a):
 
     # ---------- externa filer ----------
     styre = {r['kommunkod']: r for r in read_csv(a.styre)}
+    styre_reg = {r['lankod']: r for r in read_csv(a.styre_region)}
     folk = {r['kommunkod']: num(r['folkmangd']) for r in read_csv(a.folk)}
     np_rows = read_csv(a.nyckelpersoner)
     np_kom = defaultdict(list); np_reg = defaultdict(list)
@@ -170,9 +191,12 @@ def build(a):
             if kk: np_kom[kk].append(item)
         elif r['niva'] == 'region':
             np_reg[r['omrade']].append(item)
+    for lst in list(np_kom.values()) + list(np_reg.values()):
+        lst.sort(key=lambda x: (x['organ'] != 'Kommunstyrelsen' and x['organ'] != 'Regionstyrelsen', role_rank(x['roll']), x['namn']))
     def lan_to_region_name(lk):
         n = lanNamn.get(lk, '')
         if lk == '14': return 'Västra Götalandsregionen'
+        if lk == '04' and 'Region Sörmland' in np_reg: return 'Region Sörmland'
         base = n.replace(' län', '').replace('s län', '')
         # nyckelpersoner använder "Region X" utan genitiv-s för de flesta
         for cand in ['Region '+n.replace(' län',''), 'Region '+base]:
@@ -238,13 +262,29 @@ def build(a):
         s26 = seats_from_shares(r26, tot, 3.0); s22 = seats_from_shares(r22, tot, 3.0)
         rname = lan_to_region_name(lk)
         led = np_reg.get(rname, []) if rname else []
+        sr = styre_reg.get(lk, {}); sr_parts = [p for p in (sr.get('partier') or '').split(',') if p]
+        rstyre = None
+        if sr_parts:
+            maj = tot//2 + 1
+            def styre_seats(S):
+                sure = sum(S.get(p, 0) for p in sr_parts if p in PIDS)
+                loc_all = sum(v for p, v in S.items() if p not in PIDS and p != 'Övriga')
+                if 'ÖP' in sr_parts:
+                    m = match_local(sr.get('ovrigt_parti'), S)
+                    if m: return sure + S.get(m, 0), sure + S.get(m, 0), m
+                    return sure, sure + loc_all, None
+                return sure, sure, None
+            mn, mx, m26 = styre_seats(s26); mn22, mx22, _ = styre_seats(s22)
+            status = 'majoritet' if mn >= maj else ('beror på lokalt parti' if mx >= maj else 'saknar majoritet')
+            rstyre = {'partier': sr_parts, 'kso': sr.get('rso_parti'), 'majmin': sr.get('majmin'), 'op': sr.get('ovrigt_parti') or None, 'op_match': m26,
+                      'min': mn, 'max': mx, 'min22': mn22, 'max22': mx22, 'status': status}
         regioner.append({
             'kod': lk, 'lan': lanNamn.get(lk, lk), 'namn': rname or ('Region ' + lanNamn.get(lk, lk).replace(' län', '')),
             'tot': tot, 'res': top_parties(r26, r22), 'seats': s26, 'seats22': s22,
             'blocks': blocks(s26), 'blocks22': blocks(s22),
-            'ledning': [x for x in led if x['organ'] == 'Regionstyrelsen'],
+            'ledning': [x for x in led if x['organ'] == 'Regionstyrelsen'], 'styre': rstyre, 'maj': tot//2 + 1,
             'listettor': listettor('RF', lk, [p for p in s26 if s26[p] > 0]),
-            'rd': rd_area('lan', lk)[:4],
+            'rd': rd_area('lan', lk),
         })
 
     # ---------- KOMMUNER (KF) ----------
@@ -277,8 +317,12 @@ def build(a):
                       'min': st_min, 'max': st_max, 'min22': st22_min, 'max22': st22_max, 'status': status} if st_parts else None,
             'ledning': [x for x in np_kom.get(kk, [])],
             'listettor': listettor('KF', kk, [p for p in s26 if s26[p] > 0 and p in PIDS]),
-            'rd': rd_area('kommun', kk)[:3],
+            'rd': rd_area('kommun', kk),
         })
+    reg_styre_stat = {'n': sum(1 for r in regioner if r['styre']),
+                      'saknar': sum(1 for r in regioner if r['styre'] and r['styre']['status'] == 'saknar majoritet'),
+                      'majoritet': sum(1 for r in regioner if r['styre'] and r['styre']['status'] == 'majoritet'),
+                      'beror': sum(1 for r in regioner if r['styre'] and r['styre']['status'] == 'beror på lokalt parti')}
     n_styre = sum(1 for k in kommuner if k['styre'])
     styre_stat = {'n': n_styre,
                   'majoritet': sum(1 for k in kommuner if k['styre'] and k['styre']['status'] == 'majoritet'),
@@ -365,7 +409,7 @@ def build(a):
         meta=dict(built=d['meta'].get('built'), status=d['meta'].get('status'), live=d['meta'].get('live'), final=final, liveVal=live, statusText=status_text(final)),
         parties=parties, PN=PN, PIDS=PIDS, LEFT=LEFT, RIGHT=RIGHT,
         riket=riket, valkretsar=valkretsar_out, lan=lan_out, regioner=regioner, kommuner=kommuner,
-        styreStat=styre_stat, skiften=skiften, avvikelser=avvikelser, distrikt=dist_out, spread=spread, demo=demo,
+        styreStat=styre_stat, regStyreStat=reg_styre_stat, skiften=skiften, avvikelser=avvikelser, distrikt=dist_out, spread=spread, demo=demo,
         geo=dict(w=d.get('geoW', 1000), h=d.get('geoH', 2304), lan=d.get('granser', {}).get('lan', {}), lanNamn=lanNamn),
     )
     html = PAGE.replace('/*__DATA__*/', json.dumps(payload, ensure_ascii=False, separators=(',', ':')))
@@ -491,7 +535,7 @@ PAGE = r"""<!doctype html>
 
 <footer>
  <p id="src"></p>
- <p>Underlag: Valmyndigheten (röster och mandat), SCB (distriktskovariater), Faktadriven (styre per kommun efter valet 2022, folkmängd 2024), Plenum via nyckelpersoner.csv (ordförande och vice i kommun- och regionstyrelser 2022–2026). Region- och kommunmandat räknas ur områdesandelarna med jämkade uddatalsmetoden och är approximativa; personröster ingår inte. Länskarta: Natural Earth.</p>
+ <p>Underlag: Valmyndigheten (röster och mandat), SCB (distriktskovariater), Faktadriven (styre per kommun efter valet 2022, folkmängd 2024), SKR (styre i regioner efter valet 2022), Plenum via nyckelpersoner.csv (ordförande och vice i kommun- och regionstyrelser 2022–2026). Region- och kommunmandat räknas ur områdesandelarna med jämkade uddatalsmetoden och är approximativa; personröster ingår inte. Länskarta: Natural Earth.</p>
  <p><b>valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic).</p>
 </footer>
 </div>
@@ -606,18 +650,20 @@ function renderRegioner(){let rows=DATA.regioner;if(selLan)rows=rows.filter(r=>r
  const flips=DATA.regioner.filter(r=>(r.blocks.L>r.blocks.R)!==(r.blocks22.L>r.blocks22.R));
  const base=DATA.meta.liveVal&&DATA.meta.liveVal.RF===false;
  $('#panel').innerHTML=`<h2 style="margin-top:0">Regionerna – majoritetspussel</h2>${base?'<div class="warn" style="margin:0 0 12px">Regionvalet 2026 är inte inläst. Mandat och block nedan speglar 2022 och "förändringar" är därför noll. Riksdagsvalet i länet (i detaljvyn) är 2026.</div>':''}
- <details class="explain"><summary>Vad tabellen visar</summary><div class="body"><p>Mandat per region 2026 och 2022, beräknade ur regionvalets andelar med jämkade uddatalsmetoden (spärr 3 %). Regionen räknas som en valkrets, så enstaka mandat kan avvika från länsstyrelsens fördelning. <b>Ordf.</b> = regionstyrelsens ordförande 2022–2026 (Plenum). Klicka på en rad för detaljer, koalitionsräknare och listettor 2026.</p><p>Gotland har inget regionval; regionens fullmäktige väljs i kommunvalet och visas under Kommuner.</p></div></details>
+ <details class="explain"><summary>Vad tabellen visar</summary><div class="body"><p>Mandat per region 2026 och 2022, beräknade ur regionvalets andelar med jämkade uddatalsmetoden (spärr 3 %). Regionen räknas som en valkrets, så enstaka mandat kan avvika från länsstyrelsens fördelning. <b>Styre 2022–26</b> = partierna i det sittande styret enligt SKR; <b>Styrets mandat 2026</b> visar om samma partier har majoritet i det nya fullmäktige. <b>Ordf.</b> = regionstyrelsens ordförande 2022–2026 (Plenum). Klicka på en rad för detaljer, koalitionsräknare och listettor 2026.</p><p>Gotland har inget regionval; regionens fullmäktige väljs i kommunvalet och visas under Kommuner.</p></div></details>
  <div class="kpis">
   <div class="kpi"><div class="v">${flips.length}</div><div class="l">Regioner där blockövervikten bytte sida</div><div class="d">${flips.map(r=>esc(r.namn.replace('Region ',''))).join(', ')||'–'}</div></div>
   <div class="kpi"><div class="v">${DATA.regioner.filter(r=>r.blocks.L>Math.floor(r.tot/2)||r.blocks.R>Math.floor(r.tot/2)).length} av ${DATA.regioner.length}</div><div class="l">Regioner där en sida har egen majoritet</div><div class="d">övriga kräver blocköverskridande lösning eller lokala partier</div></div>
+  <div class="kpi"><div class="v">${DATA.regStyreStat.saknar}</div><div class="l">Sittande regionstyren som saknar majoritet ${base?'(2022-läge)':'efter valet'}</div><div class="d">${DATA.regStyreStat.majoritet} behåller majoritet, ${DATA.regStyreStat.beror} beror på regionalt parti</div></div>
   <div class="kpi"><div class="v">${skift.length}</div><div class="l">Regioner med nytt största parti</div><div class="d">${skift.map(r=>esc(r.namn.replace('Region ',''))).join(', ')||'–'}</div></div>
  </div>
- <div class="tw"><table><thead><tr><th>Region</th><th>Störst</th><th class="r">S+V+MP+C</th><th class="r">M+KD+L+SD</th><th class="r">Övr.</th><th class="r">Maj.</th><th>Ordf. 2022–26</th></tr></thead><tbody>${
-  rows.map(r=>{const o=r.ledning.find(x=>/^ordf/i.test(x.roll));const maj=Math.floor(r.tot/2)+1;
+ <div class="tw"><table><thead><tr><th>Region</th><th>Störst</th><th class="r">S+V+MP+C</th><th class="r">M+KD+L+SD</th><th class="r">Övr.</th><th>Styre 2022–26</th><th class="r">Styrets mandat ${base?'(2022-spegling)':'2026'}</th><th>Läge</th><th>Ordf. 2022–26</th></tr></thead><tbody>${
+  rows.map(r=>{const o=r.ledning.find(x=>/^ordf/i.test(x.roll));const maj=Math.floor(r.tot/2)+1;const s=r.styre;const sm=s?(s.min===s.max?`${s.min}`:`${s.min}–${s.max}`):'–';
    return `<tr class="click" data-reg="${r.kod}"><td><b>${esc(r.namn)}</b></td><td>${pf(r.res[0]?.p)} ${f1(r.res[0]?.a)}</td>
-   <td class="r">${r.blocks.L} <small>${sgi(r.blocks.L-r.blocks22.L)}</small></td><td class="r">${r.blocks.R} <small>${sgi(r.blocks.R-r.blocks22.R)}</small></td><td class="r">${r.blocks.O}</td><td class="r">${maj}/${r.tot}</td>
-   <td>${o?esc(o.namn)+' '+pf(o.p):'<span class="muted">–</span>'}</td></tr>${regOpen===r.kod?`<tr><td colspan="7">${regionDetail(r)}</td></tr>`:''}`}).join('')}</tbody></table></div>
- <p class="note">Koalitioner i regionerna 2022–2026 visas inte eftersom en verifierad källa saknas i underlaget; ordförandeposten ger sittande styrets tyngdpunkt.</p>`;
+   <td class="r">${r.blocks.L} <small>${sgi(r.blocks.L-r.blocks22.L)}</small></td><td class="r">${r.blocks.R} <small>${sgi(r.blocks.R-r.blocks22.R)}</small></td><td class="r">${r.blocks.O}</td>
+   <td>${s?s.partier.map(p=>pf(p)).join(' ')+(s.majmin?` <small class="muted">${esc(s.majmin.toLowerCase())}</small>`:''):'<span class="muted">–</span>'}</td><td class="r">${sm} <small class="muted">/ ${maj} av ${r.tot}</small></td><td>${statusTag(s)}</td>
+   <td>${o?esc(o.namn)+' '+pf(o.p):'<span class="muted">–</span>'}</td></tr>${regOpen===r.kod?`<tr><td colspan="9">${regionDetail(r)}</td></tr>`:''}`}).join('')}</tbody></table></div>
+ <p class="note">Styre 2022–2026: SKR, "Styre i regioner efter valet 2022" (uppdaterad 2026-06-30). ÖP = regionalt parti; när det kan identifieras i valresultatet räknas dess mandat in, annars visas ett intervall. Ordförande: Plenum.</p>`;
  $('#panel').querySelectorAll('tr[data-reg]').forEach(tr=>tr.onclick=()=>{regOpen=regOpen===tr.dataset.reg?null:tr.dataset.reg;renderRegioner();});
  bindCoal();}
 // ---------- drag-och-släpp för koalitioner ----------
@@ -647,7 +693,8 @@ function ledningList(l){if(!l.length)return '<p class="muted">Inga uppgifter i p
 function listettorList(le){const ps=Object.keys(le);if(!ps.length)return '<p class="muted">Inga listor i underlaget.</p>';
  return `<ul style="margin:4px 0;padding-left:18px">${ps.map(p=>`<li>${pf(p)} ${esc(le[p][0])}</li>`).join('')}</ul>`;}
 function regionDetail(r){return `<div class="detail"><div class="grid2"><div><h3>Regionvalet ${esc(r.lan)}</h3>${seatBar(r.seats,ORDER,r.tot)}${resTable(r.res,null,r.seats,r.seats22)}${blockLine(r.blocks,r.blocks22,r.tot)}${coalCalc('r'+r.kod,r.seats,r.tot)}</div>
- <div><h3>Sittande ledning 2022–2026</h3>${ledningList(r.ledning)}<h3>Listettor 2026 (regionvalet)</h3>${listettorList(r.listettor)}<h3>Riksdagsvalet i länet 2026</h3><p class="note" style="margin:0 0 4px">Aggregerat ur jämförbara valdistrikt.</p><div class="tw"><table><tbody>${r.rd.map(x=>`<tr><td>${pf(x.p)}</td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td></tr>`).join('')}</tbody></table></div></div></div></div>`;}
+ <div>${r.styre?`<h3>Sittande styre 2022–2026 och förändring efter valet 2026</h3><p class="lead">${r.styre.partier.map(p=>pf(p)).join(' ')}${r.styre.op?` <small class="muted">(ÖP = ${esc(r.styre.op)})</small>`:''} – ${esc(r.styre.majmin||'')}${r.styre.kso?`, RSO från ${pf(r.styre.kso)}`:''}. Samma partier: ${r.styre.min22===r.styre.max22?r.styre.min22:r.styre.min22+'–'+r.styre.max22} mandat 2022 → ${r.styre.min===r.styre.max?r.styre.min:r.styre.min+'–'+r.styre.max} mandat 2026 (majoritet ${r.maj}). ${statusTag(r.styre)}</p>`:'<h3>Sittande styre 2022–2026</h3><p class="muted">Saknas i underlaget.</p>'}
+ <h3>Sittande ledning 2022–2026</h3>${ledningList(r.ledning)}<h3>Listettor 2026 (regionvalet)</h3>${listettorList(r.listettor)}<h3>Riksdagsvalet i länet 2026</h3><p class="note" style="margin:0 0 4px">Aggregerat ur jämförbara valdistrikt.</p><div class="tw"><table><tbody>${r.rd.map(x=>`<tr><td>${pf(x.p)}</td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td></tr>`).join('')}</tbody></table></div></div></div></div>`;}
 
 // ---------- KOMMUNER ----------
 function statusTag(s){if(!s)return '<span class="status s-na">okänt styre</span>';const st=s.status;
@@ -687,7 +734,7 @@ function renderKommuner(){let rows=DATA.kommuner.slice();const q=kQuery.trim().t
  updSel();bindCoal();}
 function kommunDetail(k){const s=k.styre;
  return `<div class="detail"><div class="grid2"><div><h3>Kommunvalet ${esc(k.namn)}</h3>${seatBar(k.seats,ORDER,k.tot)}${resTable(k.res,null,k.seats,k.seats22)}${blockLine(k.blocks,k.blocks22,k.tot)}${coalCalc('k'+k.kod,k.seats,k.tot)}</div>
- <div>${s?`<h3>Sittande styre 2022–2026</h3><p class="lead">${s.partier.map(p=>pf(p)).join(' ')} – ${esc(s.majmin||'')}${s.kso?`, KSO från ${pf(s.kso)}`:''}. Samma partier: ${s.min22===s.max22?s.min22:s.min22+'–'+s.max22} mandat 2022 → ${s.min===s.max?s.min:s.min+'–'+s.max} mandat 2026 (majoritet ${k.maj}). ${statusTag(s)}</p>`:'<h3>Sittande styre</h3><p class="muted">Saknas i underlaget.</p>'}
+ <div>${s?`<h3>Sittande styre 2022–2026 och förändring efter valet 2026</h3><p class="lead">${s.partier.map(p=>pf(p)).join(' ')} – ${esc(s.majmin||'')}${s.kso?`, KSO från ${pf(s.kso)}`:''}. Samma partier: ${s.min22===s.max22?s.min22:s.min22+'–'+s.max22} mandat 2022 → ${s.min===s.max?s.min:s.min+'–'+s.max} mandat 2026 (majoritet ${k.maj}). ${statusTag(s)}</p>`:'<h3>Sittande styre</h3><p class="muted">Saknas i underlaget.</p>'}
  <h3>Ledande politiker 2022–2026</h3>${ledningList(k.ledning)}<h3>Listettor 2026 (kommunvalet)</h3>${listettorList(k.listettor)}
  <h3>Riksdagsvalet i kommunen 2026</h3><p class="note" style="margin:0 0 4px">Aggregerat ur kommunens jämförbara valdistrikt, viktat med röstberättigade.</p><div class="tw"><table><tbody>${k.rd.map(x=>`<tr><td>${pf(x.p)}</td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td></tr>`).join('')}</tbody></table></div></div></div></div>`;}
 
@@ -738,7 +785,7 @@ function updSel(){const el=$('#selwrap');if(!el)return;if(!selLan){el.innerHTML=
  el.innerHTML=`<label>Län</label><span class="selchip">${esc(DATA.geo.lanNamn[selLan]||selLan)} <button aria-label="Rensa">×</button></span>`;
  el.querySelector('button').onclick=()=>selectLan(selLan);}
 function updMapHelp(){const r=DATA.riket;const L=selLan?DATA.lan.find(l=>l.kod===selLan):null;
- const rows=(L?L.res:r.res).slice(0,5).map(x=>`<tr><td>${pf(x.p)} ${esc(PN[x.p]||x.p)}</td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td></tr>`).join('');
+ const rows=(L?L.res:r.res).map(x=>`<tr><td>${pf(x.p)} ${esc(PN[x.p]||x.p)}</td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td></tr>`).join('');
  $('#maphelp').innerHTML=`<p class="lead" style="margin:0 0 6px">${selLan?`Visar <b>${esc(DATA.geo.lanNamn[selLan]||selLan)}</b> i flikarna Regioner, Kommuner, Avvikelser och Demografi. Klicka länet igen för hela landet.`:'Klicka på ett län för att filtrera Regioner, Kommuner, Avvikelser och Demografi till länet.'}</p>
  <div class="kpis" style="margin:6px 0 8px"><div class="kpi"><div class="v">${r.blocks.L}–${r.blocks.R}</div><div class="l">Riksdagen: S+V+MP+C mot M+KD+L+SD</div></div>${selLan?'':`<div class="kpi"><div class="v">${DATA.styreStat.saknar}</div><div class="l">Kommunstyren som saknar majoritet</div></div>`}</div>
  <h3 style="margin:4px 0">Riksdagsvalet ${selLan?'i '+esc(DATA.geo.lanNamn[selLan]||selLan):'i riket'}</h3><div class="tw"><table style="max-width:420px"><thead><tr><th>Parti</th><th class="r">2026 %</th><th class="r">±2022</th></tr></thead><tbody>${rows}</tbody></table></div>`;}
@@ -764,6 +811,7 @@ if __name__ == '__main__':
     ap.add_argument('--data', default='public/data.json')
     ap.add_argument('--out', default='public/partianalys.html')
     ap.add_argument('--styre', default='data/styre_kommun_2022.csv')
+    ap.add_argument('--styre-region', default='data/styre_region_2022.csv', help='SKR: styre i regioner efter valet 2022')
     ap.add_argument('--folk', default='data/folkmangd_2024.csv')
     ap.add_argument('--nyckelpersoner', default='nyckelpersoner.csv')
     ap.add_argument('--slutligt', default='data/slutligt.json', help='JSON {"RD":"2026-09-19"} med fastställda val')
