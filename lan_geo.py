@@ -77,7 +77,7 @@ def main():
     gp = Path(a.granser)
     g = json.loads(gp.read_text(encoding='utf-8')) if gp.exists() else {}
     g['lan'] = lan
-    g.setdefault('meta', {})['lan_kalla'] = 'Natural Earth 10m admin-1 (public domain), SWEREF99 TM'
+    g.pop('meta', None)   # build.py tolkar varje toppnyckel som en kartnivå – inga metadata här
     if a.dry_run: print('dry-run: skriver inte'); return
     gp.write_text(json.dumps(g, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     print('Skrev', gp)
