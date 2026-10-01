@@ -1,8 +1,6 @@
 name: Bygg och deploya (push)
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch:   # manuellt. Push deployar INTE längre: bygget saknar valdata och skrev över live-sajten med 2022-förhandsvisningen (2026-09-30).
 permissions:
   contents: read
 jobs:

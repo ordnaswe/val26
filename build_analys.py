@@ -122,7 +122,11 @@ def build(a):
             n += 1
             if any(abs(a.get(p, 0) - (b.get(p) or 0)) > 0.05 for p in a if p != 'Övriga'): diff += 1
         return n > 0 and diff > 0
-    live = {'RD': True, 'RF': is_live('region', 'RF'), 'KF': is_live('kommun', 'KF')}
+    live = {'RD': is_live('riket', 'RD') or is_live('valkrets', 'RD'), 'RF': is_live('region', 'RF'), 'KF': is_live('kommun', 'KF')}
+    if not live['RD']:
+        # riket saknar hist per valkrets; jämför rikets RD direkt
+        a0 = alist(ar['riket']['00'].get('RD', [])); b0 = hist2022(ah['riket']['00'].get('RD'))
+        live['RD'] = any(abs(a0.get(p, 0) - (b0.get(p) or 0)) > 0.05 for p in a0 if p != 'Övriga')
 
     # ---------- RD 2026 per kommun/län ur valdistrikten (jämförbara distrikt, viktat med röstberättigade) ----------
     agg = {'kommun': defaultdict(lambda: defaultdict(float)), 'lan': defaultdict(lambda: defaultdict(float))}
@@ -208,6 +212,7 @@ def build(a):
             if s and s[2] is not None: vk22[vk][p] += s[2]*w22
     valkretsar_out = []
     for name, rows in ar.get('valkrets', {}).items():
+        if not rows.get('RD'): continue            # allresults.valkrets kan även innehålla RF/KF-valkretsar
         r26 = alist(rows.get('RD', [])); k = vk_map.get(name)
         r22 = {p: round(vk22[k][p]/vk22w[k], 2) for p in PIDS} if k and vk22w[k] else {}
         tp = top_parties(r26, r22)
