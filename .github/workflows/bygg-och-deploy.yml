@@ -18,12 +18,13 @@ jobs:
             --out public/index.html
       - name: Bygg väljaranalysen (undersida)
         run: |
-          python3 build_valjaranalys.py --data public/data.json \
+          cp data/slutligt.json public/slutligt.json
+          python3 build_valjaranalys.py --data public/data.json --slutligt data/slutligt.json \
             --kommun data/kommun_kovariater.csv \
             --out public/valjaranalys.html
-      - name: Bygg eftervalsanalysen (undersida)
+      - name: Bygg partianalysen (undersida)
         run: |
-          python3 build_analys.py --data public/data.json --out public/analys.html \
+          python3 build_analys.py --data public/data.json --out public/partianalys.html \
             --styre data/styre_kommun_2022.csv --folk data/folkmangd_2024.csv \
             --nyckelpersoner nyckelpersoner.csv --slutligt data/slutligt.json
       - name: Bygg personvalet (om kandidatfil finns committad)
@@ -38,7 +39,7 @@ jobs:
             python3 build_personvalet.py --invalda data/invalda.csv \
               --status nyckelperson_status.csv --nyckelpersoner nyckelpersoner.csv \
               --valkrets data/valkrets.csv --data public/data.json \
-              --out public/personvalet.html
+              --slutligt data/slutligt.json --out public/personvalet.html
           else
             echo "data/kandidaturer.csv saknas – hoppar personvalet (byggs på valnatten av hamta.py)."
           fi

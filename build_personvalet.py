@@ -17,7 +17,7 @@ Kör i loopen EFTER invalda.py:
       --data public/data.json --out public/personvalet.html
 Endast standardbibliotek.
 """
-import csv, json, re, argparse, unicodedata
+import csv, json, re, argparse, unicodedata, os
 from collections import defaultdict
 
 def read_csv(path):
@@ -40,7 +40,15 @@ def parse_roll(nyckelroll):
     if ':' in (nyckelroll or ''): omrade, organ = nyckelroll.split(':', 1)
     return omrade.strip(), organ.strip(), kat.strip()
 
-def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path):
+def status_text(final, mandat=True):
+    lab = lambda k, n: f"<b>{n}:</b> slutligt ({final[k]})" if final.get(k) else f"<b>{n}:</b> preliminärt"
+    t = " · ".join([lab('RD', 'Riksdag'), lab('RF', 'Region'), lab('KF', 'Kommun')])
+    t += ". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något."
+    if mandat: t += " Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut."
+    return t
+
+def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path, slutligt_path=None):
+    final = json.load(open(slutligt_path, encoding='utf-8')) if slutligt_path and os.path.exists(slutligt_path) else {}
     inv  = read_csv(inv_path)
     stat = read_csv(status_path)
     nyckel = read_csv(nyckel_path)
@@ -112,7 +120,7 @@ def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path
     rd_total = sum(len(v) for v in per_vk.values())
     payload = dict(
         meta=dict(built=meta.get('built',''), status=meta.get('status',''), counted=counted, total=total,
-                  source=meta.get('source_label','')),
+                  source=meta.get('source_label',''), statusText=status_text(final)),
         parties=[{'id':k,'namn':v.get('namn',k),'color':v.get('color','#888')} for k,v in parties.items()],
         in_rd=sorted(in_rd, key=lambda x:(x['omrade'], x['namn'])),
         in_rf=sorted(in_rf, key=lambda x:(x['omrade'], x['namn'])),
@@ -154,6 +162,8 @@ PAGE = r"""<!doctype html>
  .sub{color:var(--ink2);margin:0;max-width:64ch;font-size:.95rem}
  .meta{margin-top:10px;font:.75rem/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink3);display:flex;gap:6px 16px;flex-wrap:wrap}
  .btn{background:var(--surface);color:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;font:.74rem ui-monospace,monospace}
+ .nav a{text-decoration:none} .nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+ .statusnote{margin:10px 0 0;padding:10px 14px;border-radius:10px;background:var(--surface2);color:var(--ink2);font-size:.82rem}
  .btn:hover{border-color:var(--accent);color:var(--accent2)}
  .banner{display:none;margin:12px 0 0;padding:10px 14px;border-radius:10px;background:var(--warn-s);color:var(--warn);font-size:.9rem;font-weight:600}
  .banner.show{display:block}
@@ -226,10 +236,11 @@ PAGE = r"""<!doctype html>
 <body><div class="wrap">
 <header class="top">
  <div class="row"><span class="eyebrow">valutfall.se · personvalet</span>
-  <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></div>
+  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn" href="/partianalys.html">Partianalys</a> <a class="btn" href="/valjaranalys.html">Väljaranalys</a> <a class="btn cur" href="/personvalet.html">Personvalet</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
  <h1>Personvalet</h1>
- <p class="sub">Vilka makthavare tar plats i riksdagen, regionfullmäktige och kommunfullmäktige – och vilka sittande ledare som är på väg ut. Klicka på ett län i kartan, eller välj en flik. Preliminärt, uppdateras löpande under valnatten.</p>
+ <p class="sub">Vilka makthavare tar plats i riksdagen, regionfullmäktige och kommunfullmäktige – och vilka sittande ledare som är på väg ut. Klicka på ett län i kartan, eller välj en flik.</p>
  <div class="meta" id="meta"></div>
+ <div class="statusnote" id="statusnote"></div>
  <div class="banner" id="banner">Nya siffror finns – sidan uppdateras…</div>
 </header>
 
@@ -279,7 +290,8 @@ PAGE = r"""<!doctype html>
 
 <footer>
  <p id="src"></p>
- <p>Preliminärt – personröster (kryss) ingår inte och kan kasta om ordningen i slutresultatet. Underlag: Valmyndigheten + politikerdatabas. En del av <a href="/">valutfall.se</a> · Sandro Wennberg.</p>
+ <p>Personröster (kryss) ingår inte och kan kasta om ordningen i slutresultatet. Underlag: Valmyndigheten + politikerdatabas. Länskarta: Natural Earth.</p>
+ <p><b>valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic).</p>
 </footer>
 </div>
 
@@ -302,7 +314,7 @@ let selLan=null, activeTab='region';
 // ---- nyckeltal ----
 function head(){const m=DATA.meta;
  $('#meta').innerHTML=[m.status?esc(m.status):'',m.built?('Uppdaterad '+m.built.slice(11,16)):''].filter(Boolean).map(x=>`<span>${x}</span>`).join('');
- $('#src').textContent=m.source||'';
+ $('#src').textContent=m.source||'';$('#statusnote').innerHTML=m.statusText||'';
  const pct=(m.counted&&m.total)?Math.round(m.counted/m.total*100)+' %':'–';
  const t=[['in',DATA.rd_total,'invalda i riksdagen'],['in',DATA.in_rf.length,'nyckelpersoner i region'],
    ['in',DATA.in_kf.length,'nyckelpersoner i kommun'],['risk',DATA.risk.length,'på vippen'],['',pct,'av rösterna räknade']];
@@ -457,5 +469,6 @@ if __name__ == '__main__':
     ap.add_argument('--valkrets', default='data/valkrets.csv')
     ap.add_argument('--data', default='public/data.json')
     ap.add_argument('--out', default='public/personvalet.html')
+    ap.add_argument('--slutligt', default='data/slutligt.json')
     a = ap.parse_args()
-    build(a.invalda, a.status, a.nyckelpersoner, a.valkrets, a.data, a.out)
+    build(a.invalda, a.status, a.nyckelpersoner, a.valkrets, a.data, a.out, a.slutligt)

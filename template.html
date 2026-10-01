@@ -194,6 +194,18 @@
   @media (prefers-reduced-motion:reduce){
     *{animation:none!important;transition:none!important}
   }
+  .hero{background:var(--panel);border:1px solid var(--hair);border-radius:16px;padding:18px 20px;margin:6px 0 10px;box-shadow:var(--shadow)}
+  .hero h2{margin:0 0 6px;font-size:20px;letter-spacing:-.01em}
+  .hero p{margin:0 0 12px;color:var(--muted);font-size:14px;max-width:70ch;line-height:1.5}
+  .hero .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .hero a.card{display:block;text-decoration:none;color:var(--ink);background:var(--paper);border:1px solid var(--hair);border-radius:12px;padding:12px 14px;transition:border-color .15s}
+  .hero a.card:hover{border-color:var(--focus)} .hero a.card b{display:block;font-size:15px;margin-bottom:3px} .hero a.card span{font-size:12.5px;color:var(--muted);line-height:1.45}
+  .hero a.card.cur{border-color:var(--focus);box-shadow:0 0 0 2px var(--focus) inset}
+  .statusnote{margin:8px 0 10px;padding:10px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--hair);color:var(--muted);font-size:13px;line-height:1.5}
+  .statusnote b{color:var(--ink)}
+  .subnav{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .subnav a{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--panel);color:var(--ink);text-decoration:none}
+  .subnav a.cur{background:var(--focus);color:#fff;border-color:var(--focus)}
 </style>
 </head>
 <body>
@@ -221,6 +233,19 @@
     </svg>
     <h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">Valutfall – valresultat per valdistrikt, kommun, region och riksdag</h1>
   </header>
+  <div class="hero" id="hero">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start">
+      <h2>Valet 2026 – resultat, analys och personer, ner på valdistrikt</h2>
+      <nav class="subnav" aria-label="Undersidor"><a class="cur" href="/">Resultat</a><a href="/partianalys.html">Partianalys</a><a href="/valjaranalys.html">Väljaranalys</a><a href="/personvalet.html">Personvalet</a></nav>
+    </div>
+    <p>valutfall.se samlar resultatet i de tre valen 13 september 2026 – riksdag, region och kommun – från riket ner till landets 6 626 valdistrikt, med historik sedan 2014, prognosmodeller och kandidater. Den här sidan är själva resultatet. Tre undersidor går vidare från siffrorna:</p>
+    <div class="cards">
+      <a class="card" href="/partianalys.html"><b>Partianalys →</b><span>Mandat och förändring mot 2022, koalitionsräknare med drag-och-släpp, majoritetspussel i regioner och kommuner, avvikelser och demografi.</span></a>
+      <a class="card" href="/valjaranalys.html"><b>Väljaranalys →</b><span>Hur röstningen hänger ihop med inkomst, utbildning, ålder, sysselsättning och boende – per valdistrikt och kommun.</span></a>
+      <a class="card" href="/personvalet.html"><b>Personvalet →</b><span>Vilka som tar plats i riksdag, regioner och kommuner, vilka makthavare som faller ur, och vilka som sitter på vippen.</span></a>
+    </div>
+  </div>
+  <div class="statusnote" id="statusnote"></div>
   <p class="sub" id="pageTitle">Valresultat, historik och prognos – per valdistrikt, kommun, region och riksdag.
     <a href="#" id="omSiffrorna" style="color:var(--focus)">Om siffrorna</a></p>
   <details id="omBox" style="margin:2px 0 4px"><summary style="list-style:none;cursor:pointer;font-size:12px;color:var(--muted)"></summary>
@@ -410,6 +435,11 @@
   const KOM2LAN={}, KOMMUNER=[];
   for(const d of dist){ if(!(d.kommun in KOM2LAN)){KOM2LAN[d.kommun]=d.lan;KOMMUNER.push(d.kommun);} }
 
+  // statusrad (samma formulering på alla sidor). slutligt.json: {"RD":"2026-09-19",...} publiceras av bygget.
+  (async function(){const el=document.getElementById("statusnote");if(!el)return;let fin={};
+    try{const r=await fetch("slutligt.json?_="+Date.now(),{cache:"no-store"});if(r.ok)fin=await r.json();}catch(e){}
+    const lab=(k,n)=>fin[k]?`<b>${n}:</b> slutligt (${fin[k]})`:`<b>${n}:</b> preliminärt`;
+    el.innerHTML=[lab("RD","Riksdag"),lab("RF","Region"),lab("KF","Kommun")].join(" · ")+". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något. Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut.";})();
   // page title + data provenance note
   document.title=(DATA.meta.title||"Valutfall")+" – valresultat per distrikt";
   const note=document.getElementById("dataNote");
@@ -1609,6 +1639,7 @@
     progTbl.innerHTML=html;
     // mandatgraf: hemicykel + stapel (gängse ordning V,S,MP,C,L,KD,M,SD) med majoritetslinje
     const mbox=document.getElementById("progMandat");
+    window._lastMand=(seatsN&&mand&&mandPlist)?{plist:mandPlist,mand22:mand22||null,n:seatsN}:null;
     if(seatsN&&mand&&mandPlist){
       const W=820,H=104,x0=10,y=34,bh=40,pw=W-2*x0,tot=seatsN,maj=Math.floor(tot/2)+1;
       let x=x0,segs="";
@@ -1872,40 +1903,25 @@
     const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
     a.download=name;document.body.appendChild(a);a.click();a.remove();}
   function csvExport(){
-    const active=document.querySelector(".tabs button[aria-selected='true']").dataset.tab;
-    const area=areaLabel().replace(/[^\wåäöÅÄÖ]+/g,"_"),yr=ELYEARS[state.year];
-    const data=scope();
-    if(active==="hist"){
-      const rows=[["Parti",...ELYEARS]];const agg=aggSeries(data);const ar=areaSeries();
-      if(ar)for(const p of PARTIES)ELYEARS.forEach((y,t)=>{if(ar[p.id][t]!=null)agg[p.id][t]=ar[p.id][t];});
-      for(const p of PARTIES)rows.push([p.id,...agg[p.id].map(v=>v==null?"":v.toFixed(2))]);
-      const AH=((((DATA.allhist||{})[state.geo.kommun?"kommun":state.geo.lan?"lan":"riket"]||{})[state.geo.kommun?(DATA.komKod||{})[state.geo.kommun]:state.geo.lan?(DATA.lanKod||{})[state.geo.lan]:"00"]||{})[state.election])||{};
-      Object.keys(AH).filter(nm=>!PARTIES.some(p=>p.id===nm)).forEach(nm=>rows.push([nm,...ELYEARS.map(y=>AH[nm][y]!=null?AH[nm][y].toFixed(2):"")]));
-      dlCSV(`valutfall_historik_${area}.csv`,rows);return;}
-    if(active==="prognos"){const ar=areaResults();
-      if(ar&&ar.length){const rows=[["Parti","Andel_%"]];ar.forEach(x=>rows.push([x.p,x.a.toFixed(2)]));dlCSV(`valutfall_resultat_${area}_${state.election}.csv`,rows);return;}}
-    if(active==="split"){const P=state.party,years=state.splitMode==="years";
-      const ga=years?(d=>d.series&&d.series[P]?d.series[P][state.splitYearA]:null):(d=>shareEl(d,state.splitA,P));
-      const gb=years?(d=>d.series&&d.series[P]?d.series[P][state.splitYearB]:null):(d=>shareEl(d,state.splitB,P));
-      const la=years?ELYEARS[state.splitYearA]:state.splitA,lb=years?ELYEARS[state.splitYearB]:state.splitB;
-      const rows=[["Distrikt","Kommun","Län",P+"_"+la,P+"_"+lb,"Diff"]];
-      data.forEach(d=>{const a=ga(d),b=gb(d);if(a!=null&&b!=null)rows.push([d.namn,d.kommun,d.lan,a.toFixed(2),b.toFixed(2),(a-b).toFixed(2)]);});
-      dlCSV(`valutfall_rostsplittring_${area}.csv`,rows);return;}
-    if(active==="scatter"||active==="resid"){
-      const rows=[["Distrikt","Kommun","Län",state.party+"_andel_%","Röstberättigade"]];
-      data.forEach(d=>{const s=shareAt(d,state.party);if(s!=null)rows.push([d.namn,d.kommun,d.lan,s.toFixed(2),d.rost||""]);});
-      dlCSV(`valutfall_${active}_${state.party}_${area}.csv`,rows);return;}
-    // standard: tabellen – alla partier per distrikt
-    const rows=[["Distrikt","Kommun","Län","Röstberättigade","Räknat",...PARTIES.map(p=>p.id+"_%")]];
-    data.forEach(d=>rows.push([d.namn,d.kommun,d.lan,d.rost||"",d.raknat===1?"ja":"nej",...PARTIES.map(p=>{const s=shareAt(d,p.id);return s==null?"":s.toFixed(2);})]));
-    dlCSV(`valutfall_distrikt_${area}_${state.election}_${yr}.csv`,rows);
+    // Endast mandat exporteras som CSV (Resultat och Prognos-fliken).
+    const area=areaLabel().replace(/[^\wåäöÅÄÖ]+/g,"_");
+    const LM=window._lastMand;
+    if(!LM){alert("Mandat finns bara när ett helt valområde (riket, region eller kommun) är valt.");return;}
+    const ar=areaResults()||[];const andel=Object.fromEntries(ar.map(x=>[x.p,x.a]));
+    const rows=[["Parti","Andel_%","Mandat_2026","Mandat_2022","Forandring"]];
+    for(const p of LM.plist){const m22=LM.mand22?LM.mand22[p.id]:null;rows.push([p.id,andel[p.id]!=null?andel[p.id].toFixed(2):"",p.seats,m22==null?"":m22,m22==null?"":p.seats-m22]);}
+    rows.push(["Totalt","",LM.n,"",""]);
+    dlCSV(`valutfall_mandat_${area}_${state.election}.csv`,rows);
   }
   document.getElementById("csvBtn").addEventListener("click",csvExport);
+  document.getElementById("csvBtn").textContent="⬇ Ladda ner mandat (CSV)";
+  (function(){const b=document.getElementById("csvBtn");const upd=()=>{const t=document.querySelector(".tabs button[aria-selected='true']");b.style.display=(t&&t.dataset.tab==="prognos")?"":"none";};
+    document.querySelectorAll(".tabs button").forEach(x=>x.addEventListener("click",()=>setTimeout(upd,0)));upd();})();
 })();
 </script>
   <footer style="margin:36px 0 12px;padding-top:18px;border-top:1px solid var(--hair);font-size:12.5px;color:var(--muted);line-height:1.6">
-    <b style="color:var(--ink)">valutfall.se</b> är utvecklad av Sandro Wennberg (<a href="mailto:sandrowennberg@gmail.com" style="color:var(--focus)">sandrowennberg@gmail.com</a>).
-    Byggd med hjälp av AI (Anthropic). Fördjupade analyser av datan publiceras efter valet den 13 september 2026.
+    <b style="color:var(--ink)">valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg (<a href="mailto:sandrowennberg@gmail.com" style="color:var(--focus)">sandrowennberg@gmail.com</a>) med hjälp av AI (Anthropic).
+    Länskarta: Natural Earth.
   </footer>
 </body>
 </html>

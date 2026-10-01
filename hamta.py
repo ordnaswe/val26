@@ -323,28 +323,35 @@ def one_cycle(args):
     _pub = Path(args.out).parent
     _dj = _pub / "data.json"
 
+    # SLUTLIGT: data/slutligt.json ({"RD":"2026-09-19",...}) publiceras bredvid status.json så huvudsidan kan visa statusraden.
+    _slut = HERE / "data" / "slutligt.json"
+    try:
+        if _slut.exists(): shutil.copyfile(_slut, _pub / "slutligt.json")
+    except Exception as _e0:
+        log(f"slutligt.json: kunde inte kopiera: {_e0}")
+
     # VÄLJARANALYS: fristående (behöver bara data.json + kommun_kovariater.csv). Byggs oavsett personlagret.
     if _dj.exists():
         try:
             subprocess.run([sys.executable, str(HERE / "build_valjaranalys.py"),
                 "--data", str(_dj), "--kommun", str(HERE / "data" / "kommun_kovariater.csv"),
-                "--out", str(_pub / "valjaranalys.html")], check=True)
+                "--slutligt", str(_slut), "--out", str(_pub / "valjaranalys.html")], check=True)
             log("Väljaranalys: byggde public/valjaranalys.html.")
         except Exception as _e2:
             log(f"Väljaranalys: FEL (hoppar, deploy fortsätter): {_e2}")
 
-    # EFTERVALSANALYS (del 1): analys.html – fristående, bara data.json + committade CSV:er. Egen try.
+    # PARTIANALYS: partianalys.html – fristående, bara data.json + committade CSV:er. Egen try.
     if _dj.exists():
         try:
             subprocess.run([sys.executable, str(HERE / "build_analys.py"),
-                "--data", str(_dj), "--out", str(_pub / "analys.html"),
+                "--data", str(_dj), "--out", str(_pub / "partianalys.html"),
                 "--styre", str(HERE / "data" / "styre_kommun_2022.csv"),
                 "--folk", str(HERE / "data" / "folkmangd_2024.csv"),
                 "--nyckelpersoner", str(HERE / "nyckelpersoner.csv"),
                 "--slutligt", str(HERE / "data" / "slutligt.json")], check=True)
-            log("Eftervalsanalys: byggde public/analys.html.")
+            log("Partianalys: byggde public/partianalys.html.")
         except Exception as _e3:
-            log(f"Eftervalsanalys: FEL (hoppar, deploy fortsätter): {_e3}")
+            log(f"Partianalys: FEL (hoppar, deploy fortsätter): {_e3}")
 
     # PERSONLAGER: personvalet.html (kräver kandidaturer.csv). Egen try -> stör inte väljaranalys/deploy.
     try:
@@ -372,7 +379,7 @@ def one_cycle(args):
             subprocess.run([sys.executable, str(HERE / "build_personvalet.py"),
                 "--invalda", str(_inv), "--status", str(HERE / "nyckelperson_status.csv"),
                 "--nyckelpersoner", str(HERE / "nyckelpersoner.csv"), "--valkrets", args.valkrets,
-                "--data", str(_dj), "--out", str(_pub / "personvalet.html")], check=True)
+                "--slutligt", str(_slut), "--data", str(_dj), "--out", str(_pub / "personvalet.html")], check=True)
             log("Personvalet: byggde public/personvalet.html.")
         else:
             log("Personvalet: hoppar (saknar public/data.json).")

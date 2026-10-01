@@ -19,7 +19,7 @@ Endast standardbibliotek.
 FÖRBEHÅLL som visas på sidan: korrelation ≠ kausalitet; ekologiskt felslut (områdessnitt säger
 inte hur enskilda röstade); kovariater är en ögonblicksbild; förhandsvisning speglar 2022.
 """
-import csv, json, argparse, math
+import csv, json, argparse, math, os
 from collections import defaultdict
 
 PIDS = ['V','S','MP','C','L','KD','M','SD']
@@ -78,8 +78,16 @@ def wpearson(xs, ys, ws):
     if sxx<=0 or syy<=0: return None, n
     return sxy/math.sqrt(sxx*syy), n
 
-def build(data_path, kommun_path, out_path):
+def status_text(final, mandat=False):
+    lab = lambda k, n: f"<b>{n}:</b> slutligt ({final[k]})" if final.get(k) else f"<b>{n}:</b> preliminärt"
+    t = " · ".join([lab('RD', 'Riksdag'), lab('RF', 'Region'), lab('KF', 'Kommun')])
+    t += ". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något."
+    if mandat: t += " Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut."
+    return t
+
+def build(data_path, kommun_path, out_path, slutligt_path=None):
     d = json.load(open(data_path, encoding='utf-8'))
+    final = json.load(open(slutligt_path, encoding='utf-8')) if slutligt_path and os.path.exists(slutligt_path) else {}
     meta = d.get('meta', {})
     parties = {p['id']: p for p in d.get('parties', [])}
     cov = d.get('cov', {})
@@ -211,7 +219,7 @@ def build(data_path, kommun_path, out_path):
 
     payload = dict(
         meta=dict(built=meta.get('built',''), status=meta.get('status',''),
-                  counted=counted, total=total, source=meta.get('source_label','')),
+                  counted=counted, total=total, source=meta.get('source_label',''), statusText=status_text(final)),
         parties=[{'id':k,'namn':v.get('namn',k),'color':v.get('color','#888')} for k,v in parties.items()],
         pids=PIDS, elyears=elyears,
         dfac=[{'key':k,'lab':l,'unit':u,'desc':desc} for k,l,u,desc in DFAC],
@@ -271,6 +279,8 @@ PAGE = r"""<!doctype html>
  .tab[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff}
  .panel{background:var(--surface);border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;padding:16px;box-shadow:var(--shadow)}
  .maprow{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-top:14px}
+ .nav a{text-decoration:none} .nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+ circle.pt{cursor:pointer} circle.pt:hover{fill-opacity:1;stroke:var(--ink);stroke-width:1.5}
  .mapbox{flex:0 0 150px;max-width:38vw}
  svg.map{width:100%;height:auto;display:block}
  svg.map path{fill:var(--surface2);stroke:var(--paper);stroke-width:1.2;cursor:pointer}
@@ -305,20 +315,27 @@ PAGE = r"""<!doctype html>
 <body><div class="wrap">
 <header class="top">
  <div class="rowb"><span class="eyebrow">valutfall.se · väljaranalys</span>
-  <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></div>
+  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn" href="/partianalys.html">Partianalys</a> <a class="btn cur" href="/valjaranalys.html">Väljaranalys</a> <a class="btn" href="/personvalet.html">Personvalet</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
  <h1>Väljaranalys</h1>
  <p class="sub">Hur hänger väljarnas röstning ihop med vilka de är – inkomst, utbildning, ålder, sysselsättning, boende? Välj en faktor och se sambandet med varje partis stöd, hur olika grupper röstar, och hur det ändrats över tid. Klicka på ett län för att zooma in.</p>
  <div class="meta" id="meta"></div>
- <div class="caveat">Samband är inte orsakssamband, och områdessnitt säger inte hur enskilda personer röstat (ekologiskt felslut). Kovariaterna är en ögonblicksbild (senaste tillgängliga år). Förhandsvisningen speglar valet 2022; på valnatten fylls valdistrikten med riktig data.</div>
+ <div class="caveat" id="statusnote"></div>
+ <div class="caveat">Samband är inte orsakssamband, och områdessnitt säger inte hur enskilda personer röstat (ekologiskt felslut). Kovariaterna är en ögonblicksbild (senaste tillgängliga år). Klicka på en prick i punktdiagrammet för att öppna kommunen i Partianalys.</div>
  <div class="banner" id="banner">Nya siffror finns – sidan uppdateras…</div>
 </header>
 
-<div class="controls">
+<div class="maprow">
+ <div class="mapbox"><svg class="map" id="map" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Karta över län"></svg></div>
+ <div style="flex:1;min-width:220px">
+  <div class="muted" id="maphelp"></div>
+  <div class="controls">
  <div class="ctl"><label>Nivå</label>
    <span class="seg" id="lvl"><button data-lvl="dist" aria-pressed="true">Valdistrikt</button><button data-lvl="kom" aria-pressed="false">Kommun</button></span></div>
  <div class="ctl"><label>Faktor</label><select id="factor"></select><div class="facdesc" id="facdesc"></div></div>
  <div class="ctl"><label>Parti</label><select id="party"></select></div>
  <div class="ctl" id="selwrap"></div>
+</div>
+ </div>
 </div>
 
 <div class="tabs" id="tabs" role="tablist">
@@ -330,14 +347,10 @@ PAGE = r"""<!doctype html>
 </div>
 <div class="panel" id="panel"></div>
 
-<div class="maprow">
- <div class="mapbox"><svg class="map" id="map" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Karta över län"></svg></div>
- <div style="flex:1;min-width:220px" class="muted" id="maphelp"></div>
-</div>
-
 <footer>
  <p id="src"></p>
- <p>Underlag: Valmyndigheten (röster per valdistrikt), SCB (distriktskovariater) och Kolada/Faktadriven (kommunmått). Metod: rost-viktad Pearson-korrelation och kvintiler. En del av <a href="/">valutfall.se</a> · Sandro Wennberg.</p>
+ <p>Underlag: Valmyndigheten (röster per valdistrikt), SCB (distriktskovariater) och Kolada/Faktadriven (kommunmått). Metod: rost-viktad Pearson-korrelation och kvintiler. Länskarta: Natural Earth.</p>
+ <p><b>valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic).</p>
 </footer>
 </div>
 
@@ -356,25 +369,26 @@ let level='dist', factorKey=DATA.dfac[0].key, party=DATA.pids[0], mode='samband'
 
 function head(){const m=DATA.meta;
  $('#meta').innerHTML=[m.status?esc(m.status):'',m.built?('Uppdaterad '+m.built.slice(11,16)):''].filter(Boolean).map(x=>`<span>${x}</span>`).join('');
- $('#src').textContent=m.source||'';}
+ $('#src').textContent=m.source||'';$('#statusnote').innerHTML=m.statusText||'';}
 
 // ---- faktorer & datahämtning ----
 function facs(){return level==='dist'?DATA.dfac:DATA.komf;}
 function facMeta(){return facs().find(f=>f.key===factorKey)||facs()[0];}
 // returnerar {x:[...], sh:{pid:[...]}, w:[...]} filtrerat på selLan
+const KN=Object.fromEntries(DATA.kom.map(k=>[k.kod,k.namn]));
 function rows(){
- const out={x:[],w:[],sh:{}}; DATA.pids.forEach(p=>out.sh[p]=[]);
+ const out={x:[],w:[],k:[],sh:{}}; DATA.pids.forEach(p=>out.sh[p]=[]);
  if(level==='dist'){
    const fi=CI[factorKey];
    for(const r of DATA.dist){
      if(selLan && r[CI.lan]!==selLan) continue;
-     out.x.push(r[fi]); out.w.push(r[CI.rost]||0);
+     out.x.push(r[fi]); out.w.push(r[CI.rost]||0); out.k.push(r[CI.kom]);
      DATA.pids.forEach(p=>out.sh[p].push(r[CI[p]]));
    }
  } else {
    for(const k of DATA.kom){
      if(selLan && k.lan!==selLan) continue;
-     out.x.push(k.fac[factorKey]); out.w.push(k.rost||0);
+     out.x.push(k.fac[factorKey]); out.w.push(k.rost||0); out.k.push(k.kod);
      DATA.pids.forEach(p=>out.sh[p].push(k.sh[p]));
    }
  }
@@ -453,7 +467,7 @@ function divergeBars(corr){
  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:680px">${grid}${bars}</svg>`;
 }
 function drawScatter(R, p, fm){
- const pts=[]; for(let i=0;i<R.x.length;i++){if(R.x[i]!=null&&R.sh[p][i]!=null&&R.w[i])pts.push([R.x[i],R.sh[p][i],R.w[i]]);}
+ const pts=[]; for(let i=0;i<R.x.length;i++){if(R.x[i]!=null&&R.sh[p][i]!=null&&R.w[i])pts.push([R.x[i],R.sh[p][i],R.w[i],R.k?R.k[i]:null]);}
  if(!pts.length){$('#scatter').innerHTML='<div class="empty">Ingen data.</div>';return;}
  const W=640,H=300,mL=44,mB=34,mT=10,mR=10;
  const xs=pts.map(a=>a[0]),ys=pts.map(a=>a[1]);
@@ -462,7 +476,7 @@ function drawScatter(R, p, fm){
  // sampla för rendering om många
  let draw=pts; if(pts.length>1600){draw=[];const step=pts.length/1600;for(let i=0;i<pts.length;i+=step)draw.push(pts[Math.floor(i)]);}
  const rmax=Math.max(...draw.map(a=>a[2]));
- const dots=draw.map(a=>`<circle cx="${sx(a[0]).toFixed(1)}" cy="${sy(a[1]).toFixed(1)}" r="${(1.2+Math.sqrt(a[2]/rmax)*2.6).toFixed(1)}" fill="${PC[p]||'#888'}" fill-opacity="0.45"/>`).join('');
+ const dots=draw.map(a=>`<circle class="pt" data-k="${a[3]||''}" cx="${sx(a[0]).toFixed(1)}" cy="${sy(a[1]).toFixed(1)}" r="${(1.2+Math.sqrt(a[2]/rmax)*2.6).toFixed(1)}" fill="${PC[p]||'#888'}" fill-opacity="0.45"><title>${esc(KN[a[3]]||'')} – ${esc(p)} ${a[1].toFixed(1).replace('.',',')} %. Klicka för Partianalys.</title></circle>`).join('');
  const gx=[xmin,(xmin+xmax)/2,xmax].map(v=>`<text x="${sx(v).toFixed(1)}" y="${H-mB+16}" font-size="11" text-anchor="middle">${v>=1000?Math.round(v):(Math.round(v*10)/10)}</text>`).join('');
  const gy=[0,ymax/2,ymax].map(v=>`<text x="${mL-6}" y="${(sy(v)+4).toFixed(1)}" font-size="11" text-anchor="end">${Math.round(v)}</text>`).join('');
  $('#scatter').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:660px">
@@ -470,6 +484,7 @@ function drawScatter(R, p, fm){
    ${dots}${gx}${gy}
    <text x="${(mL+W)/2}" y="${H-2}" font-size="11" text-anchor="middle">${esc(withUnit(fm.lab,fm.unit))}</text>
    <text transform="rotate(-90 12 ${(H)/2})" x="12" y="${H/2}" font-size="11" text-anchor="middle">${esc(p)} %</text></svg>`;
+ $('#scatter').querySelectorAll('circle.pt').forEach(c=>c.addEventListener('click',()=>{const k=c.dataset.k;if(k)location.href='/partianalys.html#kommuner&k='+k;}));
 }
 
 // ---- Så röstar grupperna: kvantiler av faktorn -> viktad snittandel ----
@@ -703,5 +718,6 @@ if __name__ == '__main__':
     ap.add_argument('--data', default='public/data.json')
     ap.add_argument('--kommun', default='data/kommun_kovariater.csv')
     ap.add_argument('--out', default='public/valjaranalys.html')
+    ap.add_argument('--slutligt', default='data/slutligt.json')
     a = ap.parse_args()
-    build(a.data, a.kommun, a.out)
+    build(a.data, a.kommun, a.out, a.slutligt)
