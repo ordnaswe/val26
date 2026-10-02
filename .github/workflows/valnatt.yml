@@ -1,13 +1,19 @@
-name: Valnatt – hämta, bygg, deploya
+name: Deploya live (hämta val.se, bygg, deploya)
+# Manuell körning från GitHub: Actions → "Deploya live" → Run workflow.
+# Hämtar riksdag, region och kommun från val.se, bygger alla sidor och deployar till Netlify.
+# Cron-schemat från valnatten är borttaget: det körde varje söndag kväll utan RF/KF-mönster
+# och skrev över sajten med enbart riksdagsdata.
 on:
-  schedule:
-    - cron: "*/5 18-23 * * 0"   # 20:00–01:00 svensk tid, valdagen (söndag 13/9)
-    - cron: "*/5 0-1 * * 1"     # efter midnatt (måndag, UTC)
-  workflow_dispatch:            # kör manuellt för test
+  workflow_dispatch:
+    inputs:
+      slutliga:
+        description: "Hämta slutliga filer (s/) i stället för preliminära (p/)"
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
-  group: valnatt
+  group: deploy-live
   cancel-in-progress: false
 jobs:
   run:
@@ -17,7 +23,12 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - name: Hämta alla tre valen, bygg och deploya
-        run: python3 hamta.py --deploy --live
+        run: |
+          if [ "${{ inputs.slutliga }}" = "true" ]; then
+            python3 hamta.py --force --deploy --live --pattern-rd "slutlig_00_RD" --pattern-rf "s/rf/" --pattern-kf "s/kf/"
+          else
+            python3 hamta.py --force --deploy --live --pattern-rf "p/rf/" --pattern-kf "p/kf/"
+          fi
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
