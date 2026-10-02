@@ -70,6 +70,32 @@ def wpearson(xs, ys, ws):
     if vx <= 0 or vy <= 0: return None
     return cov/math.sqrt(vx*vy)
 
+def solve(A, b):
+    """Gauss-elimination med pivotering (små system)."""
+    n = len(b); M = [row[:] + [b[i]] for i, row in enumerate(A)]
+    for c in range(n):
+        piv = max(range(c, n), key=lambda r: abs(M[r][c]))
+        M[c], M[piv] = M[piv], M[c]
+        if abs(M[c][c]) < 1e-12: return [0.0]*n
+        for r in range(n):
+            if r != c:
+                f = M[r][c]/M[c][c]
+                for k in range(c, n+1): M[r][k] -= f*M[c][k]
+    return [M[i][n]/M[i][i] for i in range(n)]
+
+def wols(X, y, w):
+    """Viktad OLS: returnerar beta, prediktioner, R²."""
+    k = len(X[0]); XtX = [[0.0]*k for _ in range(k)]; Xty = [0.0]*k
+    for xr, yv, wv in zip(X, y, w):
+        for a in range(k):
+            Xty[a] += wv*xr[a]*yv
+            for c in range(k): XtX[a][c] += wv*xr[a]*xr[c]
+    beta = solve(XtX, Xty)
+    pred = [sum(xr[a]*beta[a] for a in range(k)) for xr in X]
+    sw = sum(w); my = sum(yv*wv for yv, wv in zip(y, w))/sw
+    sst = sum(wv*(yv-my)**2 for yv, wv in zip(y, w)); sse = sum(wv*(yv-pv)**2 for yv, pv, wv in zip(y, pred, w))
+    return beta, pred, (1 - sse/sst if sst > 0 else None)
+
 def read_csv(path):
     if not path or not os.path.exists(path): return []
     with open(path, encoding='utf-8-sig', newline='') as f:
@@ -397,6 +423,34 @@ def build(a):
             out['chg'][f] = {p: (None if (c := wpearson(xs, chg[p], ws)) is None else round(c, 2)) for p in PIDS}
         demo['lan'][lk] = out
 
+    # ---------- MOT DEMOGRAFIN: viktad OLS andel 2026 ~ kovariater, residual = utfall − modell ----------
+    preds = [f for f in covKeys if f != 'turnout' and sum(1 for ds in d['districts'] if ds.get(f) is not None) > 1000]
+    usable = [ds for ds in d['districts'] if (ds.get('rost') or 0) > 0 and ds.get('shares') and all(ds.get(f) is not None for f in preds)]
+    resid = {'preds': [FAC_LAB.get(f, f) for f in preds], 'n': len(usable), 'r2': {}, 'kom': {}, 'dist': {}}
+    if len(usable) > len(preds) + 10:
+        zst = {}
+        for f in preds:
+            vals = [ds[f] for ds in usable]; mu = sum(vals)/len(vals); sd = math.sqrt(sum((v-mu)**2 for v in vals)/len(vals)) or 1.0
+            zst[f] = (mu, sd)
+        X = [[1.0] + [(ds[f]-zst[f][0])/zst[f][1] for f in preds] for ds in usable]
+        W = [ds['rost'] for ds in usable]
+        for p in PIDS:
+            y = [ds['shares'].get(p) or 0 for ds in usable]
+            beta, pred, r2 = wols(X, y, W)
+            resid['r2'][p] = None if r2 is None else round(r2, 2)
+            # kommun: viktat snitt av residualen
+            ks = defaultdict(lambda: [0.0, 0.0, 0.0]); drows = []
+            for ds, pv, wv in zip(usable, pred, W):
+                rv = (ds['shares'].get(p) or 0) - pv
+                kk = komKod.get(ds.get('kommun', ''))
+                if kk: ks[kk][0] += rv*wv; ks[kk][1] += wv; ks[kk][2] += (ds['shares'].get(p) or 0)*wv
+                if wv >= 500: drows.append({'namn': ds['namn'], 'kommun': ds['kommun'], 'lan': lanKod.get(ds.get('lan', ''), ''), 'a': round(ds['shares'].get(p) or 0, 1), 'pred': round(pv, 1), 'res': round(rv, 1)})
+            resid['kom'][p] = sorted([{'kod': kk, 'namn': kod2kom.get(kk, kk), 'a': round(v[2]/v[1], 1), 'res': round(v[0]/v[1], 1), 'folk': folk.get(kk)} for kk, v in ks.items() if v[1] > 0], key=lambda x: x['res'])
+            for lk in lan_codes:
+                rows = sorted([r for r in drows if lk == '00' or r['lan'] == lk], key=lambda x: x['res'])
+                resid['dist'].setdefault(lk, {})[p] = {'ned': [{k: v for k, v in r.items() if k != 'lan'} for r in rows[:6]],
+                                                       'upp': [{k: v for k, v in r.items() if k != 'lan'} for r in rows[-6:][::-1]]}
+
     # ---------- LÄN (RD-förändring per län, geografi) ----------
     lan_out = []
     for lk in sorted(lanKod.values()):
@@ -409,7 +463,7 @@ def build(a):
         meta=dict(built=d['meta'].get('built'), status=d['meta'].get('status'), live=d['meta'].get('live'), final=final, liveVal=live, statusText=status_text(final)),
         parties=parties, PN=PN, PIDS=PIDS, LEFT=LEFT, RIGHT=RIGHT,
         riket=riket, valkretsar=valkretsar_out, lan=lan_out, regioner=regioner, kommuner=kommuner,
-        styreStat=styre_stat, regStyreStat=reg_styre_stat, skiften=skiften, avvikelser=avvikelser, distrikt=dist_out, spread=spread, demo=demo,
+        styreStat=styre_stat, regStyreStat=reg_styre_stat, skiften=skiften, resid=resid, avvikelser=avvikelser, distrikt=dist_out, spread=spread, demo=demo,
         geo=dict(w=d.get('geoW', 1000), h=d.get('geoH', 2304), lan=d.get('granser', {}).get('lan', {}), lanNamn=lanNamn),
     )
     html = PAGE.replace('/*__DATA__*/', json.dumps(payload, ensure_ascii=False, separators=(',', ':')))
@@ -505,7 +559,10 @@ PAGE = r"""<!doctype html>
  .corr{display:inline-block;height:9px;border-radius:5px;vertical-align:middle}
  footer{padding-top:24px;margin-top:20px;border-top:1px solid var(--line);color:var(--ink3);font-size:.8rem}
  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
- @media(max-width:600px){.wrap{padding:0 12px 48px} h1{font-size:1.5rem} table{font-size:.82rem} th,td{padding:6px 5px}}
+ .card{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;background:var(--surface)} .card.click{cursor:pointer} .card .t{font-weight:700;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+ .card .l{font-size:.84rem;color:var(--ink2);margin-top:3px;line-height:1.5} .card .l b{color:var(--ink)}
+ .plist{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:.84rem;margin-top:4px} .plist span{white-space:nowrap}
+ @media(max-width:640px){.wrap{padding:0 12px 48px} h1{font-size:1.5rem} table{font-size:.82rem} th,td{padding:6px 5px} .pn{display:none} .mapbox{flex:0 0 105px} .kpi .v{font-size:1.25rem} .maprow{gap:10px}}
 </style></head>
 <body><div class="wrap">
 <header class="top">
@@ -546,6 +603,9 @@ const $=s=>document.querySelector(s); const PN=DATA.PN; const PIDS=DATA.PIDS;
 const COL=Object.fromEntries(DATA.parties.map(p=>[p.id,p.color])); COL['ÖP']='#7a8390';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const col=p=>COL[p]||'#7a8390';
+const isMobile=()=>window.matchMedia('(max-width:640px)').matches;
+const pline=(res)=>`<div class="plist">${res.map(x=>`<span>${pf(x.p)} ${f1(x.a)} ${sg(x.chg)}</span>`).join('')}</div>`;
+window.addEventListener('resize',(()=>{let t,last=isMobile();return()=>{clearTimeout(t);t=setTimeout(()=>{if(isMobile()!==last){last=isMobile();render();}},150);};})());
 const pf=p=>`<span class="pf" style="background:${col(p)}">${esc(p)}</span>`;
 const f1=v=>v==null?'–':(Math.round(v*10)/10).toFixed(1).replace('.',',');
 const sg=v=>v==null?'<span class="muted">–</span>':`<span class="${v>0?'pos':v<0?'neg':'muted'}">${v>0?'+':''}${f1(v)}</span>`;
@@ -582,7 +642,7 @@ const ORDER=['V','S','MP','C','L','KD','M','SD'];
 function resTable(res,ovriga,seats,seats22){
  const hasSeats=!!seats;
  return `<div class="tw"><table><thead><tr><th>Parti</th><th class="r">2026 %</th><th class="r">±2022</th>${hasSeats?'<th class="r">Mandat</th><th class="r">±</th>':''}</tr></thead><tbody>${
- res.map(r=>`<tr><td>${pf(r.p)} ${esc(PN[r.p]||r.p)}</td><td class="r">${f1(r.a)}</td><td class="r">${sg(r.chg)}</td>${hasSeats?`<td class="r">${seats[r.p]??0}</td><td class="r">${seats22?sgi((seats[r.p]||0)-(seats22[r.p]||0)):'–'}</td>`:''}</tr>`).join('')}
+ res.map(r=>`<tr><td>${pf(r.p)} <span class="pn">${esc(PN[r.p]||r.p)}</span></td><td class="r">${f1(r.a)}</td><td class="r">${sg(r.chg)}</td>${hasSeats?`<td class="r">${seats[r.p]??0}</td><td class="r">${seats22?sgi((seats[r.p]||0)-(seats22[r.p]||0)):'–'}</td>`:''}</tr>`).join('')}
  ${ovriga!=null?`<tr><td class="muted">Övriga partier</td><td class="r muted">${f1(ovriga)}</td><td></td>${hasSeats?'<td></td><td></td>':''}</tr>`:''}</tbody></table></div>`;}
 
 function blockLine(b,b22,tot){const maj=Math.floor(tot/2)+1;
@@ -603,13 +663,13 @@ function renderRiket(){const r=DATA.riket;const tot=349;const b=r.blocks,b22=r.b
  ${blockLine(b,b22,tot)}
  <div class="takeaway">${takeawayRiket(r)}</div>
  <h2>Län</h2><p class="lead">Riksdagsvalet per län, aggregerat ur jämförbara valdistrikt (viktat med röstberättigade). ${skift.length?`Största parti bytte i ${skift.length} län: ${skift.map(l=>esc(l.namn)+' ('+l.top22+'→'+l.top+')').join(', ')}.`:'Största parti är oförändrat i alla län.'} Klicka på ett län i kartan för att se kommunerna.</p>
- <div class="tw"><table><thead><tr><th>Län</th><th>Störst</th>${PIDS.map(p=>`<th class="r">${p}</th>`).join('')}</tr></thead><tbody>${
-  lan.map(l=>{const m=Object.fromEntries(l.res.map(x=>[x.p,x]));return `<tr class="click" data-lan="${l.kod}"><td>${esc(l.namn)}</td><td>${pf(l.top)}</td>${PIDS.map(p=>`<td class="r">${f1(m[p]?.a)}<br><small>${sg(m[p]?.chg)}</small></td>`).join('')}</tr>`}).join('')}</tbody></table></div>
+ ${isMobile()?lan.map(l=>`<div class="card click" data-lan="${l.kod}"><div class="t"><span>${esc(l.namn)}</span><span>${pf(l.top)}</span></div>${pline(l.res)}</div>`).join(''):`<div class="tw"><table><thead><tr><th>Län</th><th>Störst</th>${PIDS.map(p=>`<th class="r">${p}</th>`).join('')}</tr></thead><tbody>${
+  lan.map(l=>{const m=Object.fromEntries(l.res.map(x=>[x.p,x]));return `<tr class="click" data-lan="${l.kod}"><td>${esc(l.namn)}</td><td>${pf(l.top)}</td>${PIDS.map(p=>`<td class="r">${f1(m[p]?.a)}<br><small>${sg(m[p]?.chg)}</small></td>`).join('')}</tr>`}).join('')}</tbody></table></div>`}
  <h2>Riksdagsvalkretsar</h2><p class="lead">Andel 2026 och förändring mot 2022 (2022 aggregerat ur valdistrikten).</p>
- <div class="tw"><table><thead><tr><th>Valkrets</th><th class="r">Fasta</th><th>Störst</th>${PIDS.map(p=>`<th class="r">${p}</th>`).join('')}</tr></thead><tbody>${
-  vk.map(v=>{const m=Object.fromEntries(v.res.map(x=>[x.p,x]));return `<tr><td>${esc(v.namn)}</td><td class="r">${v.fasta??'–'}</td><td>${pf(v.top)}${v.top22&&v.top22!==v.top?` <small class="muted">(2022: ${v.top22})</small>`:''}</td>${PIDS.map(p=>`<td class="r">${f1(m[p]?.a)}<br><small>${sg(m[p]?.chg)}</small></td>`).join('')}</tr>`}).join('')}</tbody></table></div>
+ ${isMobile()?vk.map(v=>`<div class="card"><div class="t"><span>${esc(v.namn)}</span><span>${pf(v.top)} <small class="muted">${v.fasta??'–'} fasta</small></span></div>${pline(v.res)}</div>`).join(''):`<div class="tw"><table><thead><tr><th>Valkrets</th><th class="r">Fasta</th><th>Störst</th>${PIDS.map(p=>`<th class="r">${p}</th>`).join('')}</tr></thead><tbody>${
+  vk.map(v=>{const m=Object.fromEntries(v.res.map(x=>[x.p,x]));return `<tr><td>${esc(v.namn)}</td><td class="r">${v.fasta??'–'}</td><td>${pf(v.top)}${v.top22&&v.top22!==v.top?` <small class="muted">(2022: ${v.top22})</small>`:''}</td>${PIDS.map(p=>`<td class="r">${f1(m[p]?.a)}<br><small>${sg(m[p]?.chg)}</small></td>`).join('')}</tr>`}).join('')}</tbody></table></div>`}
  <p class="note">Riksdagsmandaten är räknade ur exakta röstetal med Valmyndighetens metod (310 fasta + 39 utjämningsmandat, spärr 4 % nationellt eller 12 % i en valkrets). 2022 års mandat: Valmyndighetens slutliga resultat.</p>`;
- $('#panel').querySelectorAll('tr[data-lan]').forEach(tr=>tr.onclick=()=>{selectLan(tr.dataset.lan);setMode('kommuner');});}
+ $('#panel').querySelectorAll('[data-lan]').forEach(tr=>tr.onclick=()=>{selectLan(tr.dataset.lan);setMode('kommuner');});}
 function takeawayRiket(r){const up=r.res.filter(x=>x.chg>0).sort((a,b)=>b.chg-a.chg),dn=r.res.filter(x=>x.chg<0).sort((a,b)=>a.chg-b.chg);
  const s=[];if(up.length)s.push(`Störst ökning: ${up.slice(0,2).map(x=>PN[x.p]+' ('+sg(x.chg)+')').join(' och ')}.`);
  if(dn.length)s.push(`Störst tapp: ${dn.slice(0,2).map(x=>PN[x.p]+' ('+sg(x.chg)+')').join(' och ')}.`);
@@ -657,14 +717,17 @@ function renderRegioner(){let rows=DATA.regioner;if(selLan)rows=rows.filter(r=>r
   <div class="kpi"><div class="v">${DATA.regStyreStat.saknar}</div><div class="l">Sittande regionstyren som saknar majoritet ${base?'(2022-läge)':'efter valet'}</div><div class="d">${DATA.regStyreStat.majoritet} behåller majoritet, ${DATA.regStyreStat.beror} beror på regionalt parti</div></div>
   <div class="kpi"><div class="v">${skift.length}</div><div class="l">Regioner med nytt största parti</div><div class="d">${skift.map(r=>esc(r.namn.replace('Region ',''))).join(', ')||'–'}</div></div>
  </div>
- <div class="tw"><table><thead><tr><th>Region</th><th>Störst</th><th class="r">S+V+MP+C</th><th class="r">M+KD+L+SD</th><th class="r">Övr.</th><th>Styre 2022–26</th><th class="r">Styrets mandat ${base?'(2022-spegling)':'2026'}</th><th>Läge</th><th>Ordf. 2022–26</th></tr></thead><tbody>${
+ ${isMobile()?rows.map(r=>{const o=r.ledning.find(x=>/^ordf/i.test(x.roll));const maj=Math.floor(r.tot/2)+1;const s=r.styre;const sm=s?(s.min===s.max?`${s.min}`:`${s.min}–${s.max}`):'–';
+   return `<div class="card click" data-reg="${r.kod}"><div class="t"><span>${esc(r.namn)}</span><span>${pf(r.res[0]?.p)} ${f1(r.res[0]?.a)}</span></div>
+   <div class="l"><b>S+V+MP+C</b> ${r.blocks.L} ${sgi(r.blocks.L-r.blocks22.L)} · <b>M+KD+L+SD</b> ${r.blocks.R} ${sgi(r.blocks.R-r.blocks22.R)}${r.blocks.O?` · övr ${r.blocks.O}`:''} · maj ${maj}/${r.tot}</div>
+   <div class="l">Styre: ${s?s.partier.map(p=>pf(p)).join(' ')+' '+sm+' mandat ':'– '}${statusTag(s)}</div>${o?`<div class="l">Ordf: ${esc(o.namn)} ${pf(o.p)}</div>`:''}</div>${regOpen===r.kod?regionDetail(r):''}`}).join('')+(rows.length?'':'<p class="muted">Inga regioner.</p>'):`<div class="tw"><table><thead><tr><th>Region</th><th>Störst</th><th class="r">S+V+MP+C</th><th class="r">M+KD+L+SD</th><th class="r">Övr.</th><th>Styre 2022–26</th><th class="r">Styrets mandat ${base?'(2022-spegling)':'2026'}</th><th>Läge</th><th>Ordf. 2022–26</th></tr></thead><tbody>${
   rows.map(r=>{const o=r.ledning.find(x=>/^ordf/i.test(x.roll));const maj=Math.floor(r.tot/2)+1;const s=r.styre;const sm=s?(s.min===s.max?`${s.min}`:`${s.min}–${s.max}`):'–';
    return `<tr class="click" data-reg="${r.kod}"><td><b>${esc(r.namn)}</b></td><td>${pf(r.res[0]?.p)} ${f1(r.res[0]?.a)}</td>
    <td class="r">${r.blocks.L} <small>${sgi(r.blocks.L-r.blocks22.L)}</small></td><td class="r">${r.blocks.R} <small>${sgi(r.blocks.R-r.blocks22.R)}</small></td><td class="r">${r.blocks.O}</td>
    <td>${s?s.partier.map(p=>pf(p)).join(' ')+(s.majmin?` <small class="muted">${esc(s.majmin.toLowerCase())}</small>`:''):'<span class="muted">–</span>'}</td><td class="r">${sm} <small class="muted">/ ${maj} av ${r.tot}</small></td><td>${statusTag(s)}</td>
-   <td>${o?esc(o.namn)+' '+pf(o.p):'<span class="muted">–</span>'}</td></tr>${regOpen===r.kod?`<tr><td colspan="9">${regionDetail(r)}</td></tr>`:''}`}).join('')}</tbody></table></div>
+   <td>${o?esc(o.namn)+' '+pf(o.p):'<span class="muted">–</span>'}</td></tr>${regOpen===r.kod?`<tr><td colspan="9">${regionDetail(r)}</td></tr>`:''}`}).join('')}</tbody></table></div>`}
  <p class="note">Styre 2022–2026: SKR, "Styre i regioner efter valet 2022" (uppdaterad 2026-06-30). ÖP = regionalt parti; när det kan identifieras i valresultatet räknas dess mandat in, annars visas ett intervall. Ordförande: Plenum.</p>`;
- $('#panel').querySelectorAll('tr[data-reg]').forEach(tr=>tr.onclick=()=>{regOpen=regOpen===tr.dataset.reg?null:tr.dataset.reg;renderRegioner();});
+ $('#panel').querySelectorAll('[data-reg]').forEach(tr=>tr.onclick=()=>{regOpen=regOpen===tr.dataset.reg?null:tr.dataset.reg;renderRegioner();});
  bindCoal();}
 // ---------- drag-och-släpp för koalitioner ----------
 function partyOrder(seats){return Object.keys(seats).filter(p=>seats[p]>0).sort((a,b)=>(ORDER.indexOf(a)===-1?99:ORDER.indexOf(a))-(ORDER.indexOf(b)===-1?99:ORDER.indexOf(b)));}
@@ -715,22 +778,25 @@ function renderKommuner(){let rows=DATA.kommuner.slice();const q=kQuery.trim().t
   <div class="kpi"><div class="v">${sk.length}</div><div class="l">Kommuner med nytt största parti i KF</div><div class="d">${sk.slice(0,4).map(x=>esc(x.namn)+' ('+x.fran+'→'+x.till+')').join(', ')}${sk.length>4?' …':''}</div></div>
  </div>
  <div class="controls">
-  <div class="ctl"><label>Urval</label><span class="seg" id="kf"><button data-f="stora" aria-pressed="${kFilter==='stora'}">Över 100 000 inv.</button><button data-f="alla" aria-pressed="${kFilter==='alla'}">Alla</button><button data-f="saknar" aria-pressed="${kFilter==='saknar'}">Styret saknar majoritet</button></span></div>
+  <div class="ctl"><label>Urval</label><span class="seg" id="kf"><button data-f="stora" aria-pressed="${kFilter==='stora'}">${isMobile()?'>100k inv.':'Över 100 000 inv.'}</button><button data-f="alla" aria-pressed="${kFilter==='alla'}">Alla</button><button data-f="saknar" aria-pressed="${kFilter==='saknar'}">${isMobile()?'Saknar maj.':'Styret saknar majoritet'}</button></span></div>
   <div class="ctl"><label>Sortera</label><select id="ksort"><option value="folk" ${kSort==='folk'?'selected':''}>Folkmängd</option><option value="namn" ${kSort==='namn'?'selected':''}>Namn</option><option value="marg" ${kSort==='marg'?'selected':''}>Styrets marginal</option></select></div>
   <div class="ctl"><label>Sök kommun</label><input type="search" id="kq" value="${esc(kQuery)}" placeholder="t.ex. Örebro"></div>
   <div class="ctl" id="selwrap"></div>
  </div>
- <div class="tw"><table><thead><tr><th>Kommun</th><th class="r">Inv.</th><th>Störst KF</th><th class="r">S+V+MP+C</th><th class="r">M+KD+L+SD</th><th class="r">Övr.</th><th>Styre 2022–26</th><th class="r">Styrets mandat ${base?'(2022-spegling)':'2026'}</th><th>Läge</th></tr></thead><tbody>${
+ ${isMobile()?rows.map(k=>{const s=k.styre;const sm=s?(s.min===s.max?`${s.min}`:`${s.min}–${s.max}`):'–';
+   return `<div class="card click" data-kod="${k.kod}"><div class="t"><span>${esc(k.namn)} <small class="muted" style="font-weight:400">${fmt(k.folk)} inv.</small></span><span>${pf(k.res[0]?.p)} ${f1(k.res[0]?.a)} <small>${sg(k.res[0]?.chg)}</small></span></div>
+   <div class="l"><b>S+V+MP+C</b> ${k.blocks.L} ${sgi(k.blocks.L-k.blocks22.L)} · <b>M+KD+L+SD</b> ${k.blocks.R} ${sgi(k.blocks.R-k.blocks22.R)}${k.blocks.O?` · övr ${k.blocks.O}`:''} · maj ${k.maj}/${k.tot}</div>
+   <div class="l">Styre: ${s?s.partier.map(p=>pf(p)).join(' ')+' '+sm+' mandat ':'– '}${statusTag(s)}</div></div>${openKod===k.kod?kommunDetail(k):''}`}).join('')+(rows.length?'':'<p class="muted">Inga kommuner matchar.</p>'):`<div class="tw"><table><thead><tr><th>Kommun</th><th class="r">Inv.</th><th>Störst KF</th><th class="r">S+V+MP+C</th><th class="r">M+KD+L+SD</th><th class="r">Övr.</th><th>Styre 2022–26</th><th class="r">Styrets mandat ${base?'(2022-spegling)':'2026'}</th><th>Läge</th></tr></thead><tbody>${
   rows.map(k=>{const s=k.styre;const sm=s?(s.min===s.max?`${s.min}`:`${s.min}–${s.max}`):'–';
    return `<tr class="click" data-kod="${k.kod}"><td><b>${esc(k.namn)}</b></td><td class="r">${fmt(k.folk)}</td><td>${pf(k.res[0]?.p)} ${f1(k.res[0]?.a)} <small>${sg(k.res[0]?.chg)}</small></td>
    <td class="r">${k.blocks.L} <small>${sgi(k.blocks.L-k.blocks22.L)}</small></td><td class="r">${k.blocks.R} <small>${sgi(k.blocks.R-k.blocks22.R)}</small></td><td class="r">${k.blocks.O}</td>
    <td>${s?s.partier.map(p=>pf(p)).join(' ')+(s.majmin?` <small class="muted">${esc(s.majmin.toLowerCase())}</small>`:''):'<span class="muted">–</span>'}</td><td class="r">${sm} <small class="muted">/ ${k.maj} av ${k.tot}</small></td><td>${statusTag(s)}</td></tr>${openKod===k.kod?`<tr><td colspan="9">${kommunDetail(k)}</td></tr>`:''}`}).join('')}
-  ${rows.length?'':'<tr><td colspan="9" class="muted">Inga kommuner matchar.</td></tr>'}</tbody></table></div>
+  ${rows.length?'':'<tr><td colspan="9" class="muted">Inga kommuner matchar.</td></tr>'}</tbody></table></div>`}
  <p class="note">${rows.length} kommuner visas. Folkmängd 2024 (SCB via Faktadriven). ÖP i styret = lokalt parti.</p>`;
  $('#panel').querySelectorAll('#kf button').forEach(b=>b.onclick=()=>{kFilter=b.dataset.f;renderKommuner();});
  $('#ksort').onchange=e=>{kSort=e.target.value;renderKommuner();};
  const kq=$('#kq');kq.oninput=e=>{kQuery=e.target.value;renderKommuner();const el=$('#kq');el.focus();el.setSelectionRange(el.value.length,el.value.length);};
- $('#panel').querySelectorAll('tr[data-kod]').forEach(tr=>tr.onclick=()=>{openKod=openKod===tr.dataset.kod?null:tr.dataset.kod;renderKommuner();});
+ $('#panel').querySelectorAll('[data-kod]').forEach(tr=>tr.onclick=()=>{openKod=openKod===tr.dataset.kod?null:tr.dataset.kod;renderKommuner();});
  updSel();bindCoal();}
 function kommunDetail(k){const s=k.styre;
  return `<div class="detail"><div class="grid2"><div><h3>Kommunvalet ${esc(k.namn)}</h3>${seatBar(k.seats,ORDER,k.tot)}${resTable(k.res,null,k.seats,k.seats22)}${blockLine(k.blocks,k.blocks22,k.tot)}${coalCalc('k'+k.kod,k.seats,k.tot)}</div>
@@ -745,7 +811,7 @@ function renderAvvikelser(){const p=avvP;const lk=selLan||'00';const all=DATA.av
  const row=x=>`<tr><td>${esc(x.namn)}</td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td><td class="r"><b>${sg(x.rel)}</b></td></tr>`;
  const drow=x=>`<tr><td>${esc(x.namn)} <small class="muted">${esc(x.kommun)}</small></td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td></tr>`;
  $('#panel').innerHTML=`<h2 style="margin-top:0">Avvikelser i väljarbeteendet${selLan?' – '+omr:''}</h2>
- <details class="explain"><summary>Vad avvikelse betyder här</summary><div class="body"><p>Riksvalet 2026 mot 2022. <b>Avvikelse</b> = partiets förändring i kommunen minus partiets förändring i riket. Ett parti som backar 3 enheter nationellt men bara 1 i en kommun har en avvikelse på +2 där. Det pekar ut var partiet gått mot strömmen, vilket ofta hänger ihop med lokala kandidater, lokala frågor eller demografi.</p></div></details>
+ <details class="explain"><summary>Vad avvikelse betyder här</summary><div class="body"><p>Två sorters avvikelse. Först <b>mot strömmen</b>: riksvalet 2026 mot 2022, där avvikelsen är partiets förändring i kommunen minus partiets förändring i riket. Längre ner <b>mot demografin</b>: utfallet jämfört med vad befolkningssammansättningen förutsäger. Ett parti som backar 3 enheter nationellt men bara 1 i en kommun har en avvikelse på +2 där. Det pekar ut var partiet gått mot strömmen, vilket ofta hänger ihop med lokala kandidater, lokala frågor eller demografi.</p></div></details>
  <div class="chips">${ORDER.map(x=>`<button class="chip ${x===p?'on':''}" data-p="${x}" style="${x===p?'background:'+col(x):''}">${x}</button>`).join('')}</div>
  <div class="kpis"><div class="kpi"><div class="v">${sg(nat?.chg)}</div><div class="l">${esc(PN[p])} i riket</div><div class="d">${f1(nat?.a)} % 2026</div></div>
  ${sp?`<div class="kpi"><div class="v">${Math.round(100*sp.upp/sp.n)} %</div><div class="l">av valdistrikten i ${omr} där ${p} ökade</div><div class="d">medianförändring ${sg(sp.median)} (${sp.n} distrikt)</div></div>`:''}</div>
@@ -753,8 +819,21 @@ function renderAvvikelser(){const p=avvP;const lk=selLan||'00';const all=DATA.av
  <div><h3>Kommuner där ${p} gick sämst mot strömmen</h3><div class="tw"><table><thead><tr><th>Kommun</th><th class="r">2026 %</th><th class="r">±2022</th><th class="r">Avvik.</th></tr></thead><tbody>${A.ned.map(row).join('')}</tbody></table></div></div></div>
  <div class="grid2" style="margin-top:14px"><div><h3>Valdistrikt: största ökningar</h3><div class="tw"><table><thead><tr><th>Distrikt</th><th class="r">2026 %</th><th class="r">±2022</th></tr></thead><tbody>${D.upp.map(drow).join('')}</tbody></table></div></div>
  <div><h3>Valdistrikt: största tapp</h3><div class="tw"><table><thead><tr><th>Distrikt</th><th class="r">2026 %</th><th class="r">±2022</th></tr></thead><tbody>${D.ned.map(drow).join('')}</tbody></table></div></div></div>
- <p class="note">Valdistrikt med färre än 500 röstberättigade och distrikt som inte är jämförbara med 2022 (omritade eller nya) är uteslutna ur distriktslistorna.</p>`;
+ <p class="note">Valdistrikt med färre än 500 röstberättigade och distrikt som inte är jämförbara med 2022 (omritade eller nya) är uteslutna ur distriktslistorna.</p>
+ ${residSection(p)}`;
  $('#panel').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{avvP=b.dataset.p;renderAvvikelser();});}
+function residSection(p){const R=DATA.resid;if(!R||!R.kom||!R.kom[p])return '';const lk=selLan||'00';const omr=selLan?esc(DATA.geo.lanNamn[selLan]||selLan):'riket';
+ const all=R.kom[p].filter(x=>!selLan||x.kod.slice(0,2)===selLan);const K={upp:all.slice(-8).reverse(),ned:all.slice(0,8)};const D=(R.dist[lk]||{})[p]||{upp:[],ned:[]};const r2=R.r2[p];
+ const row=x=>`<tr><td>${esc(x.namn)}</td><td class="r">${f1(x.a)}</td><td class="r"><b>${sg(x.res)}</b></td></tr>`;
+ const drow=x=>`<tr><td>${esc(x.namn)} <small class="muted">${esc(x.kommun)}</small></td><td class="r">${f1(x.a)}</td><td class="r">${f1(x.pred)}</td><td class="r"><b>${sg(x.res)}</b></td></tr>`;
+ return `<h2>Mot demografin${selLan?' – '+omr:''}</h2>
+ <details class="explain"><summary>Vad "mot demografin" betyder</summary><div class="body"><p>En statistisk modell förutsäger ${esc(PN[p])}s andel i varje valdistrikt utifrån områdets ${esc(R.preds.join(', ').toLowerCase())} (viktad regression över ${R.n.toLocaleString('sv-SE')} distrikt). <b>Avvikelsen</b> är utfallet minus modellens förväntan. Plus betyder att partiet gör bättre än vad befolkningssammansättningen förutsäger – ofta lokala kandidater, lokala frågor eller traditioner. Minus betyder sämre.</p><p>Modellen förklarar ${r2==null?'–':Math.round(r2*100)+' %'} av variationen mellan distrikten för ${esc(p)}. Detta är samma modell som tidigare låg under fliken Avvikelse på startsidan, nu aggregerad till kommuner.</p></div></details>
+ <div class="kpis"><div class="kpi"><div class="v">${r2==null?'–':Math.round(r2*100)+' %'}</div><div class="l">av ${p}:s variation mellan distrikt förklaras av demografin</div><div class="d">${esc(R.preds.join(', '))}</div></div></div>
+ <div class="grid2"><div><h3>Kommuner${selLan?' i '+omr:''} där ${p} gör bättre än demografin förutsäger</h3><div class="tw"><table><thead><tr><th>Kommun</th><th class="r">2026 %</th><th class="r">Mot modell</th></tr></thead><tbody>${K.upp.map(row).join('')}</tbody></table></div></div>
+ <div><h3>Kommuner${selLan?' i '+omr:''} där ${p} gör sämre än demografin förutsäger</h3><div class="tw"><table><thead><tr><th>Kommun</th><th class="r">2026 %</th><th class="r">Mot modell</th></tr></thead><tbody>${K.ned.map(row).join('')}</tbody></table></div></div></div>
+ <div class="grid2" style="margin-top:14px"><div><h3>Valdistrikt: mest över modellen</h3><div class="tw"><table><thead><tr><th>Distrikt</th><th class="r">Utfall</th><th class="r">Modell</th><th class="r">Diff</th></tr></thead><tbody>${D.upp.map(drow).join('')}</tbody></table></div></div>
+ <div><h3>Valdistrikt: mest under modellen</h3><div class="tw"><table><thead><tr><th>Distrikt</th><th class="r">Utfall</th><th class="r">Modell</th><th class="r">Diff</th></tr></thead><tbody>${D.ned.map(drow).join('')}</tbody></table></div></div></div>
+ <p class="note">Kommunvärdet är det röstberättigadeviktade snittet av distriktens avvikelser. Modellen är linjär och säger inget om orsaker.</p>`;}
 
 // ---------- DEMOGRAFI ----------
 function corrCell(c){if(c==null)return '<td class="r muted">–</td>';const w=Math.min(60,Math.abs(c)*100);
@@ -763,7 +842,7 @@ function renderDemografi(){const dm=DATA.demo;const L=dm.lan[selLan||'00']||dm.l
  $('#panel').innerHTML=`<h2 style="margin-top:0">Demografi och geografi – ${omr}</h2>
  <details class="explain"><summary>Så läser du tabellen</summary><div class="body"><p>Varje tal är en <b>korrelation</b> (−1 till +1) över valdistrikten i ${omr}, viktad efter antal röstberättigade. <b>Nivå 2026</b>: hänger partiets stöd ihop med faktorn? <b>Förändring 2022→2026</b>: hänger partiets <i>rörelse</i> ihop med faktorn – ökade partiet mest i höginkomstområden, i hyresrättsområden, bland äldre? Skala: 0 inget samband · 0,1 svagt · 0,3 tydligt · 0,5+ starkt.</p><p>Samband är inte orsakssamband, och områdessnitt säger inte hur enskilda personer röstat. Faktorerna är SCB:s senaste ögonblicksbild per valdistrikt. Fördjupning finns i <a href="/valjaranalys.html">Väljaranalysen</a>.</p></div></details>
  <div class="controls"><div class="ctl"><label>Visa</label><span class="seg" id="dv"><button data-v="chg" aria-pressed="${demoView==='chg'}">Förändring 2022→2026</button><button data-v="niva" aria-pressed="${demoView==='niva'}">Nivå 2026</button></span></div></div>
- <div class="tw"><table><thead><tr><th>Faktor</th>${PIDS.map(p=>`<th class="r">${p}</th>`).join('')}</tr></thead><tbody>${dm.faktorer.filter(f=>L.n[f.key]).map(f=>`<tr><td><b>${esc(f.lab)}</b><br><small class="muted">${L.n[f.key]} distrikt</small></td>${PIDS.map(p=>corrCell(T[f.key]?.[p])).join('')}</tr>`).join('')}</tbody></table></div>
+ ${isMobile()?dm.faktorer.filter(f=>L.n[f.key]).map(f=>`<div class="card"><div class="t"><span>${esc(f.lab)}</span><small class="muted" style="font-weight:400">${L.n[f.key]} distrikt</small></div><div class="plist">${PIDS.map(p=>{const c=T[f.key]?.[p];return `<span>${pf(p)} <span class="${c>0?'pos':c<0?'neg':'muted'}">${c==null?'–':(c>0?'+':'')+c.toFixed(2).replace('.',',')}</span></span>`}).join('')}</div></div>`).join(''):`<div class="tw"><table><thead><tr><th>Faktor</th>${PIDS.map(p=>`<th class="r">${p}</th>`).join('')}</tr></thead><tbody>${dm.faktorer.filter(f=>L.n[f.key]).map(f=>`<tr><td><b>${esc(f.lab)}</b><br><small class="muted">${L.n[f.key]} distrikt</small></td>${PIDS.map(p=>corrCell(T[f.key]?.[p])).join('')}</tr>`).join('')}</tbody></table></div>`}
  <div class="takeaway">${demoText(T,dm)}</div>
  <h3>Geografi</h3><p class="lead">Riksdagsvalets förändring per län finns under <a href="#" id="golan">Riket</a>, kommun för kommun under Kommuner, och de största lokala avvikelserna under Avvikelser.</p>`;
  $('#panel').querySelectorAll('#dv button').forEach(b=>b.onclick=()=>{demoView=b.dataset.v;renderDemografi();});
@@ -785,7 +864,7 @@ function updSel(){const el=$('#selwrap');if(!el)return;if(!selLan){el.innerHTML=
  el.innerHTML=`<label>Län</label><span class="selchip">${esc(DATA.geo.lanNamn[selLan]||selLan)} <button aria-label="Rensa">×</button></span>`;
  el.querySelector('button').onclick=()=>selectLan(selLan);}
 function updMapHelp(){const r=DATA.riket;const L=selLan?DATA.lan.find(l=>l.kod===selLan):null;
- const rows=(L?L.res:r.res).map(x=>`<tr><td>${pf(x.p)} ${esc(PN[x.p]||x.p)}</td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td></tr>`).join('');
+ const rows=(L?L.res:r.res).map(x=>`<tr><td>${pf(x.p)} <span class="pn">${esc(PN[x.p]||x.p)}</span></td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td></tr>`).join('');
  $('#maphelp').innerHTML=`<p class="lead" style="margin:0 0 6px">${selLan?`Visar <b>${esc(DATA.geo.lanNamn[selLan]||selLan)}</b> i flikarna Regioner, Kommuner, Avvikelser och Demografi. Klicka länet igen för hela landet.`:'Klicka på ett län för att filtrera Regioner, Kommuner, Avvikelser och Demografi till länet.'}</p>
  <div class="kpis" style="margin:6px 0 8px"><div class="kpi"><div class="v">${r.blocks.L}–${r.blocks.R}</div><div class="l">Riksdagen: S+V+MP+C mot M+KD+L+SD</div></div>${selLan?'':`<div class="kpi"><div class="v">${DATA.styreStat.saknar}</div><div class="l">Kommunstyren som saknar majoritet</div></div>`}</div>
  <h3 style="margin:4px 0">Riksdagsvalet ${selLan?'i '+esc(DATA.geo.lanNamn[selLan]||selLan):'i riket'}</h3><div class="tw"><table style="max-width:420px"><thead><tr><th>Parti</th><th class="r">2026 %</th><th class="r">±2022</th></tr></thead><tbody>${rows}</tbody></table></div>`;}
