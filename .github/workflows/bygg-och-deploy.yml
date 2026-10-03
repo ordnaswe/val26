@@ -1,6 +1,8 @@
-name: Bygg och deploya (push)
+name: Testbygge utan valdata (deployar INTE)
+# Bygger alla sidor ur 2022-baslinjen för att kontrollera att skripten fungerar. Deployar ingenting.
+# Vill du uppdatera valutfall.se: kör "Deploya live" i stället.
 on:
-  workflow_dispatch:   # manuellt. Push deployar INTE längre: bygget saknar valdata och skrev över live-sajten med 2022-förhandsvisningen (2026-09-30).
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -43,8 +45,3 @@ jobs:
           else
             echo "data/kandidaturer.csv saknas – hoppar personvalet (byggs på valnatten av hamta.py)."
           fi
-      - name: Deploya till Netlify
-        run: npx --yes netlify-cli@17 deploy --dir=public --prod --message "push ${GITHUB_SHA}"
-        env:
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
