@@ -203,6 +203,21 @@
   .hero a.card.cur{border-color:var(--focus);box-shadow:0 0 0 2px var(--focus) inset}
   .statusnote{margin:8px 0 10px;padding:10px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--hair);color:var(--muted);font-size:13px;line-height:1.5}
   .statusnote b{color:var(--ink)}
+  .koal{background:var(--panel);border:1px solid var(--hair);border-radius:16px;padding:14px 18px;margin:0 0 10px;box-shadow:var(--shadow)}
+  .koal summary{cursor:pointer;font-weight:700;font-size:15px;list-style:none;display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .koal summary::-webkit-details-marker{display:none} .koal summary .hint{font-weight:400;color:var(--muted);font-size:13px}
+  .koal p{color:var(--muted);font-size:13px;margin:8px 0;line-height:1.5}
+  .koal .zone{border:1.5px dashed var(--hair);border-radius:10px;padding:8px 10px;min-height:46px;margin:6px 0;background:var(--paper)}
+  .koal .zone.over{border-color:var(--focus)} .koal .zl{font:600 11px/1 system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+  .koal .chips{display:flex;gap:6px;flex-wrap:wrap;min-height:30px}
+  .koal .dchip{border:1.5px solid var(--hair);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+  .koal .dchip.on{color:#fff;border-color:transparent} .koal .dchip.drag{opacity:.35}
+  .koal .ghost{position:fixed;pointer-events:none;z-index:99;opacity:.9;transform:translate(-50%,-50%)}
+  .koal .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0}
+  .koal .kpi{background:var(--paper);border-radius:10px;padding:10px 12px;display:block} .koal .kpi .v{display:block;font-size:22px;font-weight:700;line-height:1.2} .koal .kpi .l{display:block;font-size:12px;color:var(--muted)}
+  .koal .presets{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  .koal .presets button{font:inherit;font-size:12px;padding:6px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--panel);color:var(--ink);cursor:pointer}
+  .koal .take{background:var(--paper);border-left:3px solid var(--focus);border-radius:8px;padding:10px 13px;margin:10px 0 0;font-size:14px;line-height:1.5}
   .subnav{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .subnav a{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--panel);color:var(--ink);text-decoration:none}
   .subnav a.cur{background:var(--focus);color:#fff;border-color:var(--focus)}
@@ -246,6 +261,11 @@
     </div>
   </div>
   <div class="statusnote" id="statusnote"></div>
+  <details class="koal" id="koal">
+    <summary><span>Regeringsbildningen – räkna på en koalition</span><span class="hint">dra partierna · 175 mandat krävs</span></summary>
+    <p>Dra partierna till <b>Regering</b> eller <b>Släpper fram</b> (stödpartier), eller tryck på ett parti för att flytta det ett steg. En statsminister fälls i riksdagens omröstning bara om minst 175 ledamöter röstar emot (negativ parlamentarism). Räknaren visar aritmetik, inte sannolikheter. Mer i <a href="/partianalys.html#regering" style="color:var(--focus)">Partianalys</a>.</p>
+    <div id="koalBody"></div>
+  </details>
   <p class="sub" id="pageTitle">Valresultat, historik och prognos – per valdistrikt, kommun, region och riksdag.
     <a href="#" id="omSiffrorna" style="color:var(--focus)">Om siffrorna</a></p>
   <details id="omBox" style="margin:2px 0 4px"><summary style="list-style:none;cursor:pointer;font-size:12px;color:var(--muted)"></summary>
@@ -441,6 +461,34 @@
     try{const r=await fetch("slutligt.json?_="+Date.now(),{cache:"no-store"});if(r.ok)fin=await r.json();}catch(e){}
     const lab=(k,n)=>fin[k]?`<b>${n}:</b> slutligt (${fin[k]})`:`<b>${n}:</b> preliminärt`;
     el.innerHTML=[lab("RD","Riksdag"),lab("RF","Region"),lab("KF","Kommun")].join(" · ")+". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något. Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut.";})();
+  // Koalitionsräknare för riksdagen (drag-och-släpp). Mandat: DATA.rdSeatsExact (exakta röstetal) eller baslinje.
+  (function(){const box=document.getElementById("koalBody");if(!box)return;
+    const seats=DATA.rdSeatsExact||{};const ORDER=["V","S","MP","C","L","KD","M","SD"].filter(p=>seats[p]);
+    if(!ORDER.length){box.innerHTML='<p>Mandatfördelningen är inte tillgänglig än.</p>';return;}
+    const COLR=Object.fromEntries((DATA.parties||[]).map(p=>[p.id,p.color]));const NAME=Object.fromEntries((DATA.parties||[]).map(p=>[p.id,p.namn]));
+    const st={};ORDER.forEach(p=>st[p]="out");const zones=[["gov","Regering"],["sup","Släpper fram (stöd)"],["out","Utanför"]];
+    const presets=[["S+C+MP med V",["S","C","MP"],["V"]],["S+V+MP+C",["S","V","MP","C"],[]],["M+KD+L med SD",["M","KD","L"],["SD"]],["S+M",["S","M"],[]],["Rensa",[],[]]];
+    const sum=z=>ORDER.filter(p=>st[p]===z).reduce((a,p)=>a+seats[p],0);
+    function render(){const g=sum("gov"),s=sum("sup"),ag=349-g-s;
+      box.innerHTML=zones.map(([z,l])=>`<div class="zone" data-zone="${z}"><div class="zl"><span>${l}</span><span>${sum(z)} mandat</span></div><div class="chips">${ORDER.filter(p=>st[p]===z).map(p=>`<button class="dchip ${z==="out"?"":"on"}" data-p="${p}" style="${z==="out"?"":"background:"+COLR[p]}">${p} ${seats[p]}</button>`).join("")||'<span style="font-size:12px;color:var(--muted)">Släpp partier här</span>'}</div></div>`).join("")+
+        `<div class="presets">${presets.map((x,i)=>`<button data-preset="${i}">${x[0]}</button>`).join("")}</div>
+         <div class="kpis"><div class="kpi"><div class="v">${g}</div><div class="l">Regeringens egna mandat · ${g>=175?"egen majoritet":g?"minoritet":"–"}</div></div><div class="kpi"><div class="v">${g+s}</div><div class="l">Regering + stöd · ${g+s>=175?"majoritet i kammaren":"under 175"}</div></div><div class="kpi"><div class="v">${ag}</div><div class="l">Kan rösta emot · ${g?(ag<175?"släpps fram (färre än 175 emot)":"fälls om alla övriga röstar emot"):"välj partier"}</div></div></div>
+         <div class="take">${text(g,s,ag)}</div>`;
+      box.querySelectorAll("[data-preset]").forEach(b=>b.onclick=()=>{const [,gp,sp]=presets[+b.dataset.preset];ORDER.forEach(p=>st[p]="out");gp.forEach(p=>{if(st[p]!==undefined)st[p]="gov"});sp.forEach(p=>{if(st[p]!==undefined)st[p]="sup"});render();});
+      box.querySelectorAll(".dchip").forEach(ch=>{const p=ch.dataset.p;let ghost=null,sx=0,sy=0,moved=false;
+        ch.addEventListener("pointerdown",e=>{if(e.button!==undefined&&e.button!==0)return;e.preventDefault();sx=e.clientX;sy=e.clientY;moved=false;ch.setPointerCapture(e.pointerId);});
+        ch.addEventListener("pointermove",e=>{if(!ch.hasPointerCapture(e.pointerId))return;if(!moved&&Math.hypot(e.clientX-sx,e.clientY-sy)<6)return;
+          if(!ghost){moved=true;ghost=ch.cloneNode(true);ghost.classList.add("ghost");ghost.style.background=COLR[p];ghost.style.color="#fff";box.appendChild(ghost);ch.classList.add("drag");}
+          ghost.style.left=e.clientX+"px";ghost.style.top=e.clientY+"px";box.querySelectorAll(".zone").forEach(z=>z.classList.remove("over"));const el=document.elementFromPoint(e.clientX,e.clientY);const zone=el&&el.closest(".zone");if(zone&&box.contains(zone))zone.classList.add("over");});
+        const fin=e=>{if(!ch.hasPointerCapture(e.pointerId))return;ch.releasePointerCapture(e.pointerId);
+          if(ghost){ghost.remove();ghost=null;ch.classList.remove("drag");const el=document.elementFromPoint(e.clientX,e.clientY);const zone=el&&el.closest(".zone");if(zone&&box.contains(zone))st[p]=zone.dataset.zone;}
+          else{const zs=zones.map(z=>z[0]);st[p]=zs[(zs.indexOf(st[p])+1)%zs.length];}render();};
+        ch.addEventListener("pointerup",fin);ch.addEventListener("pointercancel",fin);});}
+    function text(g,s,ag){const gov=ORDER.filter(p=>st[p]==="gov"),sup=ORDER.filter(p=>st[p]==="sup");if(!gov.length)return "Välj partier ovan eller använd ett exempel. Exemplen är räkneexempel, inte bedömningar av vad som är troligt.";
+      const o=[];o.push(`${gov.join("+")} har ${g} mandat${g>=175?" – egen majoritet.":" – en minoritetsregering."}`);
+      if(sup.length)o.push(`Med stöd av ${sup.join("+")} når konstellationen ${g+s} mandat${g+s>=175?", majoritet i kammaren.":", fortfarande under 175."}`);
+      o.push(ag<175?`Övriga partier har ${ag} mandat och kan inte fälla statsministern på egen hand.`:`Övriga partier har ${ag} mandat och kan fälla statsministern om alla röstar emot.`);return o.join(" ");}
+    render();})();
   // page title + data provenance note
   document.title=(DATA.meta.title||"Valutfall")+" – valresultat per distrikt";
   const note=document.getElementById("dataNote");
