@@ -214,7 +214,7 @@
   .koal .dchip.on{color:#fff;border-color:transparent} .koal .dchip.drag{opacity:.35}
   .koal .ghost{position:fixed;pointer-events:none;z-index:99;opacity:.9;transform:translate(-50%,-50%)}
   .koal .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0}
-  .koal .kpi{background:var(--paper);border-radius:10px;padding:10px 12px;display:block} .koal .kpi .v{display:block;font-size:22px;font-weight:700;line-height:1.2} .koal .kpi .l{display:block;font-size:12px;color:var(--muted)}
+  .koal .kpi{background:var(--paper);border-radius:10px;padding:10px 12px;display:block;line-height:1.45} .koal .kpi .v{display:block;font-size:22px;font-weight:700;line-height:1.2} .koal .kpi .l{display:block;font-size:12px;color:var(--muted)}
   .koal .presets{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
   .koal .presets button{font:inherit;font-size:12px;padding:6px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--panel);color:var(--ink);cursor:pointer}
   .koal .take{background:var(--paper);border-left:3px solid var(--focus);border-radius:8px;padding:10px 13px;margin:10px 0 0;font-size:14px;line-height:1.5}
@@ -261,6 +261,14 @@
     </div>
   </div>
   <div class="statusnote" id="statusnote"></div>
+  <details class="koal" id="howto">
+    <summary><span>Så använder du sajten</span><span class="hint">tre vanliga frågor</span></summary>
+    <div class="cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px">
+      <div class="kpi"><div class="v" style="font-size:15px">Hur gick det där jag bor?</div><div class="l" style="margin-top:4px">Välj län och kommun i rullistorna under den gröna linjen, eller skriv kommunens namn i "Sök kommun" ovanför kartan. Klicka sedan på ett valdistrikt i kartan för att se just det området. Fliken <em style="font-style:normal;font-weight:600;color:var(--ink)">Historik</em> visar hur det gått sedan 2014.</div></div>
+      <div class="kpi"><div class="v" style="font-size:15px">Vem kan styra efter valet?</div><div class="l" style="margin-top:4px">För riksdagen: fäll ut <em style="font-style:normal;font-weight:600;color:var(--ink)">Regeringsbildningen</em> här nedanför och dra partierna. För regioner och kommuner: gå till <a href="/partianalys.html#kommuner" style="color:var(--focus)">Partianalys</a>, där du ser vilka som styr i dag, om de behåller majoriteten och vilka partier som skulle räcka.</div></div>
+      <div class="kpi"><div class="v" style="font-size:15px">Vilka personer kommer in?</div><div class="l" style="margin-top:4px"><a href="/personvalet.html" style="color:var(--focus)">Personvalet</a> visar vilka som tar plats i riksdag, regioner och kommuner och vilka makthavare som faller ur. Vill du veta varför väljarna röstade som de gjorde finns <a href="/valjaranalys.html" style="color:var(--focus)">Väljaranalysen</a>.</div></div>
+    </div>
+  </details>
   <details class="koal" id="koal">
     <summary><span>Regeringsbildningen – räkna på en koalition</span><span class="hint">dra partierna · 175 mandat krävs</span></summary>
     <p>Dra partierna till <b>Regering</b> eller <b>Släpper fram</b> (stödpartier), eller tryck på ett parti för att flytta det ett steg. En statsminister fälls i riksdagens omröstning bara om minst 175 ledamöter röstar emot (negativ parlamentarism). Räknaren visar aritmetik, inte sannolikheter. Mer i <a href="/partianalys.html#regering" style="color:var(--focus)">Partianalys</a>.</p>
