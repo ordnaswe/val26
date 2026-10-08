@@ -165,6 +165,7 @@ PAGE = r"""<!doctype html>
  .btn{background:var(--surface);color:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;font:.74rem ui-monospace,monospace}
  .nav a{text-decoration:none} .nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
  .statusnote{margin:10px 0 0;padding:10px 14px;border-radius:10px;background:var(--surface2);color:var(--ink2);font-size:.82rem}
+ .intro{margin:0 0 12px;padding:12px 14px;border-radius:10px;background:var(--surface2);font-size:.95rem;line-height:1.55} .intro b{color:var(--accent2)}
  .btn:hover{border-color:var(--accent);color:var(--accent2)}
  .banner{display:none;margin:12px 0 0;padding:10px 14px;border-radius:10px;background:var(--warn-s);color:var(--warn);font-size:.9rem;font-weight:600}
  .banner.show{display:block}
@@ -263,18 +264,21 @@ PAGE = r"""<!doctype html>
 
 <section class="panel" id="p_region" role="tabpanel">
  <h2 class="ph">Regionmakt</h2>
+ <div class="intro" id="i_region"></div>
  <p class="lead">Sittande region- och kommunledare samt tunga nämnders ordförande (vård, trafik) som tar plats i regionfullmäktige. Grupperat per region – klicka för roll och listplats.</p>
  <div class="filters" id="f_region"><input class="search" id="s_region" placeholder="Sök namn eller region…"></div>
  <div id="c_region"></div>
 </section>
 <section class="panel" id="p_kommun" role="tabpanel" hidden>
  <h2 class="ph">Kommunmakt</h2>
+ <div class="intro" id="i_kommun"></div>
  <p class="lead">Sittande kommunledare (KSO/oppositionsråd) och nämndordförande (utbildning, omsorg/vård) som sannolikt blir invalda i kommunfullmäktige. Grupperat per kommun – klicka för roll och listplats.</p>
  <div class="filters" id="f_kommun"><input class="search" id="s_kommun" placeholder="Sök namn eller kommun…"></div>
  <div id="c_kommun"></div>
  <p class="starnote">Kommunmandat räknas ur områdesandelarna (inkl. lokala partier) och är preliminära. Lokala partiers listor matchas i mån av namnöverensstämmelse.</p>
 </section>
 <section class="panel" id="p_riksdag" role="tabpanel" hidden>
+ <div class="intro" id="i_riksdag"></div>
  <h2 class="ph">Kommun- och regionprofiler in i riksdagen</h2>
  <p class="lead">Sittande ledande lokal- och regionpolitiker (KSO/RSO, kommunal-/regionråd, tunga nämndordförande) som tar plats i riksdagen – preliminärt på listordning. Klicka för roll och listplats.</p>
  <div id="c_rd_makt"></div>
@@ -285,6 +289,7 @@ PAGE = r"""<!doctype html>
 </section>
 <section class="panel" id="p_vippen" role="tabpanel" hidden>
  <h2 class="ph">På vippen</h2>
+ <div class="intro" id="i_vippen"></div>
  <p class="lead">Nyckelpersoner som kandiderar och ligger nära sitt partis mandatstreck i sitt område.</p>
  <div id="c_vippen"></div>
 </section>
@@ -378,6 +383,13 @@ function rdMaktCard(x){return `<button class="card person" style="--pc:${PC[x.pa
    <div class="rl">${esc(x.organ)}</div>
    <div class="where">${esc(x.omrade)}${x.valkrets?` · valkrets ${esc(x.valkrets)}`:''}${x.plats?` (plats ${esc(x.plats)})`:''}</div>
    ${x.kategori?`<span class="kb">${esc(x.kategori)}</span>`:''}</button>`;}
+function fillIntros(){const f=x=>!selLan||!x.lan||x.lan===selLan;const omr=selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):'';
+ const rf=(DATA.in_rf||[]).filter(f), kf=(DATA.in_kf||[]).filter(f), rk=(DATA.in_rd||[]).filter(f), rs=(DATA.risk||[]).filter(f);
+ const put=(id,what,now)=>{const el=document.getElementById(id);if(el)el.innerHTML=`${what} <b>Just nu:</b> ${now}`;};
+ put('i_region','Här ser du vilka sittande region- och kommunledare som tar plats i regionfullmäktige, region för region. Klicka på ett namn för roll och listplats.',`${rf.length} bevakade makthavare tar plats i regionfullmäktige${omr}.`);
+ put('i_kommun','Här ser du vilka sittande kommunledare och nämndordförande som tar plats i kommunfullmäktige, kommun för kommun. Sök på namn eller kommun.',`${kf.length} bevakade makthavare tar plats i kommunfullmäktige${omr}.`);
+ put('i_riksdag','Här ser du vilka lokala och regionala makthavare som går in i riksdagen, och därunder alla invalda per valkrets.',`${rk.length} kommun- och regionprofiler tar plats i riksdagen${omr}${DATA.rd_total?`, av ${DATA.rd_total} invalda totalt`:''}.`);
+ put('i_vippen','Här ser du bevakade personer som ligger precis vid sitt partis mandatstreck, alltså kan komma in eller falla ur med små förändringar eller personröster.',`${rs.length} personer står på vippen${omr}.`);}
 function renderRDmakt(){const el=$('#c_rd_makt');
  let list=DATA.in_rd.filter(x=>!selLan||x.lan===selLan);
  if(!list.length){el.innerHTML=`<div class="empty">${DATA.rd_total?(selLan?'Inga kända kommun-/regionprofiler i valt län.':'Inga kända kommun-/regionprofiler bland de invalda.'):'Fylls när rösträkningen börjar på valnatten.'}</div>`;return;}
@@ -408,7 +420,7 @@ function counts(){return {region:DATA.in_rf.filter(x=>!selLan||x.lan===selLan).l
   kommun:DATA.in_kf.filter(x=>!selLan||x.lan===selLan).length,
   riksdag:selLan?Object.entries(DATA.per_vk).filter(([k])=>(DATA.geo.lanToVk[selLan]||[]).includes(k)).reduce((a,[,v])=>a+v.length,0):DATA.rd_total,
   vippen:DATA.risk.filter(x=>!selLan||x.lan===selLan).length};}
-function paintTabs(){const c=counts();document.querySelectorAll('.tab').forEach(t=>{const k=t.dataset.tab;
+function paintTabs(){fillIntros();const c=counts();document.querySelectorAll('.tab').forEach(t=>{const k=t.dataset.tab;
   t.setAttribute('aria-selected',k===activeTab);
   t.innerHTML=({region:'Region',kommun:'Kommun',riksdag:'Riksdag',vippen:'På vippen'})[k]+`<span class="c">${c[k]}</span>`;});}
 function setTab(name){activeTab=name;

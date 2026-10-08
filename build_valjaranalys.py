@@ -302,6 +302,7 @@ PAGE = r"""<!doctype html>
  .explain p{margin:0 0 8px;font-size:.86rem;color:var(--ink2);line-height:1.55}
  .explain b{color:var(--ink)}
  .takeaway{background:var(--surface2);border-left:3px solid var(--accent);border-radius:8px;padding:10px 13px;margin:12px 0;font-size:.92rem}
+ .intro{margin:0 0 12px;padding:12px 14px;border-radius:10px;background:var(--surface2);font-size:.95rem;line-height:1.55} .intro b{color:var(--accent2)}
  .scalekey{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:.78rem;color:var(--ink3);margin:4px 0 0}
  .fc{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;cursor:pointer;font:inherit;font-size:.82rem;color:var(--ink2)}
  .fc.on{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -415,6 +416,7 @@ function plainCorr(p,r,facLabLc){const namn=PN[p]||p;
    : `${namn} är <b>starkare</b> i ${omr()} där ${facLabLc} är <b>låg</b>, och svagare där den är hög – <b>${styrkeOrd(r)} samband</b>.`;}
 function withUnit(lab,unit){if(!unit)return lab;const u=String(unit).trim();return lab.includes('('+u+')')?lab:lab+' ('+u+')';}
 // hopfällbar förklaring per flik
+function intro(what,now){return `<div class="intro">${what}${now?` <b>Just nu:</b> ${now}`:''}</div>`;}
 function explain(kind){const facLc=facMeta().lab.toLowerCase();
  const scale=`<div class="scalekey"><span><b>0</b> inget</span><span><b>0,1</b> svagt</span><span><b>0,3</b> tydligt</span><span><b>0,5+</b> starkt</span></div>`;
  const P={
@@ -441,7 +443,7 @@ function renderSamband(){const R=rows(),fm=facMeta();
  const me=corr.find(o=>o.p===party)||top; const opp=me.r>=0?bot:top;
  const tolk=`<div class="takeaway">Så läser du det: ${plainCorr(me.p, me.r, fl)}`+
    (opp&&opp.p!==me.p&&Math.abs(opp.r)>=0.1&&((opp.r>0)!==(me.r>0))?` Tvärtom: ${plainCorr(opp.p, opp.r, fl)}`:'')+`</div>`;
- $('#panel').innerHTML=explain('samband')+`<p class="lead">Hur <b>${esc(withUnit(fl,fm.unit))}</b> hänger ihop med varje partis stöd${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}. Staplar åt höger = partiet starkare där faktorn är hög, åt vänster = starkare där den är låg.</p>
+ $('#panel').innerHTML=intro(`Här ser du hur vald faktor hänger ihop med varje partis stöd. Byt faktor och parti i rutorna ovanför.`,plainCorr(me.p,me.r,fl))+explain('samband')+`<p class="lead">Hur <b>${esc(withUnit(fl,fm.unit))}</b> hänger ihop med varje partis stöd${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}. Staplar åt höger = partiet starkare där faktorn är hög, åt vänster = starkare där den är låg.</p>
    <div class="chart">${divergeBars(corr)}</div>
    ${tolk}
    <p class="lead" style="margin-top:16px">Punktdiagram: varje prick är ett ${level==='dist'?'valdistrikt':'kommun'} (större prick = fler röster). Lutar molnet uppåt åt höger följs hög ${esc(fl)} av högt stöd för ${esc(PN[party]||party)}; lutar det nedåt är det tvärtom.</p>
@@ -510,7 +512,7 @@ function renderGrupper(){const R=rows(),fm=facMeta();
  const lo=rowsq[0], hi=rowsq[rowsq.length-1], diff=hi.share-lo.share, fl=fm.lab.toLowerCase();
  const rikt = Math.abs(diff)<1 ? `röstar ungefär lika (${lo.share.toFixed(0)}–${hi.share.toFixed(0)} %) oavsett ${esc(fl)} – faktorn spelar liten roll.`
    : `får <b>${hi.share.toFixed(1)} %</b> i ${omr()} med högst ${esc(fl)}, mot <b>${lo.share.toFixed(1)} %</b> där den är lägst – en skillnad på <b>${Math.abs(diff).toFixed(1)} procentenheter</b>, ${diff>0?'alltså mer stöd ju högre faktorn är':'alltså mindre stöd ju högre faktorn är'}.`;
- $('#panel').innerHTML=explain('grupper')+ctlBins()+`<p class="lead">${esc(PN[party]||party)}s stöd i ${omr()} grupperade efter ${esc(fl)} (${q===5?'kvintiler = 5 grupper':'deciler = 10 grupper'}, rost-viktat)${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}.</p>
+ $('#panel').innerHTML=intro(`Här ser du hur valt parti röstas i ${omr()} med låg, medel och hög nivå på vald faktor, från lägst till högst.`,`${esc(PN[party]||party)} ${rikt}`)+explain('grupper')+ctlBins()+`<p class="lead">${esc(PN[party]||party)}s stöd i ${omr()} grupperade efter ${esc(fl)} (${q===5?'kvintiler = 5 grupper':'deciler = 10 grupper'}, rost-viktat)${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}.</p>
    <div class="takeaway">${esc(PN[party]||party)} ${rikt}</div>${bars}
    <p class="note">Varje grupp rymmer ~${Math.round(100/q)} % av rösterna, ordnade från lägst till högst på faktorn. Sista kolumnen visar faktorns spann i gruppen.</p>`;
  $('#panel').querySelectorAll('[data-bins]').forEach(b=>b.onclick=()=>{nbins=+b.dataset.bins;render();});
@@ -538,7 +540,8 @@ function renderTid(){const fm=facMeta();
    return `<path d="${path}" fill="none" stroke="${PC[o.p]||'#888'}" stroke-width="2.2"/>
      ${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${PC[o.p]||'#888'}"/>`).join('')}
      <text x="${(last[0]+6).toFixed(1)}" y="${(last[1]+4).toFixed(1)}" font-size="11" fill="${PC[o.p]||'#888'}">${esc(o.p)}</text>`;}).join('');
- $('#panel').innerHTML=explain('tid')+`<p class="lead">Hur sambandet mellan ${esc(fm.lab.toLowerCase())} och partiernas stöd ändrats över valen. Varje linje = ett parti. Uppåt = partiet har blivit relativt starkare där faktorn är hög; nedåt = svagare.</p>
+ const tidNow=(()=>{const o=series.map(x=>{const v=x.vals.filter(v=>v!=null);return {p:x.p,d:v.length>1?v[v.length-1]-v[0]:0};}).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d))[0];return o&&Math.abs(o.d)>=0.1?`Sambandet mellan ${esc(fm.lab.toLowerCase())} och ${esc(PN[o.p]||o.p)} har ${o.d>0?'stärkts':'försvagats'} mest sedan ${yrs[0]} (${o.d>0?'+':''}${o.d.toFixed(2).replace('.',',')}).`:'Sambanden har ändrats lite mellan valen.';})();
+ $('#panel').innerHTML=intro(`Här ser du om kopplingen mellan vald faktor och partiernas stöd blivit starkare eller svagare sedan ${yrs[0]}.`,tidNow)+explain('tid')+`<p class="lead">Hur sambandet mellan ${esc(fm.lab.toLowerCase())} och partiernas stöd ändrats över valen. Varje linje = ett parti. Uppåt = partiet har blivit relativt starkare där faktorn är hög; nedåt = svagare.</p>
    <div class="chart"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:680px">${axis}${lines}</svg></div>
    <p class="note">Kovariaten är aktuell (senaste år) och jämförs mot varje års röstandel — visar hur väljarmönstret förskjutits, med reservation för att faktorns nivå också ändrats.</p>`;
 }
@@ -582,7 +585,7 @@ function renderProfil(){const F=facs();
    <td class="r" style="color:${rcol(o.a)}">${o.a==null?'–':(o.a>0?'+':'')+o.a.toFixed(2)}</td>
    <td class="r" style="color:${rcol(o.b)}">${o.b==null?'–':(o.b>0?'+':'')+o.b.toFixed(2)}</td>
    <td>${o.d==null?'':(Math.abs(o.d)<0.03?'≈':(o.d>0?'▲':'▼'))+' '+(o.d>0?'+':'')+o.d.toFixed(2)}</td></tr>`).join('');
- $('#panel').innerHTML=explain('profil')+`<div style="background:var(--surface2);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+ $('#panel').innerHTML=intro(`Här ser du ett partis väljarprofil: vilka faktorer som hänger ihop med dess stöd, och hur det ändrats över valen. Byt parti i rutan ovanför.`,'')+explain('profil')+`<div style="background:var(--surface2);border-radius:12px;padding:14px 16px;margin-bottom:14px">
      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="pf" style="background:${PC[party]||'#888'}">${esc(party)}</span><b>${esc(PN[party]||party)} – väljarprofil</b></div>${persona}</div>
    <p class="lead">Rörelse över tid: hur <b>sambandets styrka</b> mellan ${esc(PN[party]||party)} och varje faktor ändrats mellan valen (${level==='dist'?'valdistrikt':'kommuner'}, nationellt).</p>
    <div class="takeaway" style="font-size:.86rem">Siffrorna är <b>sambandets styrka</b> (ett tal −1 till +1), <b>inte</b> en andel. Kolumnen <b>2022</b> = hur starkt sambandet var vid valet 2022. <b>Förändring</b> = hur mycket starkare (▲) eller svagare (▼) sambandet blivit <b>från 2014 till 2022</b>. Exempel: går utländsk bakgrund från +0,10 till +0,30 har partiet blivit relativt starkare i områden med hög andel utländsk bakgrund – det säger inget om hur många procent av partiets väljare som har utländsk bakgrund. (2026 i minigrafen är en spegling av 2022 i förhandsläget.)</div>
@@ -621,7 +624,7 @@ function renderMulti(){const F=facs();
  }
  const sel=avail.filter(f=>mvSel.has(f.key));
  const chips=`<div class="filters" style="margin:0 0 12px">`+avail.map(f=>{const on=mvSel.has(f.key);return `<button class="fc ${on?'on':'off'}" data-mv="${f.key}" aria-pressed="${on}">${on?'✓ ':'+ '}${esc(f.lab.replace(/\s*\([^)]*\)\s*$/,''))}</button>`;}).join('')+`</div>`;
- const head=explain('multi')+`<p class="lead">Vad hänger ihop med <b>${esc(PN[party]||party)}</b>s stöd när flera faktorer vägs in samtidigt (${level==='dist'?'valdistrikt':'kommuner'}${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}). Kryssa faktorer:</p>${chips}`;
+ const head=intro(`Här vägs flera faktorer in samtidigt, så du ser vilken som betyder mest för valt partis stöd när de andra hålls lika. Lägg till eller ta bort faktorer med knapparna.`,'')+explain('multi')+`<p class="lead">Vad hänger ihop med <b>${esc(PN[party]||party)}</b>s stöd när flera faktorer vägs in samtidigt (${level==='dist'?'valdistrikt':'kommuner'}${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}). Kryssa faktorer:</p>${chips}`;
  function wire(){$('#panel').querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{const k=b.dataset.mv;mvSel.has(k)?mvSel.delete(k):mvSel.add(k);renderMulti();});}
  if(sel.length<2){$('#panel').innerHTML=head+'<div class="empty">Välj minst två faktorer.</div>';wire();return;}
  // bygg rader med alla valda faktorer + andel + vikt
