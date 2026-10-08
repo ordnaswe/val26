@@ -41,10 +41,11 @@ def parse_roll(nyckelroll):
     return omrade.strip(), organ.strip(), kat.strip()
 
 def status_text(final, mandat=True):
-    lab = lambda k, n: f"<b>{n}:</b> slutligt ({final[k]})" if final.get(k) else f"<b>{n}:</b> preliminärt"
+    lab = lambda k, n: (f"<b>{n}:</b> slutligt" + (f" ({final[k]})" if isinstance(final.get(k), str) else "")) if final.get(k) else f"<b>{n}:</b> preliminärt"
     t = " · ".join([lab('RD', 'Riksdag'), lab('RF', 'Region'), lab('KF', 'Kommun')])
-    t += ". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något."
-    if mandat: t += " Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut."
+    t += ". Alla tre valen är fastställda." if all(final.get(k) for k in ('RD', 'RF', 'KF')) else ". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något."
+    if mandat and os.path.exists('data/mandat_slutligt.csv'): t += " Mandaten är Valmyndighetens fastställda fördelning; vilka som tar platserna bygger på listordning tills personrösterna lagts in."
+    elif mandat: t += " Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut."
     return t
 
 def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path, slutligt_path=None):

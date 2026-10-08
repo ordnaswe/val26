@@ -459,8 +459,9 @@
   // statusrad (samma formulering på alla sidor). slutligt.json: {"RD":"2026-09-19",...} publiceras av bygget.
   (async function(){const el=document.getElementById("statusnote");if(!el)return;let fin={};
     try{const r=await fetch("slutligt.json?_="+Date.now(),{cache:"no-store"});if(r.ok)fin=await r.json();}catch(e){}
-    const lab=(k,n)=>fin[k]?`<b>${n}:</b> slutligt (${fin[k]})`:`<b>${n}:</b> preliminärt`;
-    el.innerHTML=[lab("RD","Riksdag"),lab("RF","Region"),lab("KF","Kommun")].join(" · ")+". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något. Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut.";})();
+    const lab=(k,n)=>fin[k]?`<b>${n}:</b> slutligt${typeof fin[k]==="string"?" ("+fin[k]+")":""}`:`<b>${n}:</b> preliminärt`;
+    const all=["RD","RF","KF"].every(k=>fin[k]);
+    el.innerHTML=[lab("RD","Riksdag"),lab("RF","Region"),lab("KF","Kommun")].join(" · ")+(all?". Alla tre valen är fastställda. Riksdagsmandaten är Valmyndighetens; region- och kommunmandat på den här sidan räknas ur andelarna, de fastställda finns i Partianalys och Personvalet.":". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något. Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut.");})();
   // Koalitionsräknare för riksdagen (drag-och-släpp). Mandat: DATA.rdSeatsExact (exakta röstetal) eller baslinje.
   (function(){const box=document.getElementById("koalBody");if(!box)return;
     const seats=DATA.rdSeatsExact||{};const ORDER=["V","S","MP","C","L","KD","M","SD"].filter(p=>seats[p]);

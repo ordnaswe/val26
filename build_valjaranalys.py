@@ -79,9 +79,9 @@ def wpearson(xs, ys, ws):
     return sxy/math.sqrt(sxx*syy), n
 
 def status_text(final, mandat=False):
-    lab = lambda k, n: f"<b>{n}:</b> slutligt ({final[k]})" if final.get(k) else f"<b>{n}:</b> preliminärt"
+    lab = lambda k, n: (f"<b>{n}:</b> slutligt" + (f" ({final[k]})" if isinstance(final.get(k), str) else "")) if final.get(k) else f"<b>{n}:</b> preliminärt"
     t = " · ".join([lab('RD', 'Riksdag'), lab('RF', 'Region'), lab('KF', 'Kommun')])
-    t += ". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något."
+    t += ". Alla tre valen är fastställda." if all(final.get(k) for k in ('RD', 'RF', 'KF')) else ". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något."
     if mandat: t += " Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut."
     return t
 

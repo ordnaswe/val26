@@ -150,6 +150,7 @@ def main():
     ap.add_argument('--out', default='data/mandat_person.csv')
     ap.add_argument('--rf-approx', action='store_true', help='räkna RF ur regionandelar i data.json (om --distrikt-rf saknas)')
     ap.add_argument('--no-kf', action='store_true', help='hoppa över KF (kommunmandat ur allresults.kommun)')
+    ap.add_argument('--slutligt', default='data/mandat_slutligt.csv', help='Valmyndighetens fastställda mandat (ersätter RF/KF-beräkningen om filen finns)')
     a = ap.parse_args()
     import os
     d = json.load(open(a.data, encoding='utf-8'))
@@ -195,6 +196,13 @@ def main():
             for p, s in pv.items():
                 if s > 0: rows.append(('KF', kk, kk, p, s))
 
+    # Valmyndighetens fastställda mandat (data/mandat_slutligt.csv från mandat_slutligt.py) ersätter RF/KF-beräkningen.
+    if a.slutligt and os.path.exists(a.slutligt):
+        off = [r for r in csv.DictReader(open(a.slutligt, encoding='utf-8-sig')) if r['valtyp'] in ('RF', 'KF') and int(r['mandat2026'] or 0) > 0]
+        if off:
+            rows = [r for r in rows if r[0] not in ('RF', 'KF')]
+            rows += [(r['valtyp'], r['kod'], r['kod'], r['parti_abbr'], int(r['mandat2026'])) for r in off]
+            print(f"RF/KF: Valmyndighetens fastställda mandat ur {a.slutligt} ({len(off)} rader).")
     with open(a.out,'w',encoding='utf-8',newline='') as f:
         w = csv.writer(f); w.writerow(['valtyp','valomradeskod','valkretskod','parti_abbr','mandat'])
         w.writerows(rows)
