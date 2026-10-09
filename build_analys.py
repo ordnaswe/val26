@@ -612,7 +612,7 @@ PAGE = r"""<!doctype html>
 <body><div class="wrap">
 <header class="top">
  <div class="rowb"><span class="eyebrow">valutfall.se · partianalys</span>
-  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn cur" href="/partianalys.html">Partianalys</a> <a class="btn" href="/valjaranalys.html">Väljaranalys</a> <a class="btn" href="/personvalet.html">Personvalet</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
+  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn cur" href="/partianalys.html">Partianalys</a> <a class="btn" href="/valjaranalys.html">Väljaranalys</a> <a class="btn" href="/personvalet.html">Personvalet</a> <a class="btn" href="/kommun/">Kommuner</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
  <h1>Partianalys – valet 2026</h1>
  <p class="sub">Valresultat och mandat med förändring mot 2022, regeringsbildningens matematik, majoritetspussel i regioner och kommuner, nyckelspelare, avvikelser i väljarbeteendet och vad demografin säger. Klicka på ett län i kartan för att filtrera alla flikar.</p>
  <div class="meta" id="meta"></div>

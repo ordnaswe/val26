@@ -47,13 +47,26 @@ def status_text(final, official):
     if official: t += " Mandaten är Valmyndighetens fastställda fördelning."
     return t
 
+import unicodedata
+def slugify(name):
+    s = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode().lower()
+    return re.sub(r'-+', '-', re.sub(r'[^a-z0-9]+', '-', s)).strip('-')
+
+_GEO = None
+def load_geo(zip_path):
+    global _GEO
+    if _GEO is None:
+        _GEO = {}
+        if os.path.exists(zip_path):
+            with zipfile.ZipFile(zip_path) as z:
+                name = [n for n in z.namelist() if n.endswith(('.geojson', '.json'))][0]
+                g = json.load(io.TextIOWrapper(z.open(name), encoding='utf-8'))
+            for f in g['features']: _GEO.setdefault(str(f['properties'].get('Kommunkod', '')), []).append(f)
+    return _GEO
+
 def geometry(zip_path, kommunkod):
     """Distriktspolygoner för kommunen ur Valmyndighetens GeoJSON (SWEREF99 TM) -> lokalt viewBox."""
-    if not os.path.exists(zip_path): return {}
-    with zipfile.ZipFile(zip_path) as z:
-        name = [n for n in z.namelist() if n.endswith(('.geojson', '.json'))][0]
-        g = json.load(io.TextIOWrapper(z.open(name), encoding='utf-8'))
-    feats = [f for f in g['features'] if str(f['properties'].get('Kommunkod', '')) == kommunkod]
+    feats = load_geo(zip_path).get(kommunkod, [])
     polys = {}
     for f in feats:
         geom = f['geometry']; coords = geom['coordinates'] if geom['type'] == 'MultiPolygon' else [geom['coordinates']]
@@ -72,8 +85,30 @@ def geometry(zip_path, kommunkod):
         return out
     return {'w': W, 'h': round(H, 1), 'polys': {n: {'kod': v['kod'], 'rings': [simplify(r) for r in v['rings'] if len(r) > 3]} for n, v in polys.items()}}
 
+_DIST = None
+def load_dist(path):
+    global _DIST
+    if _DIST is None:
+        _DIST = defaultdict(list)
+        for r in read_csv(path, gz=True): _DIST[r['kommunkod']].append(r)
+    return _DIST
+_HIST = None
+def load_hist(path):
+    global _HIST
+    if _HIST is None:
+        _HIST = defaultdict(list)
+        if os.path.exists(path):
+            with open(path, encoding='utf-8-sig', newline='') as f:
+                for r in csv.DictReader(f): _HIST[r['distrikt_kod'][:4]].append(r)
+    return _HIST
+_D = None
+def load_data(path):
+    global _D
+    if _D is None: _D = json.load(open(path, encoding='utf-8'))
+    return _D
+
 def build(a):
-    d = json.load(open(a.data, encoding='utf-8'))
+    d = load_data(a.data)
     kk = a.kommun; komKod = d['komKod']; kod2kom = {v: k for k, v in komKod.items()}
     kname = kod2kom.get(kk) or a.name
     if not kname: raise SystemExit(f'Okänd kommunkod {kk}')
@@ -90,19 +125,15 @@ def build(a):
 
     # ---- distriktsröster 2026 i alla tre valen (slutligt) ----
     dv = defaultdict(lambda: defaultdict(dict)); dmeta = {}
-    for r in read_csv(a.distrikt, gz=True):
-        if r['kommunkod'] != kk: continue
+    for r in load_dist(a.distrikt).get(kk, []):
         p = r['parti_abbr']
         if p.lower().startswith(NOT_PARTY): continue
         dv[r['distrikt']][r['valtyp']][p] = int(r['roster'])
         dmeta.setdefault(r['distrikt'], {})[r['valtyp']] = {'giltiga': int(r['giltiga'] or 0), 'rb': int(r['rostberattigade'] or 0), 'kod': r['distriktskod']}
     # 2022 (och tidigare) per distriktskod ur data/historik.csv för alla tre valen (riksdagspartierna)
     hist = defaultdict(lambda: defaultdict(dict))   # kod -> val -> year -> {p: share}
-    if os.path.exists(a.historik):
-        with open(a.historik, encoding='utf-8-sig', newline='') as f:
-            for r in csv.DictReader(f):
-                if not r['distrikt_kod'].startswith(kk): continue
-                hist[r['distrikt_kod']][r['val']].setdefault(r['year'], {})[r['party']] = num(r['share'])
+    for r in load_hist(a.historik).get(kk, []):
+        hist[r['distrikt_kod']][r['val']].setdefault(r['year'], {})[r['party']] = num(r['share'])
     distrikt = []
     djson = {ds['namn']: ds for ds in d['districts'] if ds.get('kommun') == kname}
     for namn in sorted(dv):
@@ -214,10 +245,12 @@ def build(a):
         res=res, seats=seats, seats22=seats22, tot=tot, maj=maj, blocks=blocks, blocks22=blocks22, styre=styre, turnout=turnout,
         distrikt=distrikt, hist_kf=hist_kf, hist_rd=hist_rd, demo=demo, led=led, valda=valda_out, listettor=listettor, geo=geo,
     )
-    html = PAGE.replace('/*__DATA__*/', json.dumps(payload, ensure_ascii=False, separators=(',', ':')))
+    payload['slug'] = a.slug
+    html = PAGE.replace('__TITLE__', kname).replace('/*__DATA__*/', json.dumps(payload, ensure_ascii=False, separators=(',', ':')))
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, 'w', encoding='utf-8') as f: f.write(html)
-    print(f"Skrev {a.out}: {kname}, {len(distrikt)} distrikt ({len(geo.get('polys', {}))} med karta), KF-mandat {tot}, valda {len(valda_out)}, demografi n={demo['n']}")
+    if not a.quiet: print(f"Skrev {a.out}: {kname}, {len(distrikt)} distrikt ({len(geo.get('polys', {}))} med karta), KF-mandat {tot}, valda {len(valda_out)}, demografi n={demo['n']}")
+    return kname
 
 PAGE = r"""<!doctype html>
 <html lang="sv"><head>
@@ -260,7 +293,7 @@ PAGE = r"""<!doctype html>
 <body><div class="wrap">
 <header class="top">
  <div class="rowb"><span class="eyebrow">valutfall.se · kommun</span>
-  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn" href="/partianalys.html">Partianalys</a> <a class="btn" href="/valjaranalys.html">Väljaranalys</a> <a class="btn" href="/personvalet.html">Personvalet</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
+  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn" href="/partianalys.html">Partianalys</a> <a class="btn" href="/valjaranalys.html">Väljaranalys</a> <a class="btn" href="/personvalet.html">Personvalet</a> <a class="btn" href="/kommun/">Kommuner</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
  <h1 id="h1"></h1>
  <p class="sub" id="sub"></p>
  <div class="meta" id="meta"></div>
@@ -381,9 +414,31 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setMode(t.dataset.mod
 </script></body></html>
 """
 
+INDEX = r"""<!doctype html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Alla kommuner – valutfall.se</title>
+<style>__CSS__ .list{columns:3;column-gap:24px} @media(max-width:700px){.list{columns:1}} .list h3{break-after:avoid;margin:14px 0 4px} .list a{display:block;padding:3px 0;text-decoration:none;color:var(--ink)} .list a:hover{color:var(--accent2)} input[type=search]{border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:9px;padding:9px 12px;font:inherit;width:100%;max-width:420px}</style></head>
+<body><div class="wrap"><header class="top"><div class="rowb"><span class="eyebrow">valutfall.se · kommuner</span><span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn" href="/partianalys.html">Partianalys</a> <a class="btn" href="/valjaranalys.html">Väljaranalys</a> <a class="btn" href="/personvalet.html">Personvalet</a> <a class="btn" href="/kommun/">Kommuner</a></span></div>
+<h1>Alla kommuner – valet 2026</h1><p class="sub">En fördjupad sida för var och en av Sveriges 290 kommuner: resultat i de tre valen, varje valdistrikt på karta, historik sedan 1973, röstsplittring, demografi och vilka som styr.</p>
+<div class="caveat">__STATUS__</div></header>
+<div class="panel"><input type="search" id="q" placeholder="Sök kommun…" autofocus><div class="list" id="list">__LIST__</div></div>
+<footer><p><b>valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic).</p></footer></div>
+<script>const q=document.getElementById('q');q.addEventListener('input',()=>{const v=q.value.trim().toLowerCase();document.querySelectorAll('#list a').forEach(a=>{a.style.display=!v||a.textContent.toLowerCase().includes(v)?'':'none';});document.querySelectorAll('#list h3').forEach(h=>{let n=h.nextElementSibling,any=false;while(n&&n.tagName==='A'){if(n.style.display!=='none')any=true;n=n.nextElementSibling;}h.style.display=any?'':'none';});});</script></body></html>"""
+
+def build_index(a, pages, status):
+    d = load_data(a.data); lanNamn = {v: k for k, v in d['lanKod'].items()}
+    by_lan = defaultdict(list)
+    for kk, (slug, namn) in sorted(pages.items(), key=lambda x: x[1][1]): by_lan[kk[:2]].append((slug, namn))
+    lst = ''.join(f'<h3>{lanNamn.get(lk, lk)}</h3>' + ''.join(f'<a href="/kommun/{slug}/">{namn}</a>' for slug, namn in sorted(v, key=lambda x: x[1])) for lk, v in sorted(by_lan.items()))
+    css = PAGE.split('<style>')[1].split('</style>')[0]
+    html = INDEX.replace('__CSS__', css).replace('__STATUS__', status).replace('__LIST__', lst)
+    out = os.path.join(os.path.dirname(os.path.dirname(a.out)) if a.out else 'public/kommun', 'index.html')
+    with open(out, 'w', encoding='utf-8') as f: f.write(html)
+    print(f'Skrev {out}: {len(pages)} kommuner')
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--kommun', required=True, help='kommunkod, t.ex. 0120'); ap.add_argument('--slug', required=True, help='mappnamn, t.ex. varmdo')
+    ap.add_argument('--kommun', help='kommunkod, t.ex. 0120'); ap.add_argument('--slug', help='mappnamn, t.ex. varmdo (annars ur namnet)')
+    ap.add_argument('--alla', action='store_true', help='bygg alla 290 kommuner + /kommun/index.html; skriver data/kommunsidor.csv')
+    ap.add_argument('--quiet', action='store_true')
     ap.add_argument('--name', help='kommunnamn om koden saknas i data.json')
     ap.add_argument('--data', default='public/data.json'); ap.add_argument('--out')
     ap.add_argument('--distrikt', default='data/distrikt_2026.csv.gz'); ap.add_argument('--geojson', default='data/valdistrikt-riket-2026.zip')
@@ -392,6 +447,20 @@ if __name__ == '__main__':
     ap.add_argument('--valda', default='data/valda.csv'); ap.add_argument('--slutligt', default='data/slutligt.json')
     ap.add_argument('--historik', default='data/historik.csv', help='per-distriktshistorik 2014–2022 för RD/RF/KF (±2022 i kartan för alla tre valen)')
     a = ap.parse_args()
-    a.out = a.out or f'public/kommun/{a.slug}/index.html'
-    PAGE = PAGE.replace('__TITLE__', a.slug)
-    build(a)
+    if a.alla:
+        d = load_data(a.data); pages = {}
+        final = json.load(open(a.slutligt, encoding='utf-8')) if os.path.exists(a.slutligt) else {}
+        for namn, kk in sorted(d['komKod'].items(), key=lambda x: x[1]):
+            a.kommun = kk; a.slug = slugify(namn); a.out = f'public/kommun/{a.slug}/index.html'; a.quiet = True
+            try: pages[kk] = (a.slug, build(a))
+            except Exception as e: print(f'{namn} ({kk}): FEL {e}')
+        with open('data/kommunsidor.csv', 'w', newline='', encoding='utf-8') as f:
+            w = csv.writer(f); w.writerow(['kommunkod', 'slug']); [w.writerow([kk, v[0]]) for kk, v in sorted(pages.items())]
+        build_index(a, pages, status_text(final, os.path.exists(a.mandat_slutligt)))
+        print(f'Byggde {len(pages)} kommunsidor under public/kommun/')
+    else:
+        if not a.kommun: raise SystemExit('Ange --kommun KOD (och ev. --slug) eller --alla')
+        d = load_data(a.data); kod2kom = {v: k for k, v in d['komKod'].items()}
+        a.slug = a.slug or slugify(kod2kom.get(a.kommun, a.kommun))
+        a.out = a.out or f'public/kommun/{a.slug}/index.html'
+        build(a)

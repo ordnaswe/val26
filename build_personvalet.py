@@ -44,7 +44,8 @@ def status_text(final, mandat=True):
     lab = lambda k, n: (f"<b>{n}:</b> slutligt" + (f" ({final[k]})" if isinstance(final.get(k), str) else "")) if final.get(k) else f"<b>{n}:</b> preliminärt"
     t = " · ".join([lab('RD', 'Riksdag'), lab('RF', 'Region'), lab('KF', 'Kommun')])
     t += ". Alla tre valen är fastställda." if all(final.get(k) for k in ('RD', 'RF', 'KF')) else ". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något."
-    if mandat and os.path.exists('data/mandat_slutligt.csv'): t += " Mandaten är Valmyndighetens fastställda fördelning; vilka som tar platserna bygger på listordning tills personrösterna lagts in."
+    if mandat and os.path.exists('data/valda.csv'): t += " Mandat, invalda och personröster är Valmyndighetens fastställda resultat."
+    elif mandat and os.path.exists('data/mandat_slutligt.csv'): t += " Mandaten är Valmyndighetens fastställda fördelning; vilka som tar platserna bygger på listordning tills personrösterna lagts in."
     elif mandat: t += " Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut."
     return t
 
@@ -77,11 +78,16 @@ def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path
 
     details = {}   # "Namn|PARTI" -> {vk,plats,valtyp,roller[]}
     def det_key(namn, parti): return f"{namn}|{parti}"
+    official = any((r.get('valgrund') or '') for r in inv)
+    extra = {}
+    for r in inv:
+        if r.get('valgrund') or r.get('personroster'):
+            extra[f"{r['namn']}|{r['parti']}"] = dict(pr=r.get('personroster') or '', andel=r.get('andel_personroster') or '', vg=r.get('valgrund') or '', kval=r.get('kvalificerad') or '')
     def add_detail(namn, parti, vk, plats, valtyp):
         k = det_key(namn, parti)
         if k in details: return
         roller = roles_by.get((fold(namn), parti), [])
-        details[k] = dict(vk=vk, plats=plats, valtyp=valtyp, roller=roller)
+        details[k] = dict(vk=vk, plats=plats, valtyp=valtyp, roller=roller, **extra.get(k, {}))
 
     def lan_of(r):
         return (r.get('valomrkod') or '')[:2]
@@ -94,7 +100,7 @@ def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path
             add_detail(r['namn'], r['parti'], r['valkrets'], r.get('plats',''), vt)
         if vt == 'RD':
             per_vk[r['valkrets']].append(dict(namn=r['namn'], parti=r['parti'],
-                plats=r.get('plats',''), nyckel=(r.get('nyckelperson')=='Ja')))
+                plats=r.get('plats',''), nyckel=(r.get('nyckelperson')=='Ja'), pr=r.get('personroster') or '', vg=r.get('valgrund') or ''))
         if r.get('nyckelperson') == 'Ja':
             omr, organ, kat = parse_roll(r.get('nyckelroll',''))
             # län: RF/KF ur valomrkod; RD-nyckelperson ur folkbokföringskommun (fbk)
@@ -128,7 +134,7 @@ def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path
         in_kf=sorted(in_kf, key=lambda x:(x['omrade'], x['namn'])),
         risk=risk,
         per_vk={k:v for k,v in sorted(per_vk.items())},
-        rd_total=rd_total,
+        rd_total=rd_total, official=official,
         details=details,
         geo=dict(w=d.get('geoW',1000), h=d.get('geoH',2304), lan=d.get('granser',{}).get('lan',{}),
                  lanNamn=lanNamn, lanToVk=lanToVk),
@@ -238,7 +244,7 @@ PAGE = r"""<!doctype html>
 <body><div class="wrap">
 <header class="top">
  <div class="row"><span class="eyebrow">valutfall.se · personvalet</span>
-  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn" href="/partianalys.html">Partianalys</a> <a class="btn" href="/valjaranalys.html">Väljaranalys</a> <a class="btn cur" href="/personvalet.html">Personvalet</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
+  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn" href="/partianalys.html">Partianalys</a> <a class="btn" href="/valjaranalys.html">Väljaranalys</a> <a class="btn cur" href="/personvalet.html">Personvalet</a> <a class="btn" href="/kommun/">Kommuner</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
  <h1>Personvalet</h1>
  <p class="sub">Vilka makthavare tar plats i riksdagen, regionfullmäktige och kommunfullmäktige – och vilka sittande ledare som är på väg ut. Klicka på ett län i kartan, eller välj en flik.</p>
  <div class="meta" id="meta"></div>
@@ -258,7 +264,7 @@ PAGE = r"""<!doctype html>
  <button class="tab" role="tab" data-tab="region">Region</button>
  <button class="tab" role="tab" data-tab="kommun">Kommun</button>
  <button class="tab" role="tab" data-tab="riksdag">Riksdag</button>
- <button class="tab" role="tab" data-tab="vippen">På vippen</button>
+ <button class="tab" role="tab" data-tab="vippen" id="tab_vippen">På vippen</button>
 </nav>
 <div class="selbar" id="selbar"></div>
 
@@ -272,18 +278,18 @@ PAGE = r"""<!doctype html>
 <section class="panel" id="p_kommun" role="tabpanel" hidden>
  <h2 class="ph">Kommunmakt</h2>
  <div class="intro" id="i_kommun"></div>
- <p class="lead">Sittande kommunledare (KSO/oppositionsråd) och nämndordförande (utbildning, omsorg/vård) som sannolikt blir invalda i kommunfullmäktige. Grupperat per kommun – klicka för roll och listplats.</p>
+ <p class="lead">Sittande kommunledare (KSO/oppositionsråd) och nämndordförande (utbildning, omsorg/vård) som tar plats i kommunfullmäktige. Grupperat per kommun – klicka för roll och listplats.</p>
  <div class="filters" id="f_kommun"><input class="search" id="s_kommun" placeholder="Sök namn eller kommun…"></div>
  <div id="c_kommun"></div>
- <p class="starnote">Kommunmandat räknas ur områdesandelarna (inkl. lokala partier) och är preliminära. Lokala partiers listor matchas i mån av namnöverensstämmelse.</p>
+ <p class="starnote" id="note_kf">Kommunmandat enligt Valmyndighetens fastställda mandatfördelning när den finns i underlaget.</p>
 </section>
 <section class="panel" id="p_riksdag" role="tabpanel" hidden>
  <div class="intro" id="i_riksdag"></div>
  <h2 class="ph">Kommun- och regionprofiler in i riksdagen</h2>
- <p class="lead">Sittande ledande lokal- och regionpolitiker (KSO/RSO, kommunal-/regionråd, tunga nämndordförande) som tar plats i riksdagen – preliminärt på listordning. Klicka för roll och listplats.</p>
+ <p class="lead">Sittande ledande lokal- och regionpolitiker (KSO/RSO, kommunal-/regionråd, tunga nämndordförande) som tar plats i riksdagen. Klicka för roll och listplats.</p>
  <div id="c_rd_makt"></div>
  <h2 class="ph" style="margin-top:28px">Alla invalda per riksvalkrets</h2>
- <p class="lead">Preliminärt invalda på listordning. Nyckelpersoner (de ovan) markerade med ★.</p>
+ <p class="lead" id="lead_rd">Invalda per riksvalkrets. Nyckelpersoner (de ovan) markerade med ★.</p>
  <div class="filters" id="f_riksdag"><input class="search" id="s_riksdag" placeholder="Sök namn eller valkrets…"></div>
  <div id="c_riksdag"></div>
 </section>
@@ -338,9 +344,9 @@ function openPerson(namn,parti){
  $('#modal').innerHTML=`<button class="close" aria-label="Stäng" onclick="closeModal()">×</button>
    <h3>${esc(namn)} ${pfSpan(parti)}</h3>
    <div class="kv">${esc(PN[parti]||parti)}</div>
-   <div class="kv">${vt}: ${esc(det.vk||'–')}${det.plats?` · listplats ${esc(det.plats)}`:''}</div>
+   <div class="kv">${vt}: ${esc(det.vk||'–')}${det.plats?` · ${DATA.official?'invald som nr':'listplats'} ${esc(det.plats)}`:''}${det.vg?` · ${esc(det.vg).toLowerCase()}`:''}${det.pr!==''&&det.pr!=null?` · ${esc(String(det.pr))} personröster${det.andel?` (${esc(String(det.andel)).replace('.',',')} %${det.kval==='Ja'?', klarade personröstspärren':''})`:''}`:''}</div>
    <div class="kv muted" style="margin-top:6px">Nuvarande uppdrag:</div>${roles}
-   <p class="starnote">Roller ur politikerdatabasen (mandatperioden 2022–2026). Listplats preliminär.</p>`;
+   <p class="starnote">Roller ur politikerdatabasen (mandatperioden 2022–2026).${DATA.official?' Invalda, valgrund och personröster: Valmyndighetens fastställda resultat.':' Listplats preliminär.'}</p>`;
  $('#overlay').classList.add('show');
 }
 function closeModal(){$('#overlay').classList.remove('show');}
@@ -402,7 +408,7 @@ function renderRiksdag(){renderRDmakt();const cont=$('#c_riksdag'),q=($('#s_riks
    if(q)rows=rows.filter(r=>(r.namn+' '+k).toLowerCase().includes(q));
    if(!rows.length)return '';any=true;const nk=rows.filter(r=>r.nyckel).length;
    const body=rows.map(r=>`<tr class="${r.nyckel?'keyrow':''}" data-nm="${esc(r.namn)}" data-p="${esc(r.parti)}">
-     <td class="p" style="background:${PC[r.parti]||'#888'}">${esc(r.parti)}</td><td>${esc(r.plats)}</td><td>${esc(r.namn)}${r.nyckel?' ★':''}</td></tr>`).join('');
+     <td class="p" style="background:${PC[r.parti]||'#888'}">${esc(r.parti)}</td><td>${esc(r.plats)}</td><td>${esc(r.namn)}${r.nyckel?' ★':''}${r.vg&&/person/i.test(r.vg)?' <span class="muted" title="Invald på personröster">✎</span>':''}${r.pr!==''&&r.pr!=null?` <span class="muted" style="font-size:.78rem">${esc(String(r.pr))} pr</span>`:''}</td></tr>`).join('');
    return `<details${(selLan||q)?' open':''}><summary>${esc(k)} <span class="muted" style="font-weight:400">· ${rows.length} mandat${nk?` · ${nk} nyckel`:''}</span></summary><table>${body}</table></details>`;}).filter(Boolean);
  cont.innerHTML=any?parts.join(''):`<div class="empty">${DATA.rd_total?'Inga träffar.':'Riksdagsmandaten fylls när rösträkningen börjar på valnatten.'}</div>`;}
 
@@ -462,7 +468,7 @@ function selbar(){const el=$('#selbar');
  el.querySelector('[data-clear]').onclick=()=>selectLan(selLan);}
 
 // ---- init ----
-head();drawMap();mapside();
+head();drawMap();if(DATA.official){const t=document.getElementById('tab_vippen');if(t)t.hidden=true;}mapside();
 RENDER.region=panelFactory('region', DATA.in_rf);
 RENDER.kommun=panelFactory('kommun', DATA.in_kf);
 $('#s_riksdag').addEventListener('input',renderRiksdag);

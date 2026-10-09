@@ -251,13 +251,14 @@
   <div class="hero" id="hero">
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start">
       <h2>Valet 2026 – resultat, analys och personer, ner på valdistrikt</h2>
-      <nav class="subnav" aria-label="Undersidor"><a class="cur" href="/">Resultat</a><a href="/partianalys.html">Partianalys</a><a href="/valjaranalys.html">Väljaranalys</a><a href="/personvalet.html">Personvalet</a></nav>
+      <nav class="subnav" aria-label="Undersidor"><a class="cur" href="/">Resultat</a><a href="/partianalys.html">Partianalys</a><a href="/valjaranalys.html">Väljaranalys</a><a href="/personvalet.html">Personvalet</a><a href="/kommun/">Kommuner</a></nav>
     </div>
     <p>valutfall.se samlar resultatet i de tre valen 13 september 2026 – riksdag, region och kommun – från riket ner till landets 6 626 valdistrikt, med historik sedan 2014, prognosmodeller och kandidater. Den här sidan är själva resultatet. Tre undersidor går vidare från siffrorna:</p>
     <div class="cards">
       <a class="card" href="/partianalys.html"><b>Partianalys →</b><span>Mandat och förändring mot 2022, koalitionsräknare med drag-och-släpp, majoritetspussel i regioner och kommuner, avvikelser och demografi.</span></a>
       <a class="card" href="/valjaranalys.html"><b>Väljaranalys →</b><span>Hur röstningen hänger ihop med inkomst, utbildning, ålder, sysselsättning och boende – per valdistrikt och kommun.</span></a>
       <a class="card" href="/personvalet.html"><b>Personvalet →</b><span>Vilka som tar plats i riksdag, regioner och kommuner, vilka makthavare som faller ur, och vilka som sitter på vippen.</span></a>
+      <a class="card" href="/kommun/"><b>Din kommun →</b><span>En fördjupad sida för var och en av de 290 kommunerna: varje valdistrikt på karta, historik sedan 1973, röstsplittring, demografi och vilka som styr.</span></a>
     </div>
   </div>
   <div class="statusnote" id="statusnote"></div>
@@ -316,14 +317,14 @@
   <div class="partybar" style="margin:8px 0 0;flex-wrap:wrap"><span>År</span><div id="yearBar" class="seg" style="width:max-content;flex-shrink:0"></div><span id="yearHint" style="font-size:12px;color:var(--muted)">– äldre år visar historik, senaste = nuvarande val</span></div>
 
   <div class="tabs" role="tablist">
-    <button role="tab" aria-selected="true" data-tab="prognos">Resultat och Prognos</button>
+    <button role="tab" aria-selected="true" data-tab="prognos">Resultat</button>
     <button role="tab" aria-selected="false" data-tab="kandidater">Kandidater</button>
     <button role="tab" aria-selected="false" data-tab="hist">Historik</button>
     <!-- Samband och Avvikelse (demografimodell) döljs: Samband finns i Väljaranalys. Ta bort hidden för att visa igen. -->
     <button role="tab" aria-selected="false" data-tab="scatter" hidden>Samband</button>
     <button role="tab" aria-selected="false" data-tab="resid" hidden>Avvikelse</button>
     <button role="tab" aria-selected="false" data-tab="split">Röstsplittring</button>
-    <button role="tab" aria-selected="false" data-tab="watch">Bevakning</button>
+    <button role="tab" aria-selected="false" data-tab="watch" hidden>Bevakning</button>
     <button role="tab" aria-selected="false" data-tab="table">Distrikt</button>
   </div>
   <div class="partybar" id="partyFilter" style="margin:8px 0 0;flex-wrap:wrap">
@@ -424,7 +425,7 @@
   </section>
 
   <section class="panelview" id="view-table">
-    <p class="sub" style="margin:0 0 10px">Detaljtabell <b>per valdistrikt</b> i valt område – ett sätt att borra ner i enskilda distrikt och sortera. Övergripande resultat och mandat finns i fliken <b>Resultat och Prognos</b>.</p>
+    <p class="sub" style="margin:0 0 10px">Detaljtabell <b>per valdistrikt</b> i valt område – ett sätt att borra ner i enskilda distrikt och sortera. Övergripande resultat och mandat finns i fliken <b>Resultat</b>.</p>
     <input class="search" id="search" placeholder="Sök distrikt eller kommun…">
     <div class="tablescroll"><table id="tbl"><thead></thead><tbody></tbody></table></div>
     <p class="caption">Klicka på en kolumnrubrik för att sortera. Stjärnan lägger distriktet i bevakning.</p>
@@ -468,7 +469,7 @@
   (async function(){const el=document.getElementById("statusnote");if(!el)return;let fin={};
     try{const r=await fetch("slutligt.json?_="+Date.now(),{cache:"no-store"});if(r.ok)fin=await r.json();}catch(e){}
     const lab=(k,n)=>fin[k]?`<b>${n}:</b> slutligt${typeof fin[k]==="string"?" ("+fin[k]+")":""}`:`<b>${n}:</b> preliminärt`;
-    const all=["RD","RF","KF"].every(k=>fin[k]);
+    const all=["RD","RF","KF"].every(k=>fin[k]);window._allFinal=all;if(all){document.querySelectorAll(".tl-meta").forEach(e=>{if(/Prelimin/.test(e.textContent))e.innerHTML='<span class="tl-pulse"></span>Slutligt resultat';});}
     el.innerHTML=[lab("RD","Riksdag"),lab("RF","Region"),lab("KF","Kommun")].join(" · ")+(all?". Alla tre valen är fastställda. Riksdagsmandaten är Valmyndighetens; region- och kommunmandat på den här sidan räknas ur andelarna, de fastställda finns i Partianalys och Personvalet.":". Tills alla tre valen är slutligt fastställda kan andelar och mandat ändras något. Region- och kommunmandat på den här sidan är beräknade ur andelarna, inte hämtade från Valmyndighetens mandatbeslut.");})();
   // Koalitionsräknare för riksdagen (drag-och-släpp). Mandat: DATA.rdSeatsExact (exakta röstetal) eller baslinje.
   (function(){const box=document.getElementById("koalBody");if(!box)return;
@@ -1897,7 +1898,7 @@
       `<div class="tl-seatbar">${barHtml}</div></div>`+
       `<div><div class="tl-lead">Räknat</div><div class="tl-big">${pctD}%</div>`+
       `<div class="tl-meta">${counted} av ${data.length} distrikt</div></div>`+
-      `<div class="tl-meta"><span class="tl-pulse"></span>${(DATA.meta&&DATA.meta.live)?"Preliminärt resultat":"Exempel (2022)"}</div>`;
+      `<div class="tl-meta"><span class="tl-pulse"></span>${(DATA.meta&&DATA.meta.live)?(window._allFinal?"Slutligt resultat":"Preliminärt resultat"):"Exempel (2022)"}</div>`;
   }
   function renderAll(){
     document.getElementById("watchcount").textContent=watch.size?watch.size+" bevakade":"";

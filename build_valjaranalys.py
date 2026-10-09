@@ -316,7 +316,7 @@ PAGE = r"""<!doctype html>
 <body><div class="wrap">
 <header class="top">
  <div class="rowb"><span class="eyebrow">valutfall.se · väljaranalys</span>
-  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn" href="/partianalys.html">Partianalys</a> <a class="btn cur" href="/valjaranalys.html">Väljaranalys</a> <a class="btn" href="/personvalet.html">Personvalet</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
+  <span class="nav"><a class="btn" href="/">Resultat</a> <a class="btn" href="/partianalys.html">Partianalys</a> <a class="btn cur" href="/valjaranalys.html">Väljaranalys</a> <a class="btn" href="/personvalet.html">Personvalet</a> <a class="btn" href="/kommun/">Kommuner</a> <button class="btn" id="theme" type="button" aria-label="Byt tema">☾ / ☀</button></span></div>
  <h1>Väljaranalys</h1>
  <p class="sub">Hur hänger väljarnas röstning ihop med vilka de är – inkomst, utbildning, ålder, sysselsättning, boende? Välj en faktor och se sambandet med varje partis stöd, hur olika grupper röstar, och hur det ändrats över tid. Klicka på ett län för att zooma in.</p>
  <div class="meta" id="meta"></div>

@@ -361,16 +361,13 @@ def one_cycle(args):
     except Exception as _e4:
         log(f"valda.py: FEL (hoppar): {_e4}")
 
-    # KOMMUNSIDOR: public/kommun/<slug>/index.html för kommunerna i data/kommunsidor.csv. Egen try per kommun.
-    _ks = HERE / "data" / "kommunsidor.csv"
-    if _dj.exists() and _ks.exists():
-        import csv as _csv
-        for _row in _csv.DictReader(open(_ks, encoding="utf-8-sig")):
-            try:
-                subprocess.run([sys.executable, str(HERE / "build_kommun.py"), "--kommun", _row["kommunkod"].strip(), "--slug", _row["slug"].strip(),
-                                "--data", str(_dj), "--out", str(_pub / "kommun" / _row["slug"].strip() / "index.html")], check=True)
-            except Exception as _e5:
-                log(f"Kommunsida {_row.get('slug')}: FEL (hoppar): {_e5}")
+    # KOMMUNSIDOR: alla 290 kommuner under public/kommun/<slug>/ + /kommun/index.html. Egen try.
+    if _dj.exists():
+        try:
+            subprocess.run([sys.executable, str(HERE / "build_kommun.py"), "--alla", "--data", str(_dj)], check=True, cwd=str(HERE))
+            log("Kommunsidor: byggde public/kommun/ (alla kommuner).")
+        except Exception as _e5:
+            log(f"Kommunsidor: FEL (hoppar): {_e5}")
 
     # PERSONLAGER: personvalet.html (kräver kandidaturer.csv). Egen try -> stör inte väljaranalys/deploy.
     try:
