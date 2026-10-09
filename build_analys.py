@@ -352,6 +352,7 @@ def build(a):
         })
 
     # ---------- KOMMUNER (KF) ----------
+    kommunsidor = {r['kommunkod']: r['slug'] for r in read_csv(a.kommunsidor)}
     kommuner = []
     for kk in sorted(seatsK):
         tot = seatsK[kk]
@@ -377,7 +378,7 @@ def build(a):
             elif st_max >= maj: status = 'beror på lokalt parti'
             else: status = 'saknar majoritet'
         kommuner.append({
-            'kod': kk, 'namn': kod2kom.get(kk, kk), 'lan': kk[:2], 'folk': folk.get(kk), 'tot': tot, 'maj': maj,
+            'kod': kk, 'namn': kod2kom.get(kk, kk), 'lan': kk[:2], 'folk': folk.get(kk), 'tot': tot, 'maj': maj, 'sida': kommunsidor.get(kk),
             'res': top_parties(r26, r22), 'seats': s26, 'seats22': s22, 'blocks': blocks(s26), 'blocks22': blocks(s22),
             'styre': {'partier': st_parts, 'kso': st.get('kso_parti'), 'majmin': st.get('majmin'), 'kat': st.get('kategori'),
                       'min': st_min, 'max': st_max, 'min22': st22_min, 'max22': st22_max, 'status': status,
@@ -858,7 +859,7 @@ function renderKommuner(){let rows=DATA.kommuner.slice();const q=kQuery.trim().t
  $('#panel').querySelectorAll('[data-kod]').forEach(tr=>tr.onclick=()=>{openKod=openKod===tr.dataset.kod?null:tr.dataset.kod;renderKommuner();});
  updSel();bindCoal();}
 function kommunDetail(k){const s=k.styre;
- return `<div class="detail"><div class="grid2"><div><h3>Kommunvalet ${esc(k.namn)}</h3>${seatBar(k.seats,ORDER,k.tot)}${resTable(k.res,null,k.seats,k.seats22)}${blockLine(k.blocks,k.blocks22,k.tot)}${coalCalc('k'+k.kod,k.seats,k.tot)}</div>
+ return `<div class="detail">${k.sida?`<p class="lead" style="margin:0 0 8px"><a class="btn" href="/kommun/${esc(k.sida)}/" style="text-decoration:none">Fördjupning: ${esc(k.namn)} ner på valdistrikt →</a></p>`:''}<div class="grid2"><div><h3>Kommunvalet ${esc(k.namn)}</h3>${seatBar(k.seats,ORDER,k.tot)}${resTable(k.res,null,k.seats,k.seats22)}${blockLine(k.blocks,k.blocks22,k.tot)}${coalCalc('k'+k.kod,k.seats,k.tot)}</div>
  <div><h3>Sittande styre 2022–2026 och förändring efter valet 2026</h3>${s?styreSummary(k,k.tot,'KSO'):'<p class="muted">Styret saknas i underlaget.</p>'}
  <h3>Ledande politiker 2022–2026</h3>${ledningList(k.ledning)}<h3>Listettor 2026 (kommunvalet)</h3>${listettorList(k.listettor)}
  ${k.turnout?`<h3>Valdeltagande 2026</h3><p class="lead">${Object.entries(k.turnout).map(([v,p])=>VN[v]+' '+f1(p)+' %').join(' · ')}</p>`:''}<h3>Riksdagsvalet i kommunen 2026</h3><p class="note" style="margin:0 0 4px">Aggregerat ur kommunens jämförbara valdistrikt, viktat med röstberättigade.</p><div class="tw"><table><tbody>${k.rd.map(x=>`<tr><td>${pf(x.p)}</td><td class="r">${f1(x.a)}</td><td class="r">${sg(x.chg)}</td></tr>`).join('')}</tbody></table></div></div></div></div>`;}
@@ -961,4 +962,5 @@ if __name__ == '__main__':
     ap.add_argument('--slutligt', default='data/slutligt.json', help='JSON {"RD":"2026-09-19"} med fastställda val')
     ap.add_argument('--mandat-slutligt', default='data/mandat_slutligt.csv', help='Valmyndighetens fastställda mandat (mandat_slutligt.py)')
     ap.add_argument('--valdeltagande', default='data/valdeltagande_2026.csv', help='Valdeltagande per kommun/region/län (mandat_slutligt.py)')
+    ap.add_argument('--kommunsidor', default='data/kommunsidor.csv', help='kommunkod,slug för fördjupade kommunsidor (/kommun/<slug>/)')
     build(ap.parse_args())
