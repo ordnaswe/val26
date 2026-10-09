@@ -355,7 +355,7 @@ def one_cycle(args):
 
     # VALDA/PERSONRÖSTER: ur slutliga mandatfördelningsfiler (finns bara när s/-zip laddats ner). Egen try.
     try:
-        if any(ZIPDIR.glob("*slutlig_*.zip")):
+        if any(ZIPDIR.glob("s_*.zip")) or any(ZIPDIR.glob("*slutlig*.zip")):
             subprocess.run([sys.executable, str(HERE / "valda.py"), "--zips", str(ZIPDIR), "--out-dir", str(HERE / "data")], check=True)
             log("valda.py: data/valda.csv, ersattare.csv, personroster.csv uppdaterade.")
     except Exception as _e4:
