@@ -16,8 +16,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
+      - name: Visa slutliga filer på val.se (felsökning)
+        run: python3 hamta.py --list | grep -E "(^|/)s/" | head -15 || true
       - name: Hämta slutliga filer och bygg underlaget (ingen deploy av valutfall)
-        run: python3 hamta.py --force --live --pattern-rd "slutlig_00_RD" --pattern-rf "s/rf/" --pattern-kf "s/kf/"
+        run: python3 hamta.py --force --live --pattern-rd "s/rd/" --pattern-rf "s/rf/" --pattern-kf "s/kf/"
+      - name: Läs ut valda, ersättare och personröster
+        run: python3 valda.py --zips .cache/zips --out-dir data
       - name: Bygg allavalda.se
         run: python3 build_allavalda.py --out public_allavalda
       - name: Deploya till Netlify (allavalda.se)

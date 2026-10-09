@@ -25,7 +25,7 @@ jobs:
       - name: Hämta alla tre valen, bygg och deploya
         run: |
           if [ "${{ inputs.slutliga }}" = "true" ]; then
-            python3 hamta.py --force --deploy --live --pattern-rd "slutlig_00_RD" --pattern-rf "s/rf/" --pattern-kf "s/kf/"
+            python3 hamta.py --force --deploy --live --pattern-rd "s/rd/" --pattern-rf "s/rf/" --pattern-kf "s/kf/"
           else
             python3 hamta.py --force --deploy --live --pattern-rf "p/rf/" --pattern-kf "p/kf/"
           fi
