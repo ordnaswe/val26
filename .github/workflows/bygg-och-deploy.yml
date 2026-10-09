@@ -45,3 +45,5 @@ jobs:
           else
             echo "data/kandidaturer.csv saknas – hoppar personvalet (byggs på valnatten av hamta.py)."
           fi
+      - name: Bygg kommunsidor
+        run: python3 build_kommun.py --alla
