@@ -125,7 +125,45 @@ def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path
     risk.sort(key=lambda x:x['namn'])
 
     rd_total = sum(len(v) for v in per_vk.values())
+    # ---- statistik om de valda (Valmyndighetens fastställda resultat) ----
+    def rcsv(path):
+        if not path or not os.path.exists(path): return []
+        with open(path, encoding='utf-8-sig', newline='') as f: return list(csv.DictReader(f))
+    valda_rows = rcsv('data/valda.csv')
+    pers_rows = rcsv('data/personroster.csv')
+    stat = {}
+    if valda_rows:
+        from collections import Counter
+        VT = {'RD': 'Riksdagen', 'RF': 'Regionfullmäktige', 'KF': 'Kommunfullmäktige'}
+        per = {}
+        for vt in ('RD', 'RF', 'KF'):
+            rows = [r for r in valda_rows if r['valtyp'] == vt]
+            if not rows: continue
+            byp = defaultdict(list)
+            for r in rows: byp[r['parti']].append(r)
+            parts = []
+            for pa, rs in sorted(byp.items(), key=lambda x: -len(x[1])):
+                pv = sum(1 for r in rs if 'person' in (r.get('valgrund') or '').lower()); kv = sum(1 for r in rs if r.get('kvalificerad') == 'Ja')
+                prs = [float(r['personroster']) for r in rs if r.get('personroster') not in (None, '')]
+                parts.append({'p': pa, 'n': len(rs), 'personvalda': pv, 'kval': kv, 'pr_snitt': round(sum(prs)/len(prs)) if prs else None})
+            top = sorted([r for r in rows if r.get('personroster') not in (None, '')], key=lambda r: -float(r['personroster']))[:15]
+            per[vt] = {'namn': VT[vt], 'n': len(rows), 'personvalda': sum(x['personvalda'] for x in parts), 'kval': sum(x['kval'] for x in parts),
+                       'partier': parts, 'topp': [{'namn': r['namn'], 'p': r['parti'], 'omr': r.get('valkretsnamn') or r.get('valomrnamn'), 'pr': int(float(r['personroster'])), 'andel': r.get('andel_personroster') or ''} for r in top]}
+        # klarade spärren men kom inte in
+        missade = [r for r in pers_rows if r.get('kvalificerad') == 'Ja' and r.get('invald') != 'Ja']
+        missade.sort(key=lambda r: -float(r['personroster'] or 0))
+        # riksdagsledamöter per folkbokföringskommun (kandidaturer)
+        fbk = {}
+        try:
+            with open('data/kandidaturer.csv', encoding='utf-8-sig', newline='') as f:
+                for r in csv.DictReader(f, delimiter=';'):
+                    if r.get('VALTYP') == 'RD': fbk[r.get('KANDIDATNUMMER')] = r.get('FOLKBOKFÖRINGSKOMMUN')
+        except Exception: pass
+        rd_fbk = Counter(fbk.get(r.get('kandidatnummer'), 'okänd') for r in valda_rows if r['valtyp'] == 'RD')
+        stat = {'per': per, 'missade': [{'namn': r['namn'], 'p': r['parti'], 'vt': r['valtyp'], 'omr': r.get('valomrnamn'), 'pr': int(float(r['personroster'] or 0)), 'andel': r.get('andel_personroster') or ''} for r in missade[:20]], 'n_missade': len(missade),
+                'rd_kommuner': len([k for k in rd_fbk if k and k != 'okänd']), 'rd_fbk_topp': rd_fbk.most_common(10), }
     payload = dict(
+        stat=stat,
         meta=dict(built=meta.get('built',''), status=meta.get('status',''), counted=counted, total=total,
                   source=meta.get('source_label',''), statusText=status_text(final)),
         parties=[{'id':k,'namn':v.get('namn',k),'color':v.get('color','#888')} for k,v in parties.items()],
@@ -265,6 +303,7 @@ PAGE = r"""<!doctype html>
  <button class="tab" role="tab" data-tab="kommun">Kommun</button>
  <button class="tab" role="tab" data-tab="riksdag">Riksdag</button>
  <button class="tab" role="tab" data-tab="vippen" id="tab_vippen">På vippen</button>
+ <button class="tab" role="tab" data-tab="stat" id="tab_stat">Statistik</button>
 </nav>
 <div class="selbar" id="selbar"></div>
 
@@ -292,6 +331,11 @@ PAGE = r"""<!doctype html>
  <p class="lead" id="lead_rd">Invalda per riksvalkrets. Nyckelpersoner (de ovan) markerade med ★.</p>
  <div class="filters" id="f_riksdag"><input class="search" id="s_riksdag" placeholder="Sök namn eller valkrets…"></div>
  <div id="c_riksdag"></div>
+</section>
+<section class="panel" id="p_stat" role="tabpanel" hidden>
+ <h2 class="ph">Statistik om de valda</h2>
+ <div class="intro" id="i_stat"></div>
+ <div id="c_stat"></div>
 </section>
 <section class="panel" id="p_vippen" role="tabpanel" hidden>
  <h2 class="ph">På vippen</h2>
@@ -421,16 +465,25 @@ function renderVippen(){const el=$('#c_vippen');
    <div><span class="muted" style="font:.78rem ui-monospace,monospace">plats ${esc(r.listplats)} / ${esc(r.mandat)} (${esc(r.valtyp)})</span> <span class="pill">på vippen</span></div></div>`).join('');}
 
 // ---- flikar ----
-const RENDER={region:null,kommun:null,riksdag:renderRiksdag,vippen:renderVippen};
+function renderStat(){const S=DATA.stat;const el=$('#c_stat');if(!S||!S.per){el.innerHTML='<div class="empty">Statistiken fylls när Valmyndighetens slutliga filer lästs in.</div>';return;}
+ const vts=Object.keys(S.per);const tot=vts.reduce((a,v)=>a+S.per[v].n,0),pv=vts.reduce((a,v)=>a+S.per[v].personvalda,0);
+ $('#i_stat').innerHTML=`Här ser du siffror om alla som valdes: hur många per parti och val, hur många som kom in på personröster, vilka som fick flest personröster och vilka som klarade personröstspärren utan att komma in. <b>Just nu:</b> ${tot.toLocaleString('sv-SE')} ledamöter är valda i de tre valen, ${pv} av dem (${Math.round(100*pv/tot)} %) på personröster.`;
+ el.innerHTML=vts.map(v=>{const P=S.per[v];return `<h3 style="margin:18px 0 6px">${esc(P.namn)} – ${P.n.toLocaleString('sv-SE')} ledamöter, ${P.personvalda} personvalda (${Math.round(100*P.personvalda/P.n)} %), ${P.kval} klarade spärren</h3>
+  <div class="tw"><table><thead><tr><th>Parti</th><th class="r">Valda</th><th class="r">På personröster</th><th class="r">Klarade spärren</th><th class="r">Personröster, snitt</th></tr></thead><tbody>${P.partier.filter(x=>x.n>=3||v==='RD').map(x=>`<tr><td><span class="pf" style="background:${PC[x.p]||'#888'}">${esc(x.p)}</span></td><td class="r">${x.n}</td><td class="r">${x.personvalda} <span class="muted">(${Math.round(100*x.personvalda/x.n)} %)</span></td><td class="r">${x.kval}</td><td class="r">${x.pr_snitt==null?'–':x.pr_snitt.toLocaleString('sv-SE')}</td></tr>`).join('')}</tbody></table></div>
+  ${P.topp.length?`<h4 style="margin:12px 0 4px">Flest personröster</h4><div class="tw"><table><thead><tr><th>Namn</th><th>Parti</th><th>Område</th><th class="r">Personröster</th><th class="r">Andel</th></tr></thead><tbody>${P.topp.map(t=>`<tr><td>${esc(t.namn)}</td><td><span class="pf" style="background:${PC[t.p]||'#888'}">${esc(t.p)}</span></td><td>${esc(t.omr||'')}</td><td class="r">${t.pr.toLocaleString('sv-SE')}</td><td class="r">${t.andel?String(t.andel).replace('.',',')+' %':'–'}</td></tr>`).join('')}</tbody></table></div>`:''}`;}).join('')+
+ (S.missade&&S.missade.length?`<h3 style="margin:18px 0 6px">Klarade personröstspärren men kom inte in (${S.n_missade})</h3><p class="lead">Spärren är 5 % av partiets röster i riksdagsvalet och 5 % i region- och kommunvalen. Att klara den räcker bara om partiet har tillräckligt många mandat.</p><div class="tw"><table><thead><tr><th>Namn</th><th>Parti</th><th>Val</th><th>Område</th><th class="r">Personröster</th></tr></thead><tbody>${S.missade.map(t=>`<tr><td>${esc(t.namn)}</td><td><span class="pf" style="background:${PC[t.p]||'#888'}">${esc(t.p)}</span></td><td>${t.vt}</td><td>${esc(t.omr||'')}</td><td class="r">${t.pr.toLocaleString('sv-SE')} ${t.andel?'<span class="muted">('+String(t.andel).replace('.',',')+' %)</span>':''}</td></tr>`).join('')}</tbody></table></div>`:'')+
+ (S.rd_fbk_topp&&S.rd_fbk_topp.length?`<h3 style="margin:18px 0 6px">Var riksdagsledamöterna bor</h3><p class="lead">Folkbokföringskommun enligt Valmyndighetens kandidatfil. ${S.rd_kommuner} kommuner har minst en ledamot i riksdagen.</p><div class="tw"><table><thead><tr><th>Kommun</th><th class="r">Ledamöter</th></tr></thead><tbody>${S.rd_fbk_topp.map(([k,n])=>`<tr><td>${esc(k)}</td><td class="r">${n}</td></tr>`).join('')}</tbody></table></div>`:'')+
+ `<p class="starnote">Källa: Valmyndighetens fastställda resultat (valda, valgrund, personröster, kvalificerade) och kandidatfil (folkbokföringskommun). Kön och ålder ingår inte i Valmyndighetens öppna filer och visas därför inte.</p>`;}
+const RENDER={region:null,kommun:null,riksdag:renderRiksdag,vippen:renderVippen,stat:renderStat};
 function counts(){return {region:DATA.in_rf.filter(x=>!selLan||x.lan===selLan).length,
   kommun:DATA.in_kf.filter(x=>!selLan||x.lan===selLan).length,
   riksdag:selLan?Object.entries(DATA.per_vk).filter(([k])=>(DATA.geo.lanToVk[selLan]||[]).includes(k)).reduce((a,[,v])=>a+v.length,0):DATA.rd_total,
   vippen:DATA.risk.filter(x=>!selLan||x.lan===selLan).length};}
 function paintTabs(){fillIntros();const c=counts();document.querySelectorAll('.tab').forEach(t=>{const k=t.dataset.tab;
   t.setAttribute('aria-selected',k===activeTab);
-  t.innerHTML=({region:'Region',kommun:'Kommun',riksdag:'Riksdag',vippen:'På vippen'})[k]+`<span class="c">${c[k]}</span>`;});}
+  t.innerHTML=({region:'Region',kommun:'Kommun',riksdag:'Riksdag',vippen:'På vippen',stat:'Statistik'})[k]+(c[k]!=null?`<span class="c">${c[k]}</span>`:'');});}
 function setTab(name){activeTab=name;
- ['region','kommun','riksdag','vippen'].forEach(k=>{$('#p_'+k).hidden=(k!==name);});
+ ['region','kommun','riksdag','vippen','stat'].forEach(k=>{$('#p_'+k).hidden=(k!==name);});
  paintTabs();RENDER[name]&&RENDER[name]();}
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{setTab(t.dataset.tab);
   $('#tabs').scrollIntoView({behavior:'smooth',block:'start'});}));
@@ -468,7 +521,7 @@ function selbar(){const el=$('#selbar');
  el.querySelector('[data-clear]').onclick=()=>selectLan(selLan);}
 
 // ---- init ----
-head();drawMap();if(DATA.official){const t=document.getElementById('tab_vippen');if(t)t.hidden=true;}mapside();
+head();drawMap();if(DATA.official){const t=document.getElementById('tab_vippen');if(t)t.hidden=true;}if(!DATA.stat||!DATA.stat.per){const t=document.getElementById('tab_stat');if(t)t.hidden=true;}mapside();
 RENDER.region=panelFactory('region', DATA.in_rf);
 RENDER.kommun=panelFactory('kommun', DATA.in_kf);
 $('#s_riksdag').addEventListener('input',renderRiksdag);
