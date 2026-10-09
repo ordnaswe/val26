@@ -1,0 +1,27 @@
+name: Deploya allavalda.se
+# Manuell körning: Actions → "Deploya allavalda.se" → Run workflow.
+# Hämtar de slutliga filerna från val.se (utan att deploya valutfall.se), läser ut valda/ersättare/personröster
+# med valda.py, bygger allavalda.se med build_allavalda.py och deployar till Netlify-sajten i NETLIFY_SITE_ID_ALLAVALDA.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-allavalda
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Hämta slutliga filer och bygg underlaget (ingen deploy av valutfall)
+        run: python3 hamta.py --force --live --pattern-rd "slutlig_00_RD" --pattern-rf "s/rf/" --pattern-kf "s/kf/"
+      - name: Bygg allavalda.se
+        run: python3 build_allavalda.py --out public_allavalda
+      - name: Deploya till Netlify (allavalda.se)
+        run: python3 -c "import hamta; hamta.deploy('public_allavalda/index.html')"
+        env:
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID_ALLAVALDA }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
