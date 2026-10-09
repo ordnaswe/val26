@@ -96,6 +96,13 @@ def build(a):
         if p.lower().startswith(NOT_PARTY): continue
         dv[r['distrikt']][r['valtyp']][p] = int(r['roster'])
         dmeta.setdefault(r['distrikt'], {})[r['valtyp']] = {'giltiga': int(r['giltiga'] or 0), 'rb': int(r['rostberattigade'] or 0), 'kod': r['distriktskod']}
+    # 2022 (och tidigare) per distriktskod ur data/historik.csv för alla tre valen (riksdagspartierna)
+    hist = defaultdict(lambda: defaultdict(dict))   # kod -> val -> year -> {p: share}
+    if os.path.exists(a.historik):
+        with open(a.historik, encoding='utf-8-sig', newline='') as f:
+            for r in csv.DictReader(f):
+                if not r['distrikt_kod'].startswith(kk): continue
+                hist[r['distrikt_kod']][r['val']].setdefault(r['year'], {})[r['party']] = num(r['share'])
     distrikt = []
     djson = {ds['namn']: ds for ds in d['districts'] if ds.get('kommun') == kname}
     for namn in sorted(dv):
@@ -108,7 +115,13 @@ def build(a):
             if meta['rb']: item['turnout'][vt] = round(100*tot/meta['rb'], 1)   # giltiga röster / röstberättigade
             item['rb'] = meta['rb'] or item.get('rb')
         dj = djson.get(namn) or {}
-        item['chg'] = dj.get('changes') or {}             # RD 2022 -> 2026 (jämförbara distrikt)
+        item['chg'] = dj.get('changes') or {}             # RD 2022 -> 2026 (jämförbara distrikt, ur data.json)
+        item['chgv'] = {}                                  # per val: 2022 -> 2026 ur historik.csv (samma distriktskod)
+        for vt in ('RD', 'RF', 'KF'):
+            h22 = (hist.get(item['kod'] or '', {}).get(vt, {}) or {}).get('2022')
+            v26 = item['val'].get(vt)
+            if h22 and v26: item['chgv'][vt] = {p: round(v26['sh'].get(p, 0) - h22[p], 1) for p in PIDS if h22.get(p) is not None}
+        if not item['chg'] and item['chgv'].get('RD'): item['chg'] = item['chgv']['RD']
         item['series'] = dj.get('series') or {}           # RD 2014/2018/2022/2026
         item['cov'] = {f: dj.get(f) for f in covKeys if dj.get(f) is not None}
         item['uppsamling'] = namn.lower().startswith('uppsamling')
@@ -292,7 +305,7 @@ function rOversikt(){const t=DATA.turnout;const kf=topP('KF'),rd=topP('RD'),rf=t
 // ---------- Karta ----------
 function val(d,vt){return d.val[vt]||null;}
 function mapValue(d){if(mapMode==='deltag')return d.turnout[mapVal]??null;if(mapMode==='top'){const v=val(d,mapVal);if(!v)return null;return Object.entries(v.sh).sort((a,b)=>b[1]-a[1])[0][0];}
- if(mapMode==='chg'){return mapVal==='RD'&&d.chg&&d.chg[mapP]!=null?d.chg[mapP]:null;}const v=val(d,mapVal);return v?(v.sh[mapP]??0):null;}
+ if(mapMode==='chg'){const c=(d.chgv||{})[mapVal]||(mapVal==='RD'?d.chg:null);return c&&c[mapP]!=null?c[mapP]:null;}const v=val(d,mapVal);return v?(v.sh[mapP]??0):null;}
 function lerp(a,b,t){return a+(b-a)*t;}function hex(c){const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(c);return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[120,120,120];}
 function mix(c,t){const[r,g,b]=hex(c);const base=document.documentElement.getAttribute('data-theme')==='dark'||(window.matchMedia('(prefers-color-scheme:dark)').matches&&document.documentElement.getAttribute('data-theme')!=='light')?[40,48,58]:[235,238,242];return `rgb(${Math.round(lerp(base[0],r,t))},${Math.round(lerp(base[1],g,t))},${Math.round(lerp(base[2],b,t))})`;}
 function rKarta(){const ps=partiesFor(mapVal);if(!mapP||!ps.includes(mapP)){const t=topP(mapVal);mapP=t&&ps.includes(t.p)?t.p:ps[0];}const G=DATA.geo;const ds=DATA.distrikt.filter(d=>!d.uppsamling);
@@ -300,22 +313,22 @@ function rKarta(){const ps=partiesFor(mapVal);if(!mapP||!ps.includes(mapP)){cons
  const fill=d=>{const v=mapValue(d);if(v==null)return 'var(--surface2)';if(mapMode==='top')return col(v);if(mapMode==='chg'){const m=Math.max(Math.abs(lo),Math.abs(hi))||1;return v>=0?mix(getComputedStyle(document.documentElement).getPropertyValue('--pos').trim()||'#2e7d5b',Math.min(1,v/m)):mix(getComputedStyle(document.documentElement).getPropertyValue('--neg').trim()||'#b0313f',Math.min(1,-v/m));}return mix(mapMode==='deltag'?'#0e7c74':col(mapP),(v-lo)/((hi-lo)||1)*0.85+0.15);};
  const svg=G.polys?`<svg class="dmap" viewBox="0 0 ${G.w} ${G.h}" preserveAspectRatio="xMidYMid meet">${Object.entries(G.polys).map(([n,p])=>{const d=DATA.distrikt.find(x=>x.namn===n);return `<path d="${p.rings.map(r=>'M'+r.map(q=>q[0]+','+q[1]).join('L')+'Z').join('')}" fill="${d?fill(d):'var(--surface2)'}" data-n="${esc(n)}" class="${selD===n?'sel':''}"><title>${esc(n)}${d&&mapValue(d)!=null?' – '+(typeof mapValue(d)==='number'?f1(mapValue(d))+(mapMode==='chg'?' enh.':' %'):PN[mapValue(d)]||mapValue(d)):''}</title></path>`;}).join('')}</svg>`:'<div class="muted">Ingen karta i underlaget.</div>';
  const legend=mapMode==='top'?`<div class="legend">${[...new Set(ds.map(mapValue).filter(Boolean))].map(p=>`<span>${pf(p)}</span>`).join(' ')}</div>`:`<div class="legend"><span>${f1(lo)}${mapMode==='chg'?'':' %'}</span><span class="bar" style="background:linear-gradient(90deg,${mapMode==='chg'?'var(--neg),var(--surface2),var(--pos)':mix(mapMode==='deltag'?'#0e7c74':col(mapP),.15)+','+mix(mapMode==='deltag'?'#0e7c74':col(mapP),1)})"></span><span>${f1(hi)}${mapMode==='chg'?'':' %'}</span></div>`;
- const sorted=ds.slice().sort((a,b)=>{const x=mapValue(a),y=mapValue(b);return (typeof y==='number'?y:-1)-(typeof x==='number'?x:-1);});
+ const sorted=ds.slice().sort((a,b)=>{const x=mapValue(a),y=mapValue(b);return (typeof y==='number'?y:-1e9)-(typeof x==='number'?x:-1e9);});
  $('#panel').innerHTML=`<h2 style="margin-top:0">Valdistrikten</h2>${intro(`Här ser du hur varje valdistrikt i ${K.namn} röstade. Välj val, parti och vad kartan ska visa. Klicka på ett distrikt i kartan eller i listan för alla tre valen, valdeltagande och demografi.`,mapMode==='andel'&&sorted.length?`${PN[mapP]||mapP} är starkast i ${esc(sorted[0].namn)} (${f1(mapValue(sorted[0]))} %) och svagast i ${esc(sorted[sorted.length-1].namn)} (${f1(mapValue(sorted[sorted.length-1]))} %).`:'')}
  <div class="controls"><div class="ctl"><label>Val</label><span class="seg" id="mv">${['KF','RF','RD'].map(v=>`<button data-v="${v}" aria-pressed="${mapVal===v}">${VN[v]}</button>`).join('')}</span></div>
-  <div class="ctl"><label>Visa</label><span class="seg" id="mm"><button data-m="andel" aria-pressed="${mapMode==='andel'}">Andel</button><button data-m="chg" aria-pressed="${mapMode==='chg'}" ${mapVal!=='RD'?'disabled title="Förändring per distrikt finns bara för riksdagsvalet"':''}>±2022</button><button data-m="top" aria-pressed="${mapMode==='top'}">Största parti</button><button data-m="deltag" aria-pressed="${mapMode==='deltag'}">Valdeltagande</button></span></div>
+  <div class="ctl"><label>Visa</label><span class="seg" id="mm"><button data-m="andel" aria-pressed="${mapMode==='andel'}">Andel</button><button data-m="chg" aria-pressed="${mapMode==='chg'}">±2022</button><button data-m="top" aria-pressed="${mapMode==='top'}">Största parti</button><button data-m="deltag" aria-pressed="${mapMode==='deltag'}">Valdeltagande</button></span></div>
   <div class="ctl"><label>Parti</label><select id="mp">${ps.map(p=>`<option value="${esc(p)}" ${p===mapP?'selected':''}>${esc(PN[p]||p)}</option>`).join('')}</select></div></div>
  <div class="maprow"><div>${svg}${legend}</div><div id="dpanel">${selD?distCard(DATA.distrikt.find(x=>x.namn===selD)):'<p class="muted">Klicka på ett distrikt.</p>'}</div></div>
  <h3>Alla distrikt</h3><div class="tw"><table><thead><tr><th>Distrikt</th><th class="r">${mapMode==='deltag'?'Valdeltagande':mapMode==='top'?'Största':mapMode==='chg'?'±2022':esc(mapP)+' %'}</th><th class="r">Röstber.</th></tr></thead><tbody>${sorted.map(d=>{const v=mapValue(d);return `<tr class="click ${selD===d.namn?'sel':''}" data-n="${esc(d.namn)}"><td>${esc(d.namn)}</td><td class="r">${v==null?'–':typeof v==='number'?(mapMode==='chg'?sg(v):f1(v)+' %'):pf(v)}</td><td class="r">${d.rb?d.rb.toLocaleString('sv-SE'):'–'}</td></tr>`;}).join('')}</tbody></table></div>
- <p class="note">Uppsamlingsdistriktet (förtidsröster som inte kunnat föras till ett distrikt) visas inte på kartan.</p>`;
- $('#panel').querySelectorAll('#mv button').forEach(b=>b.onclick=()=>{mapVal=b.dataset.v;if(mapVal!=='RD'&&mapMode==='chg')mapMode='andel';rKarta();});
+ <p class="note">Uppsamlingsdistriktet (förtidsröster som inte kunnat föras till ett distrikt) visas inte på kartan. ±2022 finns för riksdagspartierna i distrikt som har samma kod som 2022; omritade eller nya distrikt saknar jämförelse.</p>`;
+ $('#panel').querySelectorAll('#mv button').forEach(b=>b.onclick=()=>{mapVal=b.dataset.v;rKarta();});
  $('#panel').querySelectorAll('#mm button').forEach(b=>b.onclick=()=>{mapMode=b.dataset.m;rKarta();});
  $('#mp').onchange=e=>{mapP=e.target.value;rKarta();};
  $('#panel').querySelectorAll('[data-n]').forEach(el=>el.addEventListener('click',()=>{selD=selD===el.dataset.n?null:el.dataset.n;rKarta();}));}
 function partiesFor(vt){const s=new Set();DATA.distrikt.forEach(d=>{const v=val(d,vt);if(v)Object.keys(v.sh).forEach(p=>{if(v.sh[p]>=1)s.add(p);});});return [...ORDER.filter(p=>s.has(p)),...[...s].filter(p=>!ORDER.includes(p)).sort()];}
 function distCard(d){if(!d)return '';const vts=['KF','RF','RD'].filter(v=>d.val[v]);const ps=[...new Set(vts.flatMap(v=>Object.keys(d.val[v].sh)))].filter(p=>vts.some(v=>(d.val[v].sh[p]||0)>=1)).sort((a,b)=>(ORDER.indexOf(a)===-1?99:ORDER.indexOf(a))-(ORDER.indexOf(b)===-1?99:ORDER.indexOf(b)));
  return `<div class="card"><b>${esc(d.namn)}</b> <span class="muted">· ${d.rb?d.rb.toLocaleString('sv-SE')+' röstberättigade':''}</span>
- <div class="tw"><table><thead><tr><th>Parti</th>${vts.map(v=>`<th class="r">${VN[v]}</th>`).join('')}${d.chg&&Object.keys(d.chg).length?'<th class="r">RD ±22</th>':''}</tr></thead><tbody>${ps.map(p=>`<tr><td>${pf(p)}</td>${vts.map(v=>`<td class="r">${f1(d.val[v].sh[p])}</td>`).join('')}${d.chg&&Object.keys(d.chg).length?`<td class="r">${sg(d.chg[p])}</td>`:''}</tr>`).join('')}<tr><td class="muted">Valdeltagande</td>${vts.map(v=>`<td class="r muted">${d.turnout[v]!=null?f1(d.turnout[v])+' %':'–'}</td>`).join('')}${d.chg&&Object.keys(d.chg).length?'<td></td>':''}</tr></tbody></table></div>
+ <div class="tw"><table><thead><tr><th>Parti</th>${vts.map(v=>`<th class="r">${VN[v]}<br><small class="muted">2026 · ±22</small></th>`).join('')}</tr></thead><tbody>${ps.map(p=>`<tr><td>${pf(p)}</td>${vts.map(v=>{const c=(d.chgv||{})[v]||(v==='RD'?d.chg:null);return `<td class="r">${f1(d.val[v].sh[p])} <small>${c&&c[p]!=null?sg(c[p]):''}</small></td>`;}).join('')}</tr>`).join('')}<tr><td class="muted">Valdeltagande</td>${vts.map(v=>`<td class="r muted">${d.turnout[v]!=null?f1(d.turnout[v])+' %':'–'}</td>`).join('')}</tr></tbody></table></div>
  ${Object.keys(d.cov).length?`<p class="lead" style="margin:8px 0 0;font-size:.84rem">${DATA.facs.filter(f=>d.cov[f.key]!=null).map(f=>`<b>${esc(f.lab)}</b> ${(Math.round(d.cov[f.key]*10)/10).toLocaleString('sv-SE')}${f.unit?' '+esc(f.unit):''}`).join(' · ')}</p>`:''}</div>`;}
 // ---------- Historik ----------
 function lineChart(years,series,ps){const W=680,H=300,mL=40,mB=30,mT=12,mR=70;const all=ps.flatMap(p=>series[p]||[]).filter(v=>v!=null);const ymax=Math.max(10,...all)*1.08;
@@ -377,6 +390,7 @@ if __name__ == '__main__':
     ap.add_argument('--mandat-slutligt', default='data/mandat_slutligt.csv'); ap.add_argument('--styre', default='data/styre_kommun_2022.csv')
     ap.add_argument('--valdeltagande', default='data/valdeltagande_2026.csv'); ap.add_argument('--nyckelpersoner', default='nyckelpersoner.csv')
     ap.add_argument('--valda', default='data/valda.csv'); ap.add_argument('--slutligt', default='data/slutligt.json')
+    ap.add_argument('--historik', default='data/historik.csv', help='per-distriktshistorik 2014–2022 för RD/RF/KF (±2022 i kartan för alla tre valen)')
     a = ap.parse_args()
     a.out = a.out or f'public/kommun/{a.slug}/index.html'
     PAGE = PAGE.replace('__TITLE__', a.slug)
