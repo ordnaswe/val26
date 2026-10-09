@@ -113,7 +113,7 @@ def build(data_path, kommun_path, out_path, slutligt_path=None):
         covvals = [num(ds.get(k)) for k in covKeys]
         sh = ds.get('shares', {})
         shares = [num(sh.get(p)) for p in PIDS]
-        row = [lankod, komkod, rost] + covvals + shares
+        row = [lankod, komkod, rost] + covvals + shares + [ds.get('namn','')]
         dist.append(row)
         # tidsserie: aktuell kovariat vs series[p][yearidx]
         ser = ds.get('series', {})
@@ -224,7 +224,7 @@ def build(data_path, kommun_path, out_path, slutligt_path=None):
         pids=PIDS, elyears=elyears,
         dfac=[{'key':k,'lab':l,'unit':u,'desc':desc} for k,l,u,desc in DFAC],
         komf=[{'key':k,'lab':l,'unit':u,'desc':desc} for k,l,u,desc in KOMF],
-        dcols=['lan','kom','rost']+covKeys+PIDS,
+        dcols=['lan','kom','rost']+covKeys+PIDS+['namn'],
         dist=dist,
         kom=kom,
         ts=ts,
@@ -280,7 +280,7 @@ PAGE = r"""<!doctype html>
  .panel{background:var(--surface);border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;padding:16px;box-shadow:var(--shadow)}
  .maprow{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-top:14px}
  .nav a{text-decoration:none} .nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
- circle.pt{cursor:pointer} circle.pt:hover{fill-opacity:1;stroke:var(--ink);stroke-width:1.5}
+ circle.pt{cursor:pointer} circle.pt:hover{fill-opacity:1;stroke:var(--ink);stroke-width:1.5} circle.seld{stroke:var(--ink);stroke-width:2.5}
  .mapbox{flex:0 0 150px;max-width:38vw}
  svg.map{width:100%;height:auto;display:block}
  svg.map path{fill:var(--surface2);stroke:var(--paper);stroke-width:1.2;cursor:pointer}
@@ -334,8 +334,11 @@ PAGE = r"""<!doctype html>
    <span class="seg" id="lvl"><button data-lvl="dist" aria-pressed="true">Valdistrikt</button><button data-lvl="kom" aria-pressed="false">Kommun</button></span></div>
  <div class="ctl"><label>Faktor</label><select id="factor"></select><div class="facdesc" id="facdesc"></div></div>
  <div class="ctl"><label>Parti</label><select id="party"></select></div>
+ <div class="ctl"><label>Kommun</label><select id="komsel"><option value="">Alla kommuner</option></select></div>
+ <div class="ctl" id="distwrap" style="display:none"><label>Valdistrikt</label><select id="distsel"><option value="">Alla i kommunen</option></select></div>
  <div class="ctl" id="selwrap"></div>
 </div>
+<div id="distcard"></div>
  </div>
 </div>
 
@@ -362,7 +365,7 @@ const PN = Object.fromEntries(DATA.parties.map(p=>[p.id,p.namn]));
 const $ = s=>document.querySelector(s);
 const esc = s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const CI = Object.fromEntries(DATA.dcols.map((c,i)=>[c,i]));   // kolumnindex i dist-rader
-let level='dist', factorKey=DATA.dfac[0].key, party=DATA.pids[0], mode='samband', selLan=null, nbins=5, mvSel=null;
+let level='dist', factorKey=DATA.dfac[0].key, party=DATA.pids[0], mode='samband', selLan=null, selKom=null, selDist=null, nbins=5, mvSel=null;
 
 (function(){const r=document.documentElement,b=$('#theme');
  const cur=()=>r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
@@ -381,9 +384,10 @@ function rows(){
  const out={x:[],w:[],k:[],sh:{}}; DATA.pids.forEach(p=>out.sh[p]=[]);
  if(level==='dist'){
    const fi=CI[factorKey];
-   for(const r of DATA.dist){
-     if(selLan && r[CI.lan]!==selLan) continue;
-     out.x.push(r[fi]); out.w.push(r[CI.rost]||0); out.k.push(r[CI.kom]);
+   out.i=[];out.n=[];
+   for(let j=0;j<DATA.dist.length;j++){const r=DATA.dist[j];
+     if(selKom){if(r[CI.kom]!==selKom) continue;} else if(selLan && r[CI.lan]!==selLan) continue;
+     out.x.push(r[fi]); out.w.push(r[CI.rost]||0); out.k.push(r[CI.kom]); out.i.push(j); out.n.push(r[CI.namn]||'');
      DATA.pids.forEach(p=>out.sh[p].push(r[CI[p]]));
    }
  } else {
@@ -407,7 +411,8 @@ const rcol=r=>r==null?'var(--ink3)':(r>0?'var(--pos)':'var(--neg)');
 const strength=r=>{r=Math.abs(r);return r<0.1?'inget':r<0.3?'svagt':r<0.5?'måttligt':r<0.7?'tydligt':'starkt';};
 // klartext-styrka för lekmän
 const styrkeOrd=r=>{const a=Math.abs(r);return a<0.1?'nästan inget':a<0.2?'svagt':a<0.35?'märkbart':a<0.5?'tydligt':'starkt';};
-const omr=()=>level==='dist'?'valdistrikt':'kommuner';
+const omrNamn=()=>selKom?(KN[selKom]||selKom):selLan?(DATA.geo.lanNamn[selLan]||selLan):'';
+const omr=()=>level==='dist'?(selKom?'valdistrikt i '+(KN[selKom]||selKom):'valdistrikt'):'kommuner';
 // en mening om ett samband för en lekman
 function plainCorr(p,r,facLabLc){const namn=PN[p]||p;
  if(Math.abs(r)<0.1) return `${namn} röstas ungefär lika oavsett ${facLabLc} – <b>nästan inget samband</b>.`;
@@ -443,7 +448,7 @@ function renderSamband(){const R=rows(),fm=facMeta();
  const me=corr.find(o=>o.p===party)||top; const opp=me.r>=0?bot:top;
  const tolk=`<div class="takeaway">Så läser du det: ${plainCorr(me.p, me.r, fl)}`+
    (opp&&opp.p!==me.p&&Math.abs(opp.r)>=0.1&&((opp.r>0)!==(me.r>0))?` Tvärtom: ${plainCorr(opp.p, opp.r, fl)}`:'')+`</div>`;
- $('#panel').innerHTML=intro(`Här ser du hur vald faktor hänger ihop med varje partis stöd. Byt faktor och parti i rutorna ovanför.`,plainCorr(me.p,me.r,fl))+explain('samband')+`<p class="lead">Hur <b>${esc(withUnit(fl,fm.unit))}</b> hänger ihop med varje partis stöd${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}. Staplar åt höger = partiet starkare där faktorn är hög, åt vänster = starkare där den är låg.</p>
+ $('#panel').innerHTML=intro(`Här ser du hur vald faktor hänger ihop med varje partis stöd. Byt faktor och parti i rutorna ovanför.`,plainCorr(me.p,me.r,fl))+explain('samband')+`<p class="lead">Hur <b>${esc(withUnit(fl,fm.unit))}</b> hänger ihop med varje partis stöd${omrNamn()?' i '+esc(omrNamn()):''}. Staplar åt höger = partiet starkare där faktorn är hög, åt vänster = starkare där den är låg.</p>
    <div class="chart">${divergeBars(corr)}</div>
    ${tolk}
    <p class="lead" style="margin-top:16px">Punktdiagram: varje prick är ett ${level==='dist'?'valdistrikt':'kommun'} (större prick = fler röster). Lutar molnet uppåt åt höger följs hög ${esc(fl)} av högt stöd för ${esc(PN[party]||party)}; lutar det nedåt är det tvärtom.</p>
@@ -469,16 +474,16 @@ function divergeBars(corr){
  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:680px">${grid}${bars}</svg>`;
 }
 function drawScatter(R, p, fm){
- const pts=[]; for(let i=0;i<R.x.length;i++){if(R.x[i]!=null&&R.sh[p][i]!=null&&R.w[i])pts.push([R.x[i],R.sh[p][i],R.w[i],R.k?R.k[i]:null]);}
+ const pts=[]; for(let i=0;i<R.x.length;i++){if(R.x[i]!=null&&R.sh[p][i]!=null&&R.w[i])pts.push([R.x[i],R.sh[p][i],R.w[i],R.k?R.k[i]:null,R.n?R.n[i]:'',R.i?R.i[i]:null]);}
  if(!pts.length){$('#scatter').innerHTML='<div class="empty">Ingen data.</div>';return;}
  const W=640,H=300,mL=44,mB=34,mT=10,mR=10;
  const xs=pts.map(a=>a[0]),ys=pts.map(a=>a[1]);
  const xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=0,ymax=Math.max(...ys)*1.05||1;
  const sx=v=>mL+(v-xmin)/((xmax-xmin)||1)*(W-mL-mR), sy=v=>H-mB-(v-ymin)/((ymax-ymin)||1)*(H-mB-mT);
  // sampla för rendering om många
- let draw=pts; if(pts.length>1600){draw=[];const step=pts.length/1600;for(let i=0;i<pts.length;i+=step)draw.push(pts[Math.floor(i)]);}
+ let draw=pts; if(pts.length>1600){draw=[];const step=pts.length/1600;for(let i=0;i<pts.length;i+=step)draw.push(pts[Math.floor(i)]);if(selDist!=null&&!draw.some(a=>a[5]===selDist)){const s=pts.find(a=>a[5]===selDist);if(s)draw.push(s);}}
  const rmax=Math.max(...draw.map(a=>a[2]));
- const dots=draw.map(a=>`<circle class="pt" data-k="${a[3]||''}" cx="${sx(a[0]).toFixed(1)}" cy="${sy(a[1]).toFixed(1)}" r="${(1.2+Math.sqrt(a[2]/rmax)*2.6).toFixed(1)}" fill="${PC[p]||'#888'}" fill-opacity="0.45"><title>${esc(KN[a[3]]||'')} – ${esc(p)} ${a[1].toFixed(1).replace('.',',')} %. Klicka för Partianalys.</title></circle>`).join('');
+ const dots=draw.map(a=>{const sel=selDist!=null&&a[5]===selDist;return `<circle class="pt${sel?' seld':''}" data-k="${a[3]||''}" cx="${sx(a[0]).toFixed(1)}" cy="${sy(a[1]).toFixed(1)}" r="${sel?7:(1.2+Math.sqrt(a[2]/rmax)*2.6).toFixed(1)}" fill="${PC[p]||'#888'}" fill-opacity="${sel?1:0.45}" ${sel?'stroke="var(--ink)" stroke-width="2.5"':''}><title>${a[4]?esc(a[4])+', ':''}${esc(KN[a[3]]||'')} – ${esc(p)} ${a[1].toFixed(1).replace('.',',')} %. Klicka för Partianalys.</title></circle>`}).join('');
  const gx=[xmin,(xmin+xmax)/2,xmax].map(v=>`<text x="${sx(v).toFixed(1)}" y="${H-mB+16}" font-size="11" text-anchor="middle">${v>=1000?Math.round(v):(Math.round(v*10)/10)}</text>`).join('');
  const gy=[0,ymax/2,ymax].map(v=>`<text x="${mL-6}" y="${(sy(v)+4).toFixed(1)}" font-size="11" text-anchor="end">${Math.round(v)}</text>`).join('');
  $('#scatter').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:660px">
@@ -512,7 +517,7 @@ function renderGrupper(){const R=rows(),fm=facMeta();
  const lo=rowsq[0], hi=rowsq[rowsq.length-1], diff=hi.share-lo.share, fl=fm.lab.toLowerCase();
  const rikt = Math.abs(diff)<1 ? `röstar ungefär lika (${lo.share.toFixed(0)}–${hi.share.toFixed(0)} %) oavsett ${esc(fl)} – faktorn spelar liten roll.`
    : `får <b>${hi.share.toFixed(1)} %</b> i ${omr()} med högst ${esc(fl)}, mot <b>${lo.share.toFixed(1)} %</b> där den är lägst – en skillnad på <b>${Math.abs(diff).toFixed(1)} procentenheter</b>, ${diff>0?'alltså mer stöd ju högre faktorn är':'alltså mindre stöd ju högre faktorn är'}.`;
- $('#panel').innerHTML=intro(`Här ser du hur valt parti röstas i ${omr()} med låg, medel och hög nivå på vald faktor, från lägst till högst.`,`${esc(PN[party]||party)} ${rikt}`)+explain('grupper')+ctlBins()+`<p class="lead">${esc(PN[party]||party)}s stöd i ${omr()} grupperade efter ${esc(fl)} (${q===5?'kvintiler = 5 grupper':'deciler = 10 grupper'}, rost-viktat)${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}.</p>
+ $('#panel').innerHTML=intro(`Här ser du hur valt parti röstas i ${omr()} med låg, medel och hög nivå på vald faktor, från lägst till högst.`,`${esc(PN[party]||party)} ${rikt}`)+explain('grupper')+ctlBins()+`<p class="lead">${esc(PN[party]||party)}s stöd i ${omr()} grupperade efter ${esc(fl)} (${q===5?'kvintiler = 5 grupper':'deciler = 10 grupper'}, rost-viktat)${omrNamn()?' i '+esc(omrNamn()):''}.</p>
    <div class="takeaway">${esc(PN[party]||party)} ${rikt}</div>${bars}
    <p class="note">Varje grupp rymmer ~${Math.round(100/q)} % av rösterna, ordnade från lägst till högst på faktorn. Sista kolumnen visar faktorns spann i gruppen.</p>`;
  $('#panel').querySelectorAll('[data-bins]').forEach(b=>b.onclick=()=>{nbins=+b.dataset.bins;render();});
@@ -624,7 +629,7 @@ function renderMulti(){const F=facs();
  }
  const sel=avail.filter(f=>mvSel.has(f.key));
  const chips=`<div class="filters" style="margin:0 0 12px">`+avail.map(f=>{const on=mvSel.has(f.key);return `<button class="fc ${on?'on':'off'}" data-mv="${f.key}" aria-pressed="${on}">${on?'✓ ':'+ '}${esc(f.lab.replace(/\s*\([^)]*\)\s*$/,''))}</button>`;}).join('')+`</div>`;
- const head=intro(`Här vägs flera faktorer in samtidigt, så du ser vilken som betyder mest för valt partis stöd när de andra hålls lika. Lägg till eller ta bort faktorer med knapparna.`,'')+explain('multi')+`<p class="lead">Vad hänger ihop med <b>${esc(PN[party]||party)}</b>s stöd när flera faktorer vägs in samtidigt (${level==='dist'?'valdistrikt':'kommuner'}${selLan?' i '+esc(DATA.geo.lanNamn[selLan]||selLan):''}). Kryssa faktorer:</p>${chips}`;
+ const head=intro(`Här vägs flera faktorer in samtidigt, så du ser vilken som betyder mest för valt partis stöd när de andra hålls lika. Lägg till eller ta bort faktorer med knapparna.`,'')+explain('multi')+`<p class="lead">Vad hänger ihop med <b>${esc(PN[party]||party)}</b>s stöd när flera faktorer vägs in samtidigt (${level==='dist'?'valdistrikt':'kommuner'}${omrNamn()?' i '+esc(omrNamn()):''}). Kryssa faktorer:</p>${chips}`;
  function wire(){$('#panel').querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{const k=b.dataset.mv;mvSel.has(k)?mvSel.delete(k):mvSel.add(k);renderMulti();});}
  if(sel.length<2){$('#panel').innerHTML=head+'<div class="empty">Välj minst två faktorer.</div>';wire();return;}
  // bygg rader med alla valda faktorer + andel + vikt
@@ -684,8 +689,10 @@ function fillFactors(){const sel=$('#factor');sel.innerHTML=facs().map(f=>`<opti
 function fillParties(){const sel=$('#party');sel.innerHTML=DATA.pids.map(p=>`<option value="${p}">${esc(PN[p]||p)}</option>`).join('');sel.value=party;}
 $('#factor').addEventListener('change',e=>{factorKey=e.target.value;$('#facdesc').textContent=facMeta().desc||'';render();});
 $('#party').addEventListener('change',e=>{party=e.target.value;render();});
+$('#komsel').addEventListener('change',e=>{selKom=e.target.value||null;selDist=null;if(selKom){level='dist';document.querySelectorAll('#lvl button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.lvl==='dist'));fillFactors();}mvSel=null;fillKom();render();});
+$('#distsel').addEventListener('change',e=>{selDist=e.target.value===''?null:+e.target.value;distCard();render();});
 document.querySelectorAll('#lvl button').forEach(b=>b.addEventListener('click',()=>{
- level=b.dataset.lvl;document.querySelectorAll('#lvl button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+ level=b.dataset.lvl;if(level==='kom'){selKom=null;selDist=null;fillKom();}document.querySelectorAll('#lvl button').forEach(x=>x.setAttribute('aria-pressed',x===b));
  mvSel=null;fillFactors();render();updMapHelp();}));
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{mode=t.dataset.mode;
  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===t));render();}));
@@ -696,18 +703,28 @@ function drawMap(){const g=DATA.geo,svg=$('#map');if(!g.lan||!Object.keys(g.lan)
  svg.setAttribute('viewBox',`0 0 ${g.w} ${g.h}`);
  svg.innerHTML=Object.entries(g.lan).map(([kod,rings])=>`<path d="${ringsToPath(rings)}" data-lan="${kod}"><title>${esc(g.lanNamn[kod]||kod)}</title></path>`).join('');
  svg.querySelectorAll('path').forEach(p=>p.addEventListener('click',()=>selectLan(p.getAttribute('data-lan'))));}
-function selectLan(kod){selLan=(selLan===kod)?null:kod;
+function selectLan(kod){selLan=(selLan===kod)?null:kod;if(selKom&&selLan&&selKom.slice(0,2)!==selLan){selKom=null;selDist=null;}fillKom();
  $('#map').querySelectorAll('path').forEach(p=>p.classList.toggle('sel',p.getAttribute('data-lan')===selLan));
  updSel();updMapHelp();render();}
+function fillKom(){const sel=$('#komsel');const cur=selKom||'';const list=DATA.kom.filter(k=>!selLan||k.lan===selLan).slice().sort((a,b)=>a.namn.localeCompare(b.namn,'sv'));
+ sel.innerHTML='<option value="">'+(selLan?'Alla kommuner i länet':'Alla kommuner')+'</option>'+list.map(k=>`<option value="${k.kod}" ${k.kod===cur?'selected':''}>${esc(k.namn)}</option>`).join('');
+ const dw=$('#distwrap');if(selKom){const ds=$('#distsel');const items=[];for(let j=0;j<DATA.dist.length;j++){const r=DATA.dist[j];if(r[CI.kom]===selKom)items.push([j,r[CI.namn]||('distrikt '+j)]);}
+  items.sort((a,b)=>a[1].localeCompare(b[1],'sv'));ds.innerHTML='<option value="">Alla i kommunen</option>'+items.map(([j,n])=>`<option value="${j}" ${j===selDist?'selected':''}>${esc(n)}</option>`).join('');dw.style.display='';}else dw.style.display='none';
+ distCard();}
+function distCard(){const el=$('#distcard');if(selDist==null){el.innerHTML='';return;}const r=DATA.dist[selDist];
+ const fac=DATA.dfac.map(f=>{const v=r[CI[f.key]];return v==null?'':`<span><b>${esc(f.lab)}</b> ${fmtVal(v,f)}</span>`;}).filter(Boolean).join(' · ');
+ const sh=DATA.pids.map(p=>`<span class="pf" style="background:${PC[p]||'#888'}">${esc(p)}</span> ${r[CI[p]]==null?'–':r[CI[p]].toFixed(1).replace('.',',')}`).join(' &nbsp; ');
+ el.innerHTML=`<div class="takeaway" style="margin:10px 0 0"><b>${esc(r[CI.namn]||'')}</b>, ${esc(KN[r[CI.kom]]||'')} · ${(r[CI.rost]||0).toLocaleString('sv-SE')} röstberättigade<br><span class="muted" style="font-size:.85rem">${fac}</span><br>${sh}<br><span class="muted" style="font-size:.8rem">Distriktet är markerat i punktdiagrammet under Samband. Ett enskilt distrikt har inget samband i sig – jämför dess läge med molnet.</span></div>`;}
+function fmtVal(v,f){const u=(f.unit||'').trim();return (Math.round(v*10)/10).toLocaleString('sv-SE')+(u?' '+u:'');}
 function updSel(){const el=$('#selwrap');if(!selLan){el.innerHTML='';return;}
  el.innerHTML=`<label>Urval</label><span class="selchip">${esc(DATA.geo.lanNamn[selLan]||selLan)} <button aria-label="Rensa">×</button></span>`;
  el.querySelector('button').onclick=()=>selectLan(selLan);}
-function updMapHelp(){$('#maphelp').innerHTML= selLan
-   ? `Visar <b>${esc(DATA.geo.lanNamn[selLan]||selLan)}</b>. Klicka länet igen för hela landet.`
+function updMapHelp(){$('#maphelp').innerHTML= selKom?`Visar valdistrikten i <b>${esc(KN[selKom]||selKom)}</b>. Välj ett valdistrikt för att se dess värden, eller "Alla kommuner" för att gå tillbaka.`:selLan
+   ? `Visar <b>${esc(DATA.geo.lanNamn[selLan]||selLan)}</b>. Välj en kommun i rutan för att gå ner på valdistriktsnivå, eller klicka länet igen för hela landet.`
    : 'Klicka på ett län för att räkna om sambanden för just det länet. Annars visas hela landet.';}
 
 // init
-head();fillFactors();fillParties();drawMap();updMapHelp();
+head();fillFactors();fillParties();drawMap();updMapHelp();fillKom();
 document.querySelector('.tab[data-mode=samband]').setAttribute('aria-selected','true');
 render();
 (function(){let base=DATA.meta.built;setInterval(async()=>{try{const r=await fetch('status.json?_='+Date.now(),{cache:'no-store'});
