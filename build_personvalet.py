@@ -144,11 +144,11 @@ def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path
             parts = []
             for pa, rs in sorted(byp.items(), key=lambda x: -len(x[1])):
                 pv = sum(1 for r in rs if 'person' in (r.get('valgrund') or '').lower()); kv = sum(1 for r in rs if r.get('kvalificerad') == 'Ja')
-                prs = [float(r['personroster']) for r in rs if r.get('personroster') not in (None, '')]
+                prs = [float(r.get('personroster_totalt') or r['personroster']) for r in rs if r.get('personroster') not in (None, '')]
                 parts.append({'p': pa, 'n': len(rs), 'personvalda': pv, 'kval': kv, 'pr_snitt': round(sum(prs)/len(prs)) if prs else None})
-            top = sorted([r for r in rows if r.get('personroster') not in (None, '')], key=lambda r: -float(r['personroster']))[:15]
+            top = sorted([r for r in rows if r.get('personroster') not in (None, '')], key=lambda r: -float(r.get('personroster_totalt') or r['personroster']))[:15]
             per[vt] = {'namn': VT[vt], 'n': len(rows), 'personvalda': sum(x['personvalda'] for x in parts), 'kval': sum(x['kval'] for x in parts),
-                       'partier': parts, 'topp': [{'namn': r['namn'], 'p': r['parti'], 'omr': r.get('valkretsnamn') or r.get('valomrnamn'), 'pr': int(float(r['personroster'])), 'andel': r.get('andel_personroster') or ''} for r in top]}
+                       'partier': parts, 'topp': [{'namn': r['namn'], 'p': r['parti'], 'omr': r.get('valkretsnamn') or r.get('valomrnamn'), 'pr': int(float(r.get('personroster_totalt') or r['personroster'])), 'andel': r.get('andel_personroster') or ''} for r in top]}
         # klarade spärren men kom inte in
         missade = [r for r in pers_rows if r.get('kvalificerad') == 'Ja' and r.get('invald') != 'Ja']
         missade.sort(key=lambda r: -float(r['personroster'] or 0))

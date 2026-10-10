@@ -37,7 +37,7 @@ Viktiga förbehåll (dokumenterade, inte gissningar)
   med ort som tie-break där den finns. Vanliga namn kan ge tvetydig träff -> `match`
   märks 'entydig' / 'tvetydig' / 'namn+parti' så du kan verifiera.
 """
-import csv, re, unicodedata, argparse, json, sys
+import csv, os, re, unicodedata, argparse, json, sys
 from collections import defaultdict, Counter
 
 PARTI={'Socialdemokraterna':'S','Moderaterna':'M','Moderata samlingspartiet':'M',
@@ -165,6 +165,28 @@ def elect(mandat, lists):
                 flera_listor=c.get('flera_listor',False)))
     return out
 
+def elect_official(valda_path, lists, komKod):
+    """Valda ledamöter ur Valmyndighetens fastställda resultat (valda.py) i stället för listordning."""
+    rows=list({(r['valtyp'],r['valomrkod'],r.get('kandidatnummer') or r['namn']): r for r in csv.DictReader(open(valda_path, encoding='utf-8-sig', newline=''))}.values())
+    # kandidatnummer -> fbk/valkretsnamn ur kandidatlistorna
+    knr_info={}
+    for key,lst in lists.items():
+        for c in lst: knr_info.setdefault(str(c.get('kandidatnr') or ''), c)
+    counts=defaultdict(int)
+    for r in rows: counts[(r['valtyp'],r['valomrkod'],r['parti'])]+=1
+    out=[]
+    for r in rows:
+        vt,vo,pa=r['valtyp'],r['valomrkod'],r['parti']
+        ci=knr_info.get(str(r.get('kandidatnummer') or ''),{})
+        disp = r.get('valkretsnamn') or r.get('valomrnamn') or ''
+        if vt in ('RF','KF'): disp = r.get('valomrnamn') or disp
+        out.append(dict(valtyp=vt, valomrkod=vo, valkretskod=r.get('valkretskod') or vo, parti=pa,
+            plats=int(r.get('invalsordning') or 0) or '', av_mandat=counts[(vt,vo,pa)], namn=r['namn'], namn_fold=fold(r['namn']),
+            kandidatnr=r.get('kandidatnummer'), fbk=ci.get('fbk',''), valkrets=disp,
+            personroster=r.get('personroster') or '', andel_personroster=r.get('andel_personroster') or '',
+            valgrund=r.get('valgrund') or '', kvalificerad=r.get('kvalificerad') or ''))
+    return out
+
 def annotate(elected, wl, komKod=None, region2lan=None):
     for c in elected:
         if c.get('_saknad_lista'): continue
@@ -240,6 +262,7 @@ def main():
     ap.add_argument('--data', default='public/data.json', help='för kommun-/regionkoder (områdesspärr i matchningen)')
     ap.add_argument('--demo', action='store_true')
     ap.add_argument('--out', default='invalda.csv')
+    ap.add_argument('--valda', default='data/valda.csv', help='Valmyndighetens fastställda valda (valda.py); används om filen finns')
     a=ap.parse_args()
     lists=load_lists(a.kandidaturer)
     wl=load_watchlist(a.nyckelpersoner)
@@ -260,8 +283,12 @@ def main():
     with open(a.mandat, encoding='utf-8', newline='') as f:
         for r in csv.DictReader(f):
             mandat[(r['valtyp'].strip(), r['valomradeskod'].strip(), r['valkretskod'].strip(), r['parti_abbr'].strip())]=int(r['mandat'])
-    el=annotate(elect(mandat, lists), wl, komKod, region2lan)
-    cols=['valtyp','valomrkod','valkretskod','valkrets','parti','plats','av_mandat','namn','fbk','nyckelperson','match','nyckelroll','nyckelsida','nyckelniva']
+    if a.valda and os.path.exists(a.valda):
+        el=annotate(elect_official(a.valda, lists, komKod), wl, komKod, region2lan)
+        print(f"Invalda: Valmyndighetens fastställda valda ur {a.valda} ({len(el)} ledamöter).", file=sys.stderr)
+    else:
+        el=annotate(elect(mandat, lists), wl, komKod, region2lan)
+    cols=['valtyp','valomrkod','valkretskod','valkrets','parti','plats','av_mandat','namn','fbk','nyckelperson','match','nyckelroll','nyckelsida','nyckelniva','personroster','andel_personroster','valgrund','kvalificerad']
     with open(a.out,'w',encoding='utf-8',newline='') as f:
         w=csv.DictWriter(f, fieldnames=cols, extrasaction='ignore'); w.writeheader()
         for c in el:
