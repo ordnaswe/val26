@@ -101,9 +101,13 @@ def main():
     ers = read_csv(a.ersattare); pers = read_csv(a.personroster)
     ers = list({(e['valtyp'], e['valomrkod'], e.get('ledamot_kandidatnummer'), e.get('kandidatnummer') or e['namn']): e for e in ers}.values())
     pers = list({(r['valtyp'], r['valomrkod'], r.get('kandidatnummer')): r for r in pers}.values())
-    kand = {}
+    kand = {}; lists = defaultdict(list); knr_lists = defaultdict(list)
     for r in read_csv(a.kandidaturer, ';'):
-        kand[(r.get('VALTYP'), r.get('KANDIDATNUMMER'))] = r
+        if r.get('GILTIG', 'J') != 'J': continue
+        kand.setdefault((r.get('VALTYP'), r.get('KANDIDATNUMMER')), r)
+        lk_ = (r['VALTYP'], r['VALOMRÅDESKOD'], r.get('VALKRETSKOD') or '', r['PARTIBETECKNING'])
+        lists[lk_].append(r); knr_lists[(r['VALTYP'], r['VALOMRÅDESKOD'], r['KANDIDATNUMMER'])].append(lk_)
+    for v in lists.values(): v.sort(key=lambda x: int(num(x.get('ORDNING')) or 0))
     vk2lan = {}; kom2vk = {}
     for r in read_csv(a.valkrets): kom2vk[r['kommunkod']] = r['valkretskod']; vk2lan.setdefault(r['valkretskod'], r['kommunkod'][:2])
     roles = defaultdict(list)
@@ -125,6 +129,9 @@ def main():
         r['slug'] = slugify(r['namn'])
     ers_by = defaultdict(list)
     for e in ers: ers_by[(e['valtyp'], e['valomrkod'], e['parti'])].append(e)
+    valda_knr_by = defaultdict(set); ers_knr_by = defaultdict(set)
+    for r in valda: valda_knr_by[(r['vt'], r['valomrkod'], r['p'])].add(r.get('kandidatnummer'))
+    for x in ers: ers_knr_by[(x['valtyp'], x['valomrkod'], x['parti'])].add(x.get('kandidatnummer'))
     by_person = defaultdict(list)     # samma person i flera val: namn + parti
     for r in valda: by_person[(fold(r['namn']), r['p'])].append(r)
 
@@ -247,6 +254,13 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         others = [x for x in by_person[(fold(r['namn']), r['p'])] if x is not r]
         rl = roles.get((fold(r['namn']), r['p']), [])
         e = [x for x in ers_by.get((r['vt'], r['valomrkod'], r['p']), []) if x.get('ledamot') == r['namn']]
+        # hela partilistan där personen stod (valkretsen där hen blev vald om det finns flera)
+        cand_keys = knr_lists.get((r['vt'], r['valomrkod'], r.get('kandidatnummer') or ''), [])
+        lkey = next((k for k in cand_keys if k[2] == (r.get('valkretskod') or '')), cand_keys[0] if cand_keys else None)
+        full = lists.get(lkey, []) if lkey else []
+        valda_knr = valda_knr_by.get((r['vt'], r['valomrkod'], r['p']), set())
+        ers_knr = {x.get('kandidatnummer') for x in e}
+        ers_any = ers_knr_by.get((r['vt'], r['valomrkod'], r['p']), set())
         fakta = [('Vald till', f"{VT[r['vt']]}{(' – ' + esc(r['omr'])) if r['omr'] else ''}"), ('Parti', f"{pf(r['p'])} {esc(PN.get(r['p'], r.get('partibeteckning') or ''))}"),
                  ('Invald som nummer', f"{r['nr']} för partiet" + (f" (listplats {esc(r['listplats'])})" if r['listplats'] else '')), ('Valgrund', esc(r.get('valgrund') or '–'))]
         if r['pr'] is not None: fakta.append(('Personröster', fmtn(r['pr']) + (f" ({str(r.get('andel_personroster')).replace('.', ',')} % av partiets röster{', klarade personröstspärren' if r['kval'] else ''})" if r.get('andel_personroster') else '')))
@@ -255,7 +269,8 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
 <div class="card"><table><tbody>{''.join(f'<tr><th>{k}</th><td>{v}</td></tr>' for k, v in fakta)}</tbody></table></div>
 {('<h2>Fler uppdrag efter valet</h2><ul class="led sans">' + ''.join(f'<li><a href="../../person/{x["id"]}/">{VT[x["vt"]]}{(" – " + esc(x["omr"])) if x["omr"] else ""}</a></li>' for x in others) + '</ul>') if others else ''}
 {('<h2>Roller 2022–2026</h2><ul class="led sans">' + ''.join(f'<li>{esc(x)}</li>' for x in rl) + '</ul>') if rl else ''}
-{('<h2>Ersättare</h2><ol class="led">' + ''.join(f'<li>{esc(x["namn"])} <span class="ers">{esc(x.get("valgrund") or "")}</span></li>' for x in sorted(e, key=lambda x: int(num(x.get("ersattarordning")) or 0))) + '</ol>') if e else ''}
+{('<h2>Hela listan' + (' – ' + esc(lkey[3]) if lkey else '') + (', ' + esc(full[0].get('VALKRETSNAMN') or '') if full and full[0].get('VALKRETSNAMN') and r['vt'] != 'KF' else '') + f' <span class="muted small">{len(full)} namn</span></h2><p class="small muted sans">Partiets valsedel i ordning. <b>Fet</b> = {esc(r["namn"])}. Markering: vald, ersättare för {esc(r["namn"].split()[0])}, ersättare för annan ledamot.</p><ol class="led">' + ''.join(f'<li{" style=\"font-weight:700\"" if c["KANDIDATNUMMER"] == r.get("kandidatnummer") else ""}>{esc(c["NAMN"])} <span class="ers">{"<span class=\"pv\">vald</span>" if c["KANDIDATNUMMER"] in valda_knr else ("ersättare för " + esc(r["namn"].split()[0]) if c["KANDIDATNUMMER"] in ers_knr else ("ersättare" if c["KANDIDATNUMMER"] in ers_any else ""))}{(" · " + esc(c["FOLKBOKFÖRINGSKOMMUN"])) if c.get("FOLKBOKFÖRINGSKOMMUN") and r["vt"] != "KF" else ""}</span></li>' for c in full) + '</ol>') if full else ''}
+{('<h2>Ersättare för ' + esc(r['namn']) + '</h2><ol class="led">' + ''.join(f'<li>{esc(x["namn"])} <span class="ers">{esc(x.get("valgrund") or "")}</span></li>' for x in sorted(e, key=lambda x: int(num(x.get("ersattarordning")) or 0))) + '</ol>') if e else ''}
 <p class="small sans"><a href="../../{'kommun/' + slugify(r['valomrnamn']) + '/' if r['vt']=='KF' else 'lan/' + r['lan'] + '/'}">Alla valda i {esc(r['valomrnamn'] if r['vt']=='KF' else lanNamn.get(r['lan'], ''))} →</a></p>"""
         crumb = f'<a href="../../">Sverige</a> › <a href="../../parti/{slugify(r["p"])}/">{esc(PN.get(r["p"], r["p"]))}</a> › {esc(r["namn"])}'
         write(f'person/{r["id"]}/index.html', page(r['namn'], body, 2, crumb, built).replace('__SCRIPT__', ''))
