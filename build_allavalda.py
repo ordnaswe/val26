@@ -91,8 +91,16 @@ def main():
     def col(p): return COL.get(p, '#7a8390')
     def pf(p): return f'<span class="pf" style="background:{col(p)}">{esc(p)}</span>'
     valda = read_csv(a.valda)
+    # säkerhetsnät om valda.csv har dubbletter (samma mandat på valområdes- och valkretsnivå)
+    _seen = {}
+    for r in valda:
+        k = (r['valtyp'], r['valomrkod'], r.get('kandidatnummer') or r['namn'])
+        if k not in _seen or (r.get('valkretskod') not in ('', r['valomrkod']) and _seen[k].get('valkretskod') in ('', _seen[k]['valomrkod'])): _seen[k] = r
+    valda = list(_seen.values())
     if not valda: raise SystemExit('data/valda.csv saknas – kör valda.py först (Deploya live, slutliga).')
     ers = read_csv(a.ersattare); pers = read_csv(a.personroster)
+    ers = list({(e['valtyp'], e['valomrkod'], e.get('ledamot_kandidatnummer'), e.get('kandidatnummer') or e['namn']): e for e in ers}.values())
+    pers = list({(r['valtyp'], r['valomrkod'], r.get('kandidatnummer')): r for r in pers}.values())
     kand = {}
     for r in read_csv(a.kandidaturer, ';'):
         kand[(r.get('VALTYP'), r.get('KANDIDATNUMMER'))] = r

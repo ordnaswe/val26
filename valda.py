@@ -114,6 +114,18 @@ def main():
                             kandidatnummer=e.get('kandidatnummer'), namn=e.get('namn'), valgrund=e.get('valgrundText'),
                             personroster=(pv.get(e.get('kandidatnummer')) or {}).get('personroster')))
         if got: n_valda_areas += 1
+    # Samma ledamot kan stå både på valområdesnivå och i valkretsLista (t.ex. riksdagen) -> en rad per mandat.
+    # Behåll en rad per (val, valområde, kandidatnummer); valkretsnivåns uppgifter (valkretskod/-namn) vinner.
+    def dedupe(rows, key, prefer):
+        out = {}
+        for r in rows:
+            k = key(r)
+            if k not in out or prefer(r, out[k]): out[k] = r
+        return list(out.values())
+    is_vk = lambda r: r.get('valkretskod') not in (None, '', r.get('valomrkod'))
+    valda = dedupe(valda, lambda r: (r['valtyp'], r['valomrkod'], r['kandidatnummer'] or r['namn']), lambda new, old: is_vk(new) and not is_vk(old))
+    ers = dedupe(ers, lambda r: (r['valtyp'], r['valomrkod'], r['ledamot_kandidatnummer'], r['kandidatnummer'] or r['namn']), lambda new, old: is_vk(new) and not is_vk(old))
+    pers = dedupe(pers, lambda r: (r['valtyp'], r['valomrkod'], r['kandidatnummer']), lambda new, old: False)
     inv = {(r['valtyp'], r['valomrkod'], r['kandidatnummer']) for r in valda}
     for r in pers:
         if (r['valtyp'], r['valomrkod'], r['kandidatnummer']) in inv: r['invald'] = 'Ja'
