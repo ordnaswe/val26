@@ -20,7 +20,7 @@ Sidor (public_allavalda/):
     python3 build_allavalda.py [--out public_allavalda]
 Endast standardbibliotek. Kör efter valda.py.
 """
-import argparse, csv, json, os, re, unicodedata
+import argparse, csv, gzip, json, os, re, statistics, unicodedata
 from collections import defaultdict, Counter
 
 PIDS = ['V', 'S', 'MP', 'C', 'L', 'KD', 'M', 'SD']
@@ -34,7 +34,17 @@ def fold(s): return slugify(s)
 def esc(s): return str(s if s is not None else '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
 def read_csv(path, delim=','):
     if not os.path.exists(path): return []
-    with open(path, encoding='utf-8-sig', newline='') as f: return list(csv.DictReader(f, delimiter=delim))
+    op = gzip.open if path.endswith('.gz') else open
+    with op(path, 'rt', encoding='utf-8-sig', newline='') as f: return list(csv.DictReader(f, delimiter=delim))
+AGEGRP = [('18–29', 18, 29), ('30–44', 30, 44), ('45–64', 45, 64), ('65+', 65, 200)]
+def agegrp(a):
+    for lab, lo, hi in AGEGRP:
+        if a is not None and lo <= a <= hi: return lab
+    return None
+def pct(n, d): return round(100*n/d, 1) if d else None
+def mean(xs):
+    xs = [x for x in xs if x is not None]
+    return round(statistics.mean(xs), 1) if xs else None
 def fmtn(n): return f'{int(n):,}'.replace(',', '\u00a0')
 def num(x):
     try: return float(str(x).replace(',', '.'))
@@ -74,7 +84,7 @@ def page(title, body, depth=0, crumb='', built=''):
 <body><div class="wrap"><header class="top"><a class="brand" href="{root}">alla<span>valda</span>.se</a><nav class="main"><a href="{root}">Sök</a><a href="{root}parti/">Partier</a><a href="{root}statistik/">Statistik</a><a href="https://www.valutfall.se/">valutfall.se</a></nav></header>
 {('<div class="crumb">'+crumb+'</div>') if crumb else ''}
 {body}
-<footer><p>Källa: Valmyndighetens fastställda resultat för valen den 13 september 2026 (valda ledamöter, ersättare, valgrund, personröster) och Valmyndighetens kandidatfil (folkbokföringskommun). Roller 2022–2026: Plenum. Kön och ålder ingår inte i Valmyndighetens öppna filer. {('Byggd '+esc(built)+'. ') if built else ''}<b>allavalda.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic). Valresultatet: <a href="https://www.valutfall.se/">valutfall.se</a>.</p></footer></div>
+<footer><p>Källa: Valmyndighetens fastställda resultat för valen den 13 september 2026 (valda ledamöter, ersättare, valgrund, personröster) och Valmyndighetens kandidatfil (folkbokföringskommun). Ålder, kön och titel: Valmyndighetens kandidatfil 2026. Historik: Valmyndighetens filer över ursprungligt valda 2010–2022 (namnen gallrade av Valmyndigheten före 2022). Ny/omvald: matchning på namn, parti och ålder mot de valda 2022, en uppskattning. Roller 2022–2026: Plenum. {('Byggd '+esc(built)+'. ') if built else ''}<b>allavalda.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic). Valresultatet: <a href="https://www.valutfall.se/">valutfall.se</a>.</p></footer></div>
 __SCRIPT__</body></html>"""
 
 def main():
@@ -83,6 +93,8 @@ def main():
     ap.add_argument('--valda', default='data/valda.csv'); ap.add_argument('--ersattare', default='data/ersattare.csv')
     ap.add_argument('--personroster', default='data/personroster.csv'); ap.add_argument('--kandidaturer', default='data/kandidaturer.csv')
     ap.add_argument('--valkrets', default='data/valkrets.csv'); ap.add_argument('--nyckelpersoner', default='nyckelpersoner.csv')
+    ap.add_argument('--kandidaturer-full', default='data/kandidaturer_2026_full.csv.gz', help='Valmyndighetens fullständiga kandidatfil (ålder, kön, valsedelsuppgift)')
+    ap.add_argument('--historik', default='data/valda_historik.csv.gz', help='ursprungligt valda 2010–2022 (historik_valda.py)')
     a = ap.parse_args()
     d = json.load(open(a.data, encoding='utf-8'))
     komKod = d['komKod']; kod2kom = {v: k for k, v in komKod.items()}; lanKod = d['lanKod']; lanNamn = {v: k for k, v in lanKod.items()}
@@ -102,8 +114,11 @@ def main():
     ers = list({(e['valtyp'], e['valomrkod'], e.get('ledamot_kandidatnummer'), e.get('kandidatnummer') or e['namn']): e for e in ers}.values())
     pers = list({(r['valtyp'], r['valomrkod'], r.get('kandidatnummer')): r for r in pers}.values())
     kand = {}; lists = defaultdict(list); knr_lists = defaultdict(list)
-    for r in read_csv(a.kandidaturer, ';'):
+    kfile = a.kandidaturer_full if os.path.exists(a.kandidaturer_full) else a.kandidaturer
+    allkand = read_csv(kfile, ';')
+    for r in allkand:
         if r.get('GILTIG', 'J') != 'J': continue
+        if not (r.get('ORDNING') or '').strip(): continue
         kand.setdefault((r.get('VALTYP'), r.get('KANDIDATNUMMER')), r)
         lk_ = (r['VALTYP'], r['VALOMRÅDESKOD'], r.get('VALKRETSKOD') or '', r['PARTIBETECKNING'])
         lists[lk_].append(r); knr_lists[(r['VALTYP'], r['VALOMRÅDESKOD'], r['KANDIDATNUMMER'])].append(lk_)
@@ -127,6 +142,31 @@ def main():
         else: r['kom'] = r['fbk_kod']; r['lan'] = vk2lan.get(r.get('valkretskod'), r['fbk_kod'][:2])
         r['omr'] = r.get('valkretsnamn') if r['vt'] == 'RD' else r.get('valomrnamn')
         r['slug'] = slugify(r['namn'])
+    # ---- ålder, kön, titel ur kandidatfilen ----
+    ortnamn = {fold(n) for n in komKod} | {fold(n.replace(' län', '')) for n in lanKod} | {fold(n) for n in lanKod}
+    def titel(s):
+        for part in [p.strip() for p in re.split(r'[,;]', s or '') if p.strip()]:
+            if re.fullmatch(r'\d+\s*(år)?', part): continue
+            if fold(part) in ortnamn or fold(part).endswith('centrum'): continue
+            return part[:1].upper() + part[1:]
+        return ''
+    for r in valda:
+        k = kand.get((r['vt'], r.get('kandidatnummer'))) or {}
+        r['alder'] = int(num(k.get('ÅLDER_PÅ_VALDAGEN')) or 0) or None; r['kon'] = (k.get('KÖN') or '').strip()
+        r['titel'] = titel(k.get('VALSEDELSUPPGIFT'))
+        try: r['jump'] = int(r['listplats']) - r['nr'] if r['listplats'] and r['nr'] else None
+        except Exception: r['jump'] = None
+    # ---- historik 2010–2022 ----
+    hist = read_csv(a.historik)
+    for h in hist: h['alder_i'] = int(num(h.get('alder')) or 0) or None
+    h22 = defaultdict(list)
+    for h in hist:
+        if h['ar'] == '2022' and h['namn']: h22[(fold(h['namn']), h['parti'])].append(h)
+    for r in valda:
+        cands = [h for h in h22.get((fold(r['namn']), r['p']), []) if r['alder'] is None or h['alder_i'] is None or 3 <= r['alder'] - h['alder_i'] <= 5]
+        same = [h for h in cands if h['valtyp'] == r['vt'] and ((r['vt'] == 'KF' and h['kommunkod'] == r['valomrkod']) or (r['vt'] == 'RF' and h['lankod'] == r['valomrkod']) or r['vt'] == 'RD')]
+        r['h22'] = cands; r['h22same'] = same[0] if same else None
+        r['status22'] = 'omvald' if same else ('annan församling 2022' if cands else 'ny')
     ers_by = defaultdict(list)
     for e in ers: ers_by[(e['valtyp'], e['valomrkod'], e['parti'])].append(e)
     valda_knr_by = defaultdict(set); ers_knr_by = defaultdict(set)
@@ -150,6 +190,8 @@ def main():
     def led_item(r, depth, show_omr=False):
         extra = []
         if r['pv']: extra.append('<span class="pv" title="Invald på personröster">personvald</span>')
+        if r.get('status22') == 'ny': extra.append('ny')
+        if r.get('alder'): extra.append(f"{r['alder']} år")
         if r['pr'] is not None: extra.append(f"{fmtn(r['pr'])} personröster")
         if show_omr: extra.append(esc(r['omr'] or ''))
         return f'<li><a href="{person_link(r, depth)}">{esc(r["namn"])}</a> <span class="ers">{" · ".join(extra)}</span></li>'
@@ -226,9 +268,21 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         rf = [r for r in valda if r['vt'] == 'RF' and r['kom'] == kk]
         rd = [r for r in valda if r['vt'] == 'RD' and r['kom'] == kk]
         slug = slugify(nm); lk = kk[:2]
+        hk = [h for h in hist if h['valtyp'] == 'KF' and h['kommunkod'] == kk and h['ursprunglig'] == '1']
+        hrows = []
+        for ar in ('2010', '2014', '2018', '2022'):
+            hs = [h for h in hk if h['ar'] == ar]
+            if hs: hrows.append((ar, len(hs), pct(sum(1 for h in hs if h['kon'] == 'K'), len(hs)), mean([h['alder_i'] for h in hs]), pct(sum(1 for h in hs if h['personvald'] == '1'), len(hs))))
+        if kf: hrows.append(('2026', len(kf), pct(sum(1 for r in kf if r['kon'] == 'K'), sum(1 for r in kf if r['kon'])), mean([r['alder'] for r in kf]), pct(sum(1 for r in kf if r['pv']), len(kf))))
+        avg22 = sum(1 for h in hk if h['ar'] == '2022' and h.get('avgang'))
+        nya = sum(1 for r in kf if r.get('status22') == 'ny')
+        histhtml = ('<h2>Fullmäktige över tid</h2><table><thead><tr><th>Val</th><th class="r">Ledamöter</th><th class="r">Kvinnor %</th><th class="r">Medelålder</th><th class="r">Personvalda %</th></tr></thead><tbody>' +
+                    ''.join(f'<tr><td>{ar}</td><td class="r">{n}</td><td class="r">{str(k).replace(".", ",") if k is not None else "–"}</td><td class="r">{str(m).replace(".", ",") if m is not None else "–"}</td><td class="r">{str(p).replace(".", ",") if p is not None else "–"}</td></tr>' for ar, n, k, m, p in hrows) +
+                    f'</tbody></table><p class="small muted sans">{nya} av {len(kf)} ledamöter 2026 är nya jämfört med fullmäktige 2022 (uppskattning). {avg22} av ledamöterna som valdes 2022 lämnade sitt uppdrag under mandatperioden.</p>') if hrows else ''
         body = f"""<h1>{esc(nm)}</h1><p class="lead">{len(kf)} ledamöter i kommunfullmäktige, {sum(1 for r in kf if r['pv'])} av dem invalda på personröster. {len(rd)} riksdagsledamöter och {len(rf)} regionledamöter bor i kommunen.</p>
 <p class="small sans"><a href="https://www.valutfall.se/kommun/{slug}/">Valresultatet i {esc(nm)} ner på valdistrikt – valutfall.se →</a></p>
 <h2>Kommunfullmäktige 2026–2030</h2>{seatbar(kf) if kf else ''}{party_lists(kf, 2, {p: ers_by.get(('KF', kk, p), []) for p in set(r['p'] for r in kf)}) if kf else '<p class="muted">Inga valda i underlaget.</p>'}
+{histhtml}
 {('<h2>Riksdagsledamöter som bor i '+esc(nm)+'</h2>'+party_lists(rd, 2, show_omr=True)) if rd else ''}
 {('<h2>Regionledamöter som bor i '+esc(nm)+'</h2>'+party_lists(rf, 2)) if rf else ''}"""
         write(f'kommun/{slug}/index.html', page(nm, body, 2, f'<a href="../../">Sverige</a> › <a href="../../lan/{lk}/">{esc(lanNamn.get(lk, lk))}</a> › {esc(nm)}', built).replace('__SCRIPT__', ''))
@@ -264,12 +318,24 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         fakta = [('Vald till', f"{VT[r['vt']]}{(' – ' + esc(r['omr'])) if r['omr'] else ''}"), ('Parti', f"{pf(r['p'])} {esc(PN.get(r['p'], r.get('partibeteckning') or ''))}"),
                  ('Invald som nummer', f"{r['nr']} för partiet" + (f" (listplats {esc(r['listplats'])})" if r['listplats'] else '')), ('Valgrund', esc(r.get('valgrund') or '–'))]
         if r['pr'] is not None: fakta.append(('Personröster', fmtn(r['pr']) + (f" ({str(r.get('andel_personroster')).replace('.', ',')} % av partiets röster{', klarade personröstspärren' if r['kval'] else ''})" if r.get('andel_personroster') else '')))
+        if r['alder']: fakta.insert(1, ('Ålder', f"{r['alder']} år på valdagen" + (f", {'kvinna' if r['kon']=='K' else 'man' if r['kon']=='M' else ''}" if r['kon'] else '')))
+        if r['titel']: fakta.insert(2, ('På valsedeln', esc(r['titel'])))
+        if r['jump'] and r['jump'] > 0: fakta.append(('Personvalets effekt', f"Stod på listplats {r['listplats']} men blev mandat nr {r['nr']} – {r['jump']} platser upp"))
+        elif r['jump'] and r['jump'] < 0: fakta.append(('Personvalets effekt', f"Stod på listplats {r['listplats']}, blev mandat nr {r['nr']} – andra med personröster gick före"))
+        h = r.get('h22same')
+        if h:
+            t = f"Omvald. Satt i {VTS[h['valtyp']]} 2022–2026 (invald som nr {esc(h['invalsordning'])}{', personvald' if h['personvald']=='1' else ''})"
+            if h.get('avgang'): t += f", avgick {esc(h['avgang'])}"
+            fakta.append(('Mandatperioden innan', t))
+        elif r['h22']:
+            x = r['h22'][0]; fakta.append(('Mandatperioden innan', f"Satt 2022–2026 i {VTS[x['valtyp']]}{(' – ' + esc(kod2kom.get(x['kommunkod'], ''))) if x['valtyp']=='KF' else ''}, nu vald till {VTS[r['vt']]}"))
+        else: fakta.append(('Mandatperioden innan', 'Ny – fanns inte bland de valda 2022'))
         if r['fbk']: fakta.append(('Bor i', f'<a href="../../kommun/{slugify(r["fbk"])}/">{esc(r["fbk"])}</a>' if r['fbk_kod'] else esc(r['fbk'])))
         body = f"""<h1>{esc(r['namn'])}</h1><p class="lead">{pf(r['p'])} {esc(PN.get(r['p'], ''))} · {VT[r['vt']]}{(' · ' + esc(r['omr'])) if r['omr'] else ''}{' · <span class="pv">invald på personröster</span>' if r['pv'] else ''}</p>
 <div class="card"><table><tbody>{''.join(f'<tr><th>{k}</th><td>{v}</td></tr>' for k, v in fakta)}</tbody></table></div>
 {('<h2>Fler uppdrag efter valet</h2><ul class="led sans">' + ''.join(f'<li><a href="../../person/{x["id"]}/">{VT[x["vt"]]}{(" – " + esc(x["omr"])) if x["omr"] else ""}</a></li>' for x in others) + '</ul>') if others else ''}
 {('<h2>Roller 2022–2026</h2><ul class="led sans">' + ''.join(f'<li>{esc(x)}</li>' for x in rl) + '</ul>') if rl else ''}
-{('<h2>Hela listan' + (' – ' + esc(lkey[3]) if lkey else '') + (', ' + esc(full[0].get('VALKRETSNAMN') or '') if full and full[0].get('VALKRETSNAMN') and r['vt'] != 'KF' else '') + f' <span class="muted small">{len(full)} namn</span></h2><p class="small muted sans">Partiets valsedel i ordning. <b>Fet</b> = {esc(r["namn"])}. Markering: vald, ersättare för {esc(r["namn"].split()[0])}, ersättare för annan ledamot.</p><ol class="led">' + ''.join(f'<li{" style=\"font-weight:700\"" if c["KANDIDATNUMMER"] == r.get("kandidatnummer") else ""}>{esc(c["NAMN"])} <span class="ers">{"<span class=\"pv\">vald</span>" if c["KANDIDATNUMMER"] in valda_knr else ("ersättare för " + esc(r["namn"].split()[0]) if c["KANDIDATNUMMER"] in ers_knr else ("ersättare" if c["KANDIDATNUMMER"] in ers_any else ""))}{(" · " + esc(c["FOLKBOKFÖRINGSKOMMUN"])) if c.get("FOLKBOKFÖRINGSKOMMUN") and r["vt"] != "KF" else ""}</span></li>' for c in full) + '</ol>') if full else ''}
+{('<h2>Hela listan' + (' – ' + esc(lkey[3]) if lkey else '') + (', ' + esc(full[0].get('VALKRETSNAMN') or '') if full and full[0].get('VALKRETSNAMN') and r['vt'] != 'KF' else '') + f' <span class="muted small">{len(full)} namn</span></h2><p class="small muted sans">Partiets valsedel i ordning. <b>Fet</b> = {esc(r["namn"])}. Markering: vald, ersättare för {esc(r["namn"].split()[0])}, ersättare för annan ledamot.</p><ol class="led">' + ''.join(f'<li{" style=\"font-weight:700\"" if c["KANDIDATNUMMER"] == r.get("kandidatnummer") else ""}>{esc(c["NAMN"])} <span class="ers">{"<span class=\"pv\">vald</span>" if c["KANDIDATNUMMER"] in valda_knr else ("ersättare för " + esc(r["namn"].split()[0]) if c["KANDIDATNUMMER"] in ers_knr else ("ersättare" if c["KANDIDATNUMMER"] in ers_any else ""))}{(" · " + esc(c["FOLKBOKFÖRINGSKOMMUN"])) if c.get("FOLKBOKFÖRINGSKOMMUN") and r["vt"] != "KF" else ""}{(" · " + esc(c.get("ÅLDER_PÅ_VALDAGEN")) + " år") if (c.get("ÅLDER_PÅ_VALDAGEN") or "").strip() else ""}</span></li>' for c in full) + '</ol>') if full else ''}
 {('<h2>Ersättare för ' + esc(r['namn']) + '</h2><ol class="led">' + ''.join(f'<li>{esc(x["namn"])} <span class="ers">{esc(x.get("valgrund") or "")}</span></li>' for x in sorted(e, key=lambda x: int(num(x.get("ersattarordning")) or 0))) + '</ol>') if e else ''}
 <p class="small sans"><a href="../../{'kommun/' + slugify(r['valomrnamn']) + '/' if r['vt']=='KF' else 'lan/' + r['lan'] + '/'}">Alla valda i {esc(r['valomrnamn'] if r['vt']=='KF' else lanNamn.get(r['lan'], ''))} →</a></p>"""
         crumb = f'<a href="../../">Sverige</a> › <a href="../../parti/{slugify(r["p"])}/">{esc(PN.get(r["p"], r["p"]))}</a> › {esc(r["namn"])}'
@@ -292,7 +358,106 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
     missade = [r for r in pers if r.get('kvalificerad') == 'Ja' and r.get('invald') != 'Ja']
     sec += f'<h2>Var riksdagsledamöterna bor</h2><p class="lead">{len(fbk)} kommuner har minst en ledamot i riksdagen. {290-len(fbk)} kommuner har ingen.</p>{barchart(fbk.most_common(15), None)}'
     if missade: sec += f'<h2>Klarade personröstspärren men kom inte in</h2><p class="lead">{len(missade)} kandidater fick tillräckligt många personröster men partiet hade inte mandat nog. De tio med flest röster:</p><table><thead><tr><th>Namn</th><th>Parti</th><th>Val</th><th>Område</th><th class="r">Personröster</th></tr></thead><tbody>' + ''.join(f'<tr><td>{esc(r["namn"])}</td><td>{pf(r["parti"])}</td><td>{r["valtyp"]}</td><td>{esc(r.get("valomrnamn") or "")}</td><td class="r">{fmtn(num(r["personroster"]) or 0)}</td></tr>' for r in sorted(missade, key=lambda r: -(num(r["personroster"]) or 0))[:10]) + '</tbody></table>'
-    body = f'<h1>Statistik om de valda</h1><p class="lead">Alla {fmtn(len(valda))} valda i de tre valen. Kön och ålder ingår inte i Valmyndighetens öppna filer och visas därför inte.</p>{sec}'
+    # ---------- utveckling 2010–2026 ----------
+    def svgline(series, years, ymin=None, ymax=None, unit='', W=560, H=200):
+        vals = [v for s in series.values() for v in s if v is not None]
+        if not vals: return ''
+        lo = ymin if ymin is not None else min(vals)*0.95; hi = ymax if ymax is not None else max(vals)*1.05
+        sx = lambda i: 40 + i*(W-110)/max(1, len(years)-1); sy = lambda v: 10 + (1-(v-lo)/((hi-lo) or 1))*(H-40)
+        out = ''.join(f'<text x="{sx(i):.0f}" y="{H-8}" font-size="11" text-anchor="middle" fill="currentColor" opacity=".6">{y}</text>' for i, y in enumerate(years))
+        COLS = {'Riksdagen': '#1f5f8b', 'Regionfullmäktige': '#8a5a9e', 'Kommunfullmäktige': '#2e7d5b', 'Kandidater': '#b0313f'}
+        for lab, s in series.items():
+            pts = [(sx(i), sy(v)) for i, v in enumerate(s) if v is not None]
+            if len(pts) < 2: continue
+            c = COLS.get(lab, '#1f5f8b')
+            out += f'<path d="{"".join(("M" if j==0 else "L")+f"{x:.1f},{y:.1f}" for j,(x,y) in enumerate(pts))}" fill="none" stroke="{c}" stroke-width="2.4"/>' + ''.join(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{c}"/>' for x, y in pts)
+            out += f'<text x="{pts[-1][0]+6:.1f}" y="{pts[-1][1]+4:.1f}" font-size="11" fill="{c}">{esc(lab.replace("fullmäktige","f."))} {str(s[-1]).replace(".",",") if s[-1] is not None else ""}{unit}</text>'
+        return f'<svg viewBox="0 0 {W} {H}" width="100%" style="max-width:620px;font-family:system-ui">{out}</svg>'
+    years = ['2010', '2014', '2018', '2022', '2026']
+    def series(fn):
+        out = {}
+        for vt in ('RD', 'RF', 'KF'):
+            s = []
+            for ar in years:
+                rows = [r for r in valda if r['vt'] == vt] if ar == '2026' else [h for h in hist if h['ar'] == ar and h['valtyp'] == vt and h['ursprunglig'] == '1']
+                s.append(fn(rows, ar) if rows else None)
+            out[VT[vt]] = s
+        return out
+    kv = series(lambda rs, ar: pct(sum(1 for r in rs if r['kon'] == 'K'), sum(1 for r in rs if r['kon'])))
+    ma = series(lambda rs, ar: mean([r['alder'] if ar == '2026' else r['alder_i'] for r in rs]))
+    pvs = series(lambda rs, ar: pct(sum(1 for r in rs if (r['pv'] if ar == '2026' else r['personvald'] == '1')), len(rs)))
+    utv = f'<h2>Utvecklingen 2010–2026</h2><p class="lead">Ursprungligt valda ledamöter efter varje val. Namnen före 2022 är gallrade av Valmyndigheten, så historiken visar bara helheten.</p><div class="grid2"><div><h3>Andel kvinnor, %</h3>{svgline(kv, years)}</div><div><h3>Medelålder</h3>{svgline(ma, years)}</div></div><h3>Andel invalda på personröster, %</h3>{svgline(pvs, years)}'
+    # parti-tabell KF
+    pt = '<h3>Kommunfullmäktige per parti: andel kvinnor och medelålder</h3><table><thead><tr><th>Parti</th>' + ''.join(f'<th class="r">{y}</th>' for y in years) + '</tr></thead><tbody>'
+    for p in PIDS:
+        cells = []
+        for ar in years:
+            rs = [r for r in valda if r['vt'] == 'KF' and r['p'] == p] if ar == '2026' else [h for h in hist if h['ar'] == ar and h['valtyp'] == 'KF' and h['parti'] == p and h['ursprunglig'] == '1']
+            if not rs: cells.append('<td class="r">–</td>'); continue
+            k = pct(sum(1 for r in rs if r['kon'] == 'K'), sum(1 for r in rs if r['kon'])); m = mean([r['alder'] if ar == '2026' else r['alder_i'] for r in rs])
+            cells.append(f'<td class="r">{str(k).replace(".", ",") if k is not None else "–"} % <span class="muted small">· {str(m).replace(".", ",") if m is not None else "–"} år</span></td>')
+        pt += f'<tr><td>{pf(p)}</td>{"".join(cells)}</tr>'
+    utv += pt + '</tbody></table>'
+    # ---------- kandidater mot valda ----------
+    kmv = '<h2>Kandidater mot valda 2026</h2><p class="lead">Alla giltiga kandidaturer jämförda med dem som valdes. Skillnaden visar vilka som "faller bort" på vägen från lista till fullmäktige.</p><table><thead><tr><th>Val</th><th class="r">Kandidaturer</th><th class="r">Valda</th><th class="r">Kvinnor kand. / valda</th><th class="r">Medelålder kand. / valda</th></tr></thead><tbody>'
+    agerows = ''
+    for vt in ('RD', 'RF', 'KF'):
+        ks = [k for k in allkand if k.get('VALTYP') == vt and k.get('GILTIG', 'J') == 'J']
+        vs = [r for r in valda if r['vt'] == vt]
+        ka = [int(num(k.get('ÅLDER_PÅ_VALDAGEN')) or 0) or None for k in ks]
+        kk_ = pct(sum(1 for k in ks if k.get('KÖN') == 'K'), sum(1 for k in ks if k.get('KÖN'))); vk = pct(sum(1 for r in vs if r['kon'] == 'K'), sum(1 for r in vs if r['kon']))
+        kmv += f'<tr><td>{VT[vt]}</td><td class="r">{fmtn(len(ks))}</td><td class="r">{fmtn(len(vs))}</td><td class="r">{str(kk_).replace(".", ",") if kk_ is not None else "–"} % / {str(vk).replace(".", ",") if vk is not None else "–"} %</td><td class="r">{str(mean(ka)).replace(".", ",") if mean(ka) else "–"} / {str(mean([r["alder"] for r in vs])).replace(".", ",") if mean([r["alder"] for r in vs]) else "–"}</td></tr>'
+        kc = Counter(agegrp(a) for a in ka if a); vc = Counter(agegrp(r['alder']) for r in vs if r['alder'])
+        agerows += f'<h3>{VT[vt]}: åldersgrupper</h3><div style="font-family:system-ui;font-size:.86rem">' + ''.join(f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><div style="width:60px">{lab}</div><div style="flex:1"><div style="height:10px;background:#b0313f;opacity:.55;width:{pct(kc[lab], sum(kc.values())) or 0}%;border-radius:4px"></div><div style="height:10px;background:var(--acc);width:{pct(vc[lab], sum(vc.values())) or 0}%;border-radius:4px;margin-top:2px"></div></div><div style="width:120px;text-align:right">{str(pct(kc[lab], sum(kc.values())) or 0).replace(".", ",")} % / {str(pct(vc[lab], sum(vc.values())) or 0).replace(".", ",")} %</div></div>' for lab, _, _ in AGEGRP) + '</div>'
+    kmv += '</tbody></table><p class="small muted sans">Kandidaturer räknas per listplats och val, en person kan stå på flera listor. Röd stapel = kandidater, blå = valda.</p><div class="grid3">' + agerows + '</div>'
+    # titlar
+    vt_t = Counter(r['titel'].lower() for r in valda if r['titel'])
+    k_t = Counter(titel(k.get('VALSEDELSUPPGIFT')).lower() for k in allkand if k.get('GILTIG', 'J') == 'J' and k.get('VALSEDELSUPPGIFT'))
+    nv, nk = sum(vt_t.values()) or 1, sum(k_t.values()) or 1
+    trows = [(t, n, k_t.get(t, 0)) for t, n in vt_t.most_common(25)]
+    kmv += '<h2>Vad de valda jobbar med</h2><p class="lead">Titeln de själva angett på valsedeln (fritext, tolkad som första ledet som inte är en ort). Index över 1 betyder att titeln är vanligare bland de valda än bland kandidaterna.</p><table><thead><tr><th>Titel</th><th class="r">Valda</th><th class="r">Andel valda</th><th class="r">Andel kandidater</th><th class="r">Index</th></tr></thead><tbody>' + ''.join(f'<tr><td>{esc(t[:1].upper()+t[1:])}</td><td class="r">{n}</td><td class="r">{str(pct(n, nv)).replace(".", ",")} %</td><td class="r">{str(pct(k, nk)).replace(".", ",")} %</td><td class="r"><b>{str(round((n/nv)/(k/nk), 2)).replace(".", ",") if k else "–"}</b></td></tr>' for t, n, k in trows) + '</tbody></table>'
+    # ---------- förnyelse och avgångar ----------
+    fn = '<h2>Förnyelse: nya och omvalda</h2><p class="lead">Andel av de valda 2026 som inte satt i samma församling efter valet 2022. Matchning på namn, parti och ålder (uppskattning: namnbyten och partibyten kan ge fel).</p><table><thead><tr><th>Parti</th>' + ''.join(f'<th class="r">{VT[v]}</th>' for v in ('RD', 'RF', 'KF')) + '</tr></thead><tbody>'
+    for p in PIDS + ['Alla']:
+        cells = ''
+        for vt in ('RD', 'RF', 'KF'):
+            vs = [r for r in valda if r['vt'] == vt and (p == 'Alla' or r['p'] == p)]
+            nyv = sum(1 for r in vs if r.get('status22') != 'omvald')
+            cells += f'<td class="r">{str(pct(nyv, len(vs))).replace(".", ",") if vs else "–"} %</td>'
+        fn += f'<tr><td>{pf(p) if p != "Alla" else "<b>Alla partier</b>"}</td>{cells}</tr>'
+    fn += '</tbody></table><h2>Avhopp under mandatperioden 2022–2026</h2><p class="lead">Andel av de ursprungligt valda 2022 som lämnade sitt uppdrag före valet 2026, enligt Valmyndighetens register.</p><table><thead><tr><th>Parti</th>' + ''.join(f'<th class="r">{VT[v]}</th>' for v in ('RD', 'RF', 'KF')) + '</tr></thead><tbody>'
+    for p in PIDS + ['Alla']:
+        cells = ''
+        for vt in ('RD', 'RF', 'KF'):
+            hs = [h for h in hist if h['ar'] == '2022' and h['valtyp'] == vt and h['ursprunglig'] == '1' and (p == 'Alla' or h['parti'] == p)]
+            cells += f'<td class="r">{str(pct(sum(1 for h in hs if h.get("avgang")), len(hs))).replace(".", ",") if hs else "–"} %</td>'
+        fn += f'<tr><td>{pf(p) if p != "Alla" else "<b>Alla partier</b>"}</td>{cells}</tr>'
+    fn += '</tbody></table>'
+    # listklättrare
+    jumps = sorted([r for r in valda if r.get('jump') and r['jump'] > 0], key=lambda r: -r['jump'])[:15]
+    if jumps: fn += '<h2>Största listklättrarna</h2><p class="lead">Kandidater som tack vare personröster blev valda långt före sin listplats.</p><table><thead><tr><th>Namn</th><th>Parti</th><th>Område</th><th class="r">Listplats → mandat</th></tr></thead><tbody>' + ''.join(f'<tr><td><a href="../person/{r["id"]}/">{esc(r["namn"])}</a></td><td>{pf(r["p"])}</td><td>{esc(r["omr"] or "")}</td><td class="r">{r["listplats"]} → {r["nr"]}</td></tr>' for r in jumps) + '</tbody></table>'
+    # ---------- kommunkarta ----------
+    kmet = {}
+    for nm_, kk in komKod.items():
+        vs = [r for r in valda if r['vt'] == 'KF' and r['valomrkod'] == kk]
+        if not vs: continue
+        kmet[kk] = {'n': nm_, 's': slugify(nm_), 'kv': pct(sum(1 for r in vs if r['kon'] == 'K'), sum(1 for r in vs if r['kon'])), 'ma': mean([r['alder'] for r in vs]),
+                    'ny': pct(sum(1 for r in vs if r.get('status22') != 'omvald'), len(vs)), 'pv': pct(sum(1 for r in vs if r['pv']), len(vs))}
+    krings = {k: v for k, v in (d.get('granser', {}).get('kommun') or {}).items() if k in kmet}
+    if krings:
+        x0, y0, x1, y1 = bbox(list(krings.values()))
+        paths = ''.join(f'<a href="../kommun/{kmet[k]["s"]}/"><path data-k="{k}" d="{rings_path(rg)}"><title>{esc(kmet[k]["n"])}</title></path></a>' for k, rg in krings.items())
+        karta = f'''<h2>Kommunfullmäktige på kartan</h2><div class="chips sans" id="km"><button class="chip" data-m="kv">Andel kvinnor</button><button class="chip" data-m="ma">Medelålder</button><button class="chip" data-m="ny">Andel nya</button><button class="chip" data-m="pv">Andel personvalda</button></div>
+<div class="maprow"><div><svg class="map" id="kmap" viewBox="{x0:.0f} {y0:.0f} {x1-x0:.0f} {y1-y0:.0f}">{paths}</svg><p class="zoom" id="kleg"></p></div><div id="ktop" class="sans small"></div></div>
+<script>const KM={json.dumps(kmet, ensure_ascii=False, separators=(",", ":"))};const LAB={{kv:'Andel kvinnor (%)',ma:'Medelålder (år)',ny:'Andel nya jämfört med 2022 (%)',pv:'Andel invalda på personröster (%)'}};
+function km(m){{const v=Object.values(KM).map(x=>x[m]).filter(x=>x!=null);const lo=Math.min(...v),hi=Math.max(...v);document.querySelectorAll('#kmap path').forEach(p=>{{const x=KM[p.dataset.k];const t=x&&x[m]!=null?(x[m]-lo)/((hi-lo)||1):null;p.style.fill=t==null?'':`rgba(31,95,139,${{(0.12+0.88*t).toFixed(2)}})`;p.querySelector('title').textContent=x.n+': '+String(x[m]).replace('.',',');}});
+ document.getElementById('kleg').textContent=LAB[m]+': ljus '+String(lo).replace('.',',')+' – mörk '+String(hi).replace('.',',')+'. Klicka på en kommun.';
+ const s=Object.values(KM).filter(x=>x[m]!=null).sort((a,b)=>b[m]-a[m]);document.getElementById('ktop').innerHTML='<h3 style="margin-top:0">Högst</h3>'+s.slice(0,8).map(x=>`<div><a href="../kommun/${{x.s}}/">${{x.n}}</a> ${{String(x[m]).replace('.',',')}}</div>`).join('')+'<h3>Lägst</h3>'+s.slice(-8).reverse().map(x=>`<div><a href="../kommun/${{x.s}}/">${{x.n}}</a> ${{String(x[m]).replace('.',',')}}</div>`).join('');
+ document.querySelectorAll('#km .chip').forEach(c=>c.style.borderColor=c.dataset.m===m?'var(--acc)':'');}}
+document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m));km('kv');</script>'''
+    else: karta = ''
+    sec = karta + utv + kmv + fn + sec
+    body = f'<h1>Statistik om de valda</h1><p class="lead">Alla {fmtn(len(valda))} valda i de tre valen 2026: vilka de är, hur de skiljer sig från kandidaterna, hur många som är nya och hur det sett ut sedan 2010.</p>{sec}'
     write('statistik/index.html', page('Statistik', body, 1, '<a href="../">Sverige</a> › Statistik', built).replace('__SCRIPT__', ''))
     # robots/sitemap-light
     write('robots.txt', 'User-agent: *\nAllow: /\n')

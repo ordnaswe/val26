@@ -129,7 +129,7 @@ def build(inv_path, status_path, nyckel_path, valkrets_path, data_path, out_path
     def rcsv(path):
         if not path or not os.path.exists(path): return []
         with open(path, encoding='utf-8-sig', newline='') as f: return list(csv.DictReader(f))
-    valda_rows = rcsv('data/valda.csv')
+    valda_rows = list({(r['valtyp'], r['valomrkod'], r.get('kandidatnummer') or r['namn']): r for r in rcsv('data/valda.csv')}.values())
     pers_rows = rcsv('data/personroster.csv')
     stat = {}
     if valda_rows:
@@ -473,7 +473,7 @@ function renderStat(){const S=DATA.stat;const el=$('#c_stat');if(!S||!S.per){el.
   ${P.topp.length?`<h4 style="margin:12px 0 4px">Flest personröster</h4><div class="tw"><table><thead><tr><th>Namn</th><th>Parti</th><th>Område</th><th class="r">Personröster</th><th class="r">Andel</th></tr></thead><tbody>${P.topp.map(t=>`<tr><td>${esc(t.namn)}</td><td><span class="pf" style="background:${PC[t.p]||'#888'}">${esc(t.p)}</span></td><td>${esc(t.omr||'')}</td><td class="r">${t.pr.toLocaleString('sv-SE')}</td><td class="r">${t.andel?String(t.andel).replace('.',',')+' %':'–'}</td></tr>`).join('')}</tbody></table></div>`:''}`;}).join('')+
  (S.missade&&S.missade.length?`<h3 style="margin:18px 0 6px">Klarade personröstspärren men kom inte in (${S.n_missade})</h3><p class="lead">Spärren är 5 % av partiets röster i riksdagsvalet och 5 % i region- och kommunvalen. Att klara den räcker bara om partiet har tillräckligt många mandat.</p><div class="tw"><table><thead><tr><th>Namn</th><th>Parti</th><th>Val</th><th>Område</th><th class="r">Personröster</th></tr></thead><tbody>${S.missade.map(t=>`<tr><td>${esc(t.namn)}</td><td><span class="pf" style="background:${PC[t.p]||'#888'}">${esc(t.p)}</span></td><td>${t.vt}</td><td>${esc(t.omr||'')}</td><td class="r">${t.pr.toLocaleString('sv-SE')} ${t.andel?'<span class="muted">('+String(t.andel).replace('.',',')+' %)</span>':''}</td></tr>`).join('')}</tbody></table></div>`:'')+
  (S.rd_fbk_topp&&S.rd_fbk_topp.length?`<h3 style="margin:18px 0 6px">Var riksdagsledamöterna bor</h3><p class="lead">Folkbokföringskommun enligt Valmyndighetens kandidatfil. ${S.rd_kommuner} kommuner har minst en ledamot i riksdagen.</p><div class="tw"><table><thead><tr><th>Kommun</th><th class="r">Ledamöter</th></tr></thead><tbody>${S.rd_fbk_topp.map(([k,n])=>`<tr><td>${esc(k)}</td><td class="r">${n}</td></tr>`).join('')}</tbody></table></div>`:'')+
- `<p class="starnote">Källa: Valmyndighetens fastställda resultat (valda, valgrund, personröster, kvalificerade) och kandidatfil (folkbokföringskommun). Kön och ålder ingår inte i Valmyndighetens öppna filer och visas därför inte.</p>`;}
+ `<p class="starnote">Källa: Valmyndighetens fastställda resultat (valda, valgrund, personröster, kvalificerade) och kandidatfil (folkbokföringskommun). Kön, ålder, yrken, förnyelse och historik sedan 2010 finns på <a href="https://allavalda.se/statistik/">allavalda.se</a>.</p>`;}
 const RENDER={region:null,kommun:null,riksdag:renderRiksdag,vippen:renderVippen,stat:renderStat};
 function counts(){return {region:DATA.in_rf.filter(x=>!selLan||x.lan===selLan).length,
   kommun:DATA.in_kf.filter(x=>!selLan||x.lan===selLan).length,
