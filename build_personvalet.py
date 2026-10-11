@@ -347,7 +347,7 @@ PAGE = r"""<!doctype html>
 <footer>
  <p id="src"></p>
  <p>Personröster (kryss) ingår inte och kan kasta om ordningen i slutresultatet. Underlag: Valmyndigheten + politikerdatabas. Länskarta: Natural Earth.</p>
- <p><b>valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic).</p>
+ <p><b>valutfall.se</b> är gjord av <a href="https://influera.se">Influera Sverige</a>s Sandro Wennberg med hjälp av AI (Anthropic).</p>
 </footer>
 </div>
 

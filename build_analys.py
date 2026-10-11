@@ -638,7 +638,7 @@ PAGE = r"""<!doctype html>
 <footer>
  <p id="src"></p>
  <p>Underlag: Valmyndigheten (röster och mandat), SCB (distriktskovariater), Faktadriven (styre per kommun efter valet 2022, folkmängd 2024), SKR (styre i regioner efter valet 2022), Plenum via nyckelpersoner.csv (ordförande och vice i kommun- och regionstyrelser 2022–2026). Mandat: Valmyndighetens fastställda mandatfördelning 2026 och 2022 när den finns i underlaget, annars beräknade ur områdesandelarna. Valdeltagande: Valmyndigheten. Länskarta: Natural Earth.</p>
- <p><b>valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic).</p>
+ <p><b>valutfall.se</b> är gjord av <a href="https://influera.se">Influera Sverige</a>s Sandro Wennberg med hjälp av AI (Anthropic).</p>
 </footer>
 </div>
 

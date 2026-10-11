@@ -1,0 +1,26 @@
+kol,kolada,namn,enhet,ar,grupp,battre
+bf,N01963,Befolkningsförändring sedan föregående år,%,2025,Befolkning,
+ma,N00959,Medelålder,år,2025,Befolkning,
+uf,N02926,Utrikes födda,%,2025,Befolkning,
+tg,N00954,Andel invånare i tätort,%,2024,Befolkning,
+ink,N00906,Medianinkomst 20–64 år,kr,2024,Ekonomi och arbete,hog
+sy,N02267,Sysselsättningsgrad 20–64 år,%,2024,Ekonomi och arbete,hog
+al,N02280,Arbetslöshet 20–64 år,%,2024,Ekonomi och arbete,lag
+les,N66080,Invånare med låg ekonomisk standard,%,2024,Ekonomi och arbete,lag
+eb,N31807,Invånare med ekonomiskt bistånd,%,2025,Ekonomi och arbete,lag
+sk,N00900,Skattesats totalt,%,2026,Kommunens ekonomi,
+res,N03102,Årets resultat i andel av skatt och statsbidrag,%,2025,Kommunens ekonomi,hog
+sol,N03106,Soliditet,%,2025,Kommunens ekonomi,hog
+nka,N00097,Nettokostnadsavvikelse,%,2025,Kommunens ekonomi,lag
+nki,U07453,Företagsklimat (NKI),index,2025,Kommunens ekonomi,hog
+mv,N15504,Meritvärde åk 9,poäng,2026,Skola och trygghet,hog
+br,N07540,Anmälda brott per 100 000 invånare,antal,2025,Skola och trygghet,lag
+vd,N05401,Valdeltagande i kommunvalet 2022,%,2022,Demokrati,hog
+kkf,N05815,Kvinnor i kommunfullmäktige 2022–2026,%,2025,Demokrati,
+ufkf,N05826,Utrikes födda i kommunfullmäktige 2022–2026,%,2025,Demokrati,
+p65,N05820,Förtroendevalda 65 år eller äldre,%,2025,Demokrati,
+avh,N05830,Förtroendevalda som hoppat av fullmäktige 2018–2022,%,2022,Demokrati,lag
+dlt,U00454,Delaktighetsindex,% av maxpoäng,2024,Demokrati,hog
+ipf,N05812,Invånare per förtroendevald,antal,2025,Demokrati,
+hel,N05810,Förtroendevalda på heltid,%,2025,Demokrati,
+hot,N65900,Förtroendevalda utsatta för trakasserier hot eller våld,%,2024,Demokrati,lag

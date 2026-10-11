@@ -305,7 +305,7 @@ PAGE = r"""<!doctype html>
 <div class="panel" id="panel"></div>
 <footer>
  <p>Underlag: Valmyndigheten (röster per valdistrikt i alla tre valen, slutligt; mandatfördelning; valdeltagande; valdistriktsgeometri), SCB (distriktsdemografi), Faktadriven (styre efter valet 2022), Plenum via nyckelpersoner.csv. Valdeltagande per distrikt = giltiga röster delat med röstberättigade.</p>
- <p><b>valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic).</p>
+ <p><b>valutfall.se</b> är gjord av <a href="https://influera.se">Influera Sverige</a>s Sandro Wennberg med hjälp av AI (Anthropic).</p>
 </footer></div>
 <script>
 const DATA=/*__DATA__*/;
@@ -420,7 +420,7 @@ INDEX = r"""<!doctype html><html lang="sv"><head><meta charset="utf-8"><meta nam
 <h1>Alla kommuner – valet 2026</h1><p class="sub">En fördjupad sida för var och en av Sveriges 290 kommuner: resultat i de tre valen, varje valdistrikt på karta, historik sedan 1973, röstsplittring, demografi och vilka som styr.</p>
 <div class="caveat">__STATUS__</div></header>
 <div class="panel"><input type="search" id="q" placeholder="Sök kommun…" autofocus><div class="list" id="list">__LIST__</div></div>
-<footer><p><b>valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic).</p></footer></div>
+<footer><p><b>valutfall.se</b> är gjord av <a href="https://influera.se">Influera Sverige</a>s Sandro Wennberg med hjälp av AI (Anthropic).</p></footer></div>
 <script>const q=document.getElementById('q');q.addEventListener('input',()=>{const v=q.value.trim().toLowerCase();document.querySelectorAll('#list a').forEach(a=>{a.style.display=!v||a.textContent.toLowerCase().includes(v)?'':'none';});document.querySelectorAll('#list h3').forEach(h=>{let n=h.nextElementSibling,any=false;while(n&&n.tagName==='A'){if(n.style.display!=='none')any=true;n=n.nextElementSibling;}h.style.display=any?'':'none';});});</script></body></html>"""
 
 def build_index(a, pages, status):

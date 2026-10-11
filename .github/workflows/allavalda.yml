@@ -28,7 +28,7 @@ jobs:
       - name: Bygg allavalda.se
         run: python3 build_allavalda.py --out public_allavalda
       - name: Deploya till Netlify (allavalda.se)
-        run: python3 -c "import hamta; hamta.deploy('public_allavalda/index.html')"
+        run: python3 netlify_deploy.py public_allavalda
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID_ALLAVALDA }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}

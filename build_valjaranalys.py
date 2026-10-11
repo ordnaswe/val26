@@ -354,7 +354,7 @@ PAGE = r"""<!doctype html>
 <footer>
  <p id="src"></p>
  <p>Underlag: Valmyndigheten (röster per valdistrikt), SCB (distriktskovariater) och Kolada/Faktadriven (kommunmått). Metod: rost-viktad Pearson-korrelation och kvintiler. Länskarta: Natural Earth.</p>
- <p><b>valutfall.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic).</p>
+ <p><b>valutfall.se</b> är gjord av <a href="https://influera.se">Influera Sverige</a>s Sandro Wennberg med hjälp av AI (Anthropic).</p>
 </footer>
 </div>
 
