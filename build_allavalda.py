@@ -391,6 +391,22 @@ def main():
     mand = defaultdict(dict)
     for r in read_csv('data/mandat_slutligt.csv'): mand[(r['valtyp'], r['kod'])][r['parti_abbr']] = (int(r['mandat2022'] or 0), int(r['mandat2026'] or 0))
     nyck = read_csv(a.nyckelpersoner)
+    vcount = Counter((r['vt'], r['valomrkod'], fold(r['p'])) for r in valda)
+    vcount_b = Counter((r['vt'], r['valomrkod'], fold(r.get('partibeteckning') or '')) for r in valda)
+    def vak(vt, kod):
+        """vakanta mandat per parti: Valmyndighetens mandat 2026 minus antal valda (partiet hade för få kandidater).
+        Lokala partier kan heta olika i mandatfilen (fullt namn) och valfilen (förkortning) – matcha på båda och
+        räkna bara vakanser om kommunens totala antal valda också är lägre än antalet mandat."""
+        m_ = mand.get((vt, kod)) or {}
+        tot = sum(v[1] for v in m_.values()); nval = sum(n for (vt_, k_, _), n in vcount.items() if vt_ == vt and k_ == kod)
+        if not tot or nval >= tot: return {}
+        out = {p: v[1] - max(vcount.get((vt, kod, fold(p)), 0), vcount_b.get((vt, kod, fold(p)), 0)) for p, v in m_.items()}
+        out = {p: n for p, n in out.items() if n > 0}
+        return out if sum(out.values()) == tot - nval else {'okänt parti': tot - nval}
+    def vak_txt(vt, kod):
+        vk = vak(vt, kod); tot = sum(v[1] for v in (mand.get((vt, kod)) or {}).values())
+        if not vk: return ''
+        return f' <span style="color:var(--neg)">{sum(vk.values())} av {tot} mandat är vakanta ({", ".join(f"{p} {n}" for p, n in vk.items())}), eftersom partiet hade för få kandidater på sin lista.</span>'
     valda_by_name = defaultdict(list)
     for r in valda:
         valda_by_name[(fold(r['namn']), r['p'])].append(r); valda_by_name[(fold(r['fullnamn']), r['p'])].append(r)
@@ -506,6 +522,9 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
 </script>"""
     body = body.replace('<h2>Statistik</h2><p class="lead"><a href="statistik/">Diagram över de valda</a>: partier, personröster, var riksdagsledamöterna bor.</p>', '')
     body += f'''<h2>Utforska</h2><div class="cards"><a class="card" href="riksdagen/"><b>Riksdagen →</b><span>Alla 349 ledamöter, mandat per parti, erfarenhet, närvaro och anföranden.</span></a><a class="card" href="karta/"><b>Karta →</b><span>Kommunfullmäktige på kartan: kvinnor, ålder, nya och personvalda.</span></a><a class="card" href="lan/"><b>Län och regioner →</b><span>Karta, regionfullmäktige och riksdagsledamöter per län.</span></a><a class="card" href="kommun/"><b>Alla 290 kommuner →</b><span>Kommunfullmäktige med ersättare, styre, invånare och historik sedan 2010.</span></a><a class="card" href="parti/"><b>Partier →</b><span>Alla valda per parti i riksdag, region och kommun.</span></a><a class="card" href="statistik/"><b>Statistik →</b><span>Kön, ålder, yrken, förnyelse, personval och riksdagserfarenhet.</span></a></div>'''
+    vak_kf = sum(sum(vak('KF', kk).values()) for kk in komKod.values()); vak_rf = sum(sum(vak('RF', lk_).values()) for lk_ in lanNamn)
+    if vak_kf or vak_rf:
+        body = body.replace('<div class="maprow">', f'<p class="small muted sans">Antalet valda är något lägre än antalet mandat: {vak_kf} mandat i kommunfullmäktige{" och " + str(vak_rf) + " i regionfullmäktige" if vak_rf else ""} står tomma eftersom partiet hade för få kandidater på sin lista. Se respektive kommun.</p><div class="maprow">', 1)
     rdm = mand.get(('RD', '00'), {})
     if rdm:
         rv = sum(v for (vt, nv, k), v in [] ) if False else None
@@ -537,7 +556,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         rres = res_bars('RF', 'region', lk)
         lfakta = (f'<h3>Fakta om länet</h3><p class="small muted sans">Kolada och SCB via Faktadriven, jämfört med riket.</p>' + fakta_rows('00' + lk, ['Befolkning', 'Ekonomi och arbete', 'Demokrati'], kommun=False)) if FK.get('00' + lk) else ''
         sn = subnav([('#om', 'Om regionen'), ('#kommuner', 'Kommuner'), ('#riksdag', 'Riksdagsledamöter'), ('#region', esc(rname))] + [('#rf-' + slugify(p), p) for p in sorted(set(r['p'] for r in rf), key=lambda p: -sum(1 for r in rf if r['p'] == p))[:8]])
-        body = f"""<h1>{esc(lname)}</h1><p class="lead">{len(rd)} riksdagsledamöter från länet, {len(rf)} ledamöter i {esc(rname)} och {len(koms)} kommuner.</p>{sn}<h2 id="om">Om {esc(rname)}</h2>{om}{('<h3>Regionvalet 2026</h3>' + rres) if rres else ''}{lfakta}
+        body = f"""<h1>{esc(lname)}</h1><p class="lead">{len(rd)} riksdagsledamöter från länet, {len(rf)} ledamöter i {esc(rname)} och {len(koms)} kommuner.{vak_txt('RF', lk)}</p>{sn}<h2 id="om">Om {esc(rname)}</h2>{om}{('<h3>Regionvalet 2026</h3>' + rres) if rres else ''}{lfakta}
 <div class="maprow"><div>{svg_map(items, lambda k: f'../../kommun/{slugify(kod2kom.get(k, k))}/', 2)}</div><div><h2 style="margin-top:0" id="kommuner">Kommuner</h2><div class="chips">{''.join(f'<a class="chip" href="../../kommun/{slugify(nm)}/">{esc(nm)}</a>' for kk, nm in koms)}</div></div></div>
 <h2 id="riksdag">Riksdagsledamöter från {esc(lname)}</h2>{seatbar(rd) if rd else ''}{party_lists(rd, 2, show_omr=True) if rd else '<p class="muted">Inga.</p>'}
 {('<h2 id="region">'+esc(rname)+'</h2>'+seatbar(rf)+people_charts(rf)+party_lists(rf, 2, pref='rf-', with_ers= {p: [e for e in ers if e["valtyp"]=="RF" and e["valomrkod"]==lk and e["parti"]==p] for p in set(r["p"] for r in rf)})) if rf else ('<h2>Regionfullmäktige</h2><p class="muted">Gotland har inget regionval; regionfullmäktige är kommunfullmäktige.</p>' if lk=='09' else '')}"""
@@ -596,7 +615,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
                         f'<p class="small muted sans">2010–2022: ursprungligt valda enligt Valmyndigheten. {nya} av {len(kf)} ledamöter 2026 är nya jämfört med fullmäktige 2022 (uppskattning). {avg22} av ledamöterna som valdes 2022 lämnade sitt uppdrag under mandatperioden.</p>')
         kps = sorted(set(r['p'] for r in kf), key=lambda p: -sum(1 for r in kf if r['p'] == p))
         sn = subnav([('#om', 'Om kommunen'), ('#fakta', 'Fakta'), ('#kf', 'Fullmäktige')] + [('#p-' + slugify(p), p) for p in kps] + ([('#historik', 'Över tid')] if hrows else [])  + ([('#rd', 'Riksdag')] if rd else []) + ([('#rf', 'Region')] if rf else []))
-        body = f"""<h1>{esc(nm)}</h1>{sn}<p class="lead">{len(kf)} ledamöter i kommunfullmäktige, {sum(1 for r in kf if r['pv'])} av dem invalda på personröster. {len(rd)} riksdagsledamöter och {len(rf)} regionledamöter bor i kommunen.</p>
+        body = f"""<h1>{esc(nm)}</h1>{sn}<p class="lead">{vak_txt('KF', kk)} {len(kf)} ledamöter i kommunfullmäktige, {sum(1 for r in kf if r['pv'])} av dem invalda på personröster. {len(rd)} riksdagsledamöter och {len(rf)} regionledamöter bor i kommunen.</p>
 <h2 id="om">Om {esc(nm)}</h2>{om}{('<h3>Kommunvalet 2026</h3>' + kres) if kres else ''}
 {fakta}
 <h2 id="kf">Kommunfullmäktige 2026–2030</h2>{seatbar(kf) if kf else ''}{people_charts(kf)}{party_lists(kf, 2, {p: ers_by.get(('KF', kk, p), []) for p in set(r['p'] for r in kf)}) if kf else '<p class="muted">Inga valda i underlaget.</p>'}
@@ -1026,7 +1045,7 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
     body = ('<h1>Alla kommuner</h1><p class="lead">Kommunfullmäktige 2026–2030 i alla 290 kommuner. Sök eller välj län.</p>'
             '<input class="filter" type="search" id="kq" placeholder="Sök kommun…" oninput="var v=this.value.toLowerCase();document.querySelectorAll(\'#kl a\').forEach(function(a){a.style.display=!v||a.textContent.toLowerCase().indexOf(v)>=0?\'\':\'none\'});document.querySelectorAll(\'#kl h3\').forEach(function(h){var n=h.nextElementSibling;h.style.display=[].some.call(n.querySelectorAll(\'a\'),function(a){return a.style.display!==\'none\'})?\'\':\'none\'})">'
             + subnav([('#l' + lk, lanNamn.get(lk, lk).replace(' län', '')) for lk in sorted(by_l)]) + '<div id="kl">' +
-            ''.join(f'<h3 id="l{lk}">{esc(lanNamn.get(lk, lk))}</h3><div class="chips">' + ''.join(f'<a class="chip" href="{slugify(nm_)}/">{esc(nm_)} <span class="muted small">{sum(1 for r in valda if r["vt"]=="KF" and r["valomrkod"]==kk)}</span></a>' for nm_, kk in sorted(v, key=lambda x: x[0])) + '</div>' for lk, v in sorted(by_l.items())) + '</div>')
+            ''.join(f'<h3 id="l{lk}">{esc(lanNamn.get(lk, lk))}</h3><div class="chips">' + ''.join(f'<a class="chip" href="{slugify(nm_)}/">{esc(nm_)} <span class="muted small">{sum(1 for r in valda if r["vt"]=="KF" and r["valomrkod"]==kk)}{(" av " + str(sum(v[1] for v in (mand.get(("KF", kk)) or {}).values()))) if vak("KF", kk) else ""}</span></a>' for nm_, kk in sorted(v, key=lambda x: x[0])) + '</div>' for lk, v in sorted(by_l.items())) + '</div>')
     write('kommun/index.html', page('Alla kommuner', body, 1, '<a href="../">Sverige</a> › Kommuner', built, section='kommun/').replace('__SCRIPT__', ''))
     # robots/sitemap-light
     write('robots.txt', 'User-agent: *\nAllow: /\n')

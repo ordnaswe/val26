@@ -1527,6 +1527,12 @@
     for(let i=0;i<seats;i++){let best=null,bq=-1;for(const x of elig){const q=x.a/div(x);if(q>bq){bq=q;best=x;}}if(best)res[best.p]++;}
     return res;
   }
+  function officialSeats(y){   // Valmyndighetens fastställda mandat per parti för valt område (KF kommun / RF region)
+    const el=state.election,O=(y===2022?DATA.seatsOfficial22:DATA.seatsOfficial)||{};
+    if(el==="KF"&&state.geo.kommun)return (O.kommun||{})[(DATA.komKod||{})[state.geo.kommun]]||null;
+    if(el==="RF"&&state.geo.lan&&!state.geo.kommun)return (O.lan||{})[(DATA.lanKod||{})[state.geo.lan]]||null;
+    return null;
+  }
   function mandateSeats(){
     const el=state.election,S=DATA.seats||{};
     if(el==="RD"&&!state.geo.kommun&&!state.geo.lan)return S.riket||349;
@@ -1642,15 +1648,15 @@
       const ar=areaResults();
       if(seatsN && ar && ar.length){
         // alla partier ≥1% i området (baslinje 2022) fördelas
-        const sa=allocateAny(ar,seatsN,thr);
+        const sa=(officialSeats()||allocateAny(ar,seatsN,thr));
         mand={};for(const p of PARTIES)mand[p.id]=sa[p.id]||0;
         mandPlist=PARTIES.map(p=>({id:p.id,color:p.color,seats:sa[p.id]||0}))
           .concat(ar.filter(x=>!PARTIES.some(p=>p.id===x.p)&&(sa[x.p]||0)>0)
                     .map(x=>({id:x.p,color:pcolor(x.p),seats:sa[x.p]})));
-        mand22=allocateSeats(r2022,seatsN,thr);
+        mand22=(officialSeats(2022)||allocateSeats(r2022,seatsN,thr));
       } else {
         mand=seatsN?allocateSeats(m3,seatsN,thr):null;
-        mand22=seatsN?allocateSeats(r2022,seatsN,thr):null;
+        mand22=seatsN?(officialSeats(2022)||allocateSeats(r2022,seatsN,thr)):null;
         mandPlist=mand?PARTIES.map(p=>({id:p.id,color:p.color,seats:mand[p.id]||0})):null;
       }
     }
@@ -1677,7 +1683,7 @@
     const arLoc = areaResults();
     let hasLocal=false;
     if(localCtx && arLoc && arLoc.length){
-      const sa2 = seatsN ? allocateAny(arLoc, seatsN, thr) : {};
+      const sa2 = seatsN ? (officialSeats()||allocateAny(arLoc, seatsN, thr)) : {};
       const niva = state.geo.kommun ? "kommun" : "lan";
       const kod = state.geo.kommun ? (DATA.komKod||{})[state.geo.kommun] : (DATA.lanKod||{})[state.geo.lan];
       const AH = ((((DATA.allhist||{})[niva]||{})[kod]||{})[state.election]) || {};
@@ -1787,7 +1793,7 @@
       // partimandat i kommunen ur exakta/aktuella andelar
       const area=areaSeries()||{},cur={};for(const p of PARTIES)cur[p.id]=(area[p.id]&&area[p.id][state.year]!=null)?area[p.id][state.year]:null;
       if(cur[PARTIES[0].id]==null){const a=aggSeries(scope());for(const p of PARTIES)cur[p.id]=a[p.id][state.year];}
-      const seats=allocateSeats(cur,seatsN,thr);
+      const seats=officialSeats()||allocateSeats(cur,seatsN,thr);
       lede.innerHTML=`Prognostiserade invalda i <b>${state.geo.kommun}s kommunfullmäktige</b> (${seatsN} mandat, ${thr}% spärr). `+
         `Grönt = inne, gult = på gränsen. Endast de åtta riksdagspartierna – lokala partier ingår inte i modellen. Personröster kan flytta namn.`;
       const cards=[...PARTIES].filter(p=>lists[p.id]&&seats[p.id]>0).sort((a,b)=>seats[b.id]-seats[a.id])
@@ -1881,8 +1887,8 @@
     // mandatstapel (om området väljer församling) annars röstandelsstapel
     const seatsN=mandateSeats(),thr=progThreshold();
     let barHtml="",barLabel="";
-    if(seatsN){const seats=allocateSeats(cur,seatsN,thr);
-      barHtml=PARTIES.map(p=>{const s=seats[p.id]||0;return s>0?`<span title="${p.id} ${s}" style="width:${s/seatsN*100}%;background:${p.color}"></span>`:"";}).join("");
+    if(seatsN){const seats=officialSeats()||allocateSeats(cur,seatsN,thr);
+      barHtml=Object.keys(seats).filter(k=>seats[k]>0).map(k=>({id:k,color:(PARTIES.find(p=>p.id===k)||{}).color||pcolor(k)})).map(p=>{const s=seats[p.id]||0;return s>0?`<span title="${p.id} ${s}" style="width:${s/seatsN*100}%;background:${p.color}"></span>`:"";}).join("");
       barLabel=`${seatsN} mandat`;
     } else {
       const tot=PARTIES.reduce((a,p)=>a+(cur[p.id]||0),0)||1;

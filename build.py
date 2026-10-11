@@ -1145,7 +1145,22 @@ def main():
                 seats[niva][kod] = int(antal)
             if niva == "kommun" and kod and vk:
                 valkretsar[kod] = int(vk)
+    # Valmyndighetens fastställda mandatfördelning 2026 (data/mandat_slutligt.csv) ersätter antalet mandat per
+    # kommun/region och används som mandatfördelning per parti i stället för den beräknade (t.ex. Ale: 49 -> 51 mandat).
+    seats_off = {"kommun": {}, "lan": {}}; seats_off22 = {"kommun": {}, "lan": {}}
+    ms = Path("data/mandat_slutligt.csv")
+    if ms.exists():
+        for r in read_csv(str(ms)):
+            niva = {"KF": "kommun", "RF": "lan"}.get((r.get("valtyp") or "").strip())
+            if not niva: continue
+            kod = (r.get("kod") or "").strip(); p = (r.get("parti_abbr") or "").strip()
+            n26 = int(to_float(r.get("mandat2026")) or 0); n22 = int(to_float(r.get("mandat2022")) or 0)
+            if n26: seats_off[niva].setdefault(kod, {})[p] = n26
+            if n22: seats_off22[niva].setdefault(kod, {})[p] = n22
+        for niva in ("kommun", "lan"):
+            for kod, pm in seats_off[niva].items(): seats[niva][kod] = sum(pm.values())
     data["seats"] = seats
+    data["seatsOfficial"] = seats_off; data["seatsOfficial22"] = seats_off22
     data["valkretsar"] = valkretsar
     data["thresholds"] = {"RD": 4.0, "RF": 3.0, "KF": 2.0}   # KF: 2% (1 valkrets) / 3% (fler) väljs i klienten
     data["riksvalkretsar"] = RIKSVK

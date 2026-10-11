@@ -225,6 +225,19 @@ def build(a):
         official.setdefault(key, {})[r['parti_abbr']] = int(r['mandat2026'] or 0)
         official22.setdefault(key, {})[r['parti_abbr']] = int(r['mandat2022'] or 0)
     has_official = bool(official)
+    # vakanta mandat: Valmyndighetens mandat 2026 minus antal valda per parti (partiet hade för få kandidater)
+    valda_n = defaultdict(int); valda_b = defaultdict(int); valda_tot = defaultdict(int)
+    fl = lambda s: (s or '').strip().lower()
+    for r in read_csv('data/valda.csv'):
+        if r.get('valtyp') in ('KF', 'RF'):
+            valda_n[(r['valtyp'], r['valomrkod'], fl(r['parti']))] += 1; valda_b[(r['valtyp'], r['valomrkod'], fl(r.get('partibeteckning')))] += 1
+            valda_tot[(r['valtyp'], r['valomrkod'])] += 1
+    def vakanta(vt, kod):
+        m_ = official.get((vt, kod)) or {}; tot = sum(m_.values()); nval = valda_tot.get((vt, kod), 0)
+        if not valda_tot or not tot or nval >= tot: return {}
+        out = {p: n - max(valda_n.get((vt, kod, fl(p)), 0), valda_b.get((vt, kod, fl(p)), 0)) for p, n in m_.items()}
+        out = {p: n for p, n in out.items() if n > 0}
+        return out if sum(out.values()) == tot - nval else {'okänt parti': tot - nval}
     turnout = {}   # (valtyp, niva, kod) -> {'pct', 'roster', 'rb'}
     for r in read_csv(a.valdeltagande):
         turnout[(r['valtyp'], r['niva'], r['kod'])] = {'pct': num(r['valdeltagande_pct']), 'roster': num(r['roster']), 'rb': num(r['rostberattigade'])}
@@ -345,7 +358,7 @@ def build(a):
             'kod': lk, 'lan': lanNamn.get(lk, lk), 'namn': rname or ('Region ' + lanNamn.get(lk, lk).replace(' län', '')),
             'tot': tot, 'res': top_parties(r26, r22), 'seats': s26, 'seats22': s22,
             'blocks': blocks(s26), 'blocks22': blocks(s22),
-            'ledning': [x for x in led if x['organ'] == 'Regionstyrelsen'], 'styre': rstyre, 'maj': tot//2 + 1, 'official': ('RF', lk) in official,
+            'ledning': [x for x in led if x['organ'] == 'Regionstyrelsen'], 'styre': rstyre, 'maj': tot//2 + 1, 'official': ('RF', lk) in official, 'vak': vakanta('RF', lk),
             'turnout': turn(lk, {'RF': 'region', 'RD': 'län'}),
             'listettor': listettor('RF', lk, [p for p in s26 if s26[p] > 0]),
             'rd': rd_area('lan', lk),
@@ -378,7 +391,7 @@ def build(a):
             elif st_max >= maj: status = 'beror på lokalt parti'
             else: status = 'saknar majoritet'
         kommuner.append({
-            'kod': kk, 'namn': kod2kom.get(kk, kk), 'lan': kk[:2], 'folk': folk.get(kk), 'tot': tot, 'maj': maj, 'sida': kommunsidor.get(kk),
+            'kod': kk, 'namn': kod2kom.get(kk, kk), 'lan': kk[:2], 'folk': folk.get(kk), 'tot': tot, 'maj': maj, 'sida': kommunsidor.get(kk), 'vak': vakanta('KF', kk),
             'res': top_parties(r26, r22), 'seats': s26, 'seats22': s22, 'blocks': blocks(s26), 'blocks22': blocks(s22),
             'styre': {'partier': st_parts, 'kso': st.get('kso_parti'), 'majmin': st.get('majmin'), 'kat': st.get('kategori'),
                       'min': st_min, 'max': st_max, 'min22': st22_min, 'max22': st22_max, 'status': status,
@@ -818,7 +831,8 @@ function styreSummary(o,tot,label){const maj=Math.floor(tot/2)+1;const b=o.block
  let st='';
  if(s){const got=s.min===s.max?`${s.min}`:`${s.min}–${s.max}`;const gap=maj-s.min;
   st=`<div class="l"><b>Sittande styre 2022–26:</b> ${s.partier.map(p=>pf(p)).join(' ')} <span class="muted">(${esc((s.majmin||'').toLowerCase())}${s.kso?', '+label+' från '+s.kso:''}${s.op?', ÖP = '+esc(s.op):''})</span>. Samma partier får <b>${got} mandat</b> i nya fullmäktige, ${s.status==='majoritet'?`<span class="pos">${s.min-maj+1>1?s.min-maj+' över gränsen':'precis på gränsen'}</span>`:s.status==='beror på lokalt parti'?`<span class="muted">räcker bara om det lokala partiet räknas med</span>`:`<span class="neg">${gap} för lite</span>`}. ${statusTag(s)}${s.fix&&s.fix.length?`<br><b>Skulle nå majoritet med:</b> ${s.fix.map(f=>pf(f.p)+' ('+f.tot+')').join(', ')}.`:s.status==='saknar majoritet'?'<br>Inget enskilt parti räcker – kräver minst två partier till eller ett nytt styre.':''}</div>`;}
- return `<div class="l"><b>Majoritet kräver ${maj} av ${tot} mandat.</b> S+V+MP+C ${b.L} (${sgi(b.L-b22.L)} mot 2022) · M+KD+L+SD ${b.R} (${sgi(b.R-b22.R)})${b.O?` · övriga ${b.O}`:''}. ${side}</div>${st}`;}
+ const vk=o.vak&&Object.keys(o.vak).length?` <span class="neg">${Object.values(o.vak).reduce((a,c)=>a+c,0)} av mandaten är vakanta (${Object.entries(o.vak).map(([p,n])=>p+' '+n).join(', ')}) eftersom partiet hade för få kandidater; majoriteten räknas ändå på alla ${tot}.</span>`:'';
+ return `<div class="l"><b>Majoritet kräver ${maj} av ${tot} mandat.</b>${vk} S+V+MP+C ${b.L} (${sgi(b.L-b22.L)} mot 2022) · M+KD+L+SD ${b.R} (${sgi(b.R-b22.R)})${b.O?` · övriga ${b.O}`:''}. ${side}</div>${st}`;}
 function intro(what,now){return `<div class="intro">${what}${now?` <b>Just nu:</b> ${now}`:''}</div>`;}
 function statusTag(s){if(!s)return '<span class="status s-na">okänt styre</span>';const st=s.status;
  return st==='majoritet'?'<span class="status s-maj">behåller majoritet</span>':st==='saknar majoritet'?'<span class="status s-sak">saknar majoritet</span>':'<span class="status s-ber">beror på lokalt parti</span>';}
