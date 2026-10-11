@@ -25,6 +25,9 @@ jobs:
       - name: Hämta riksdagens ledamotshistorik (data.riksdagen.se)
         continue-on-error: true
         run: python3 riksdag_historik.py
+      - name: Hämta riksdagens voteringar och anföranden 2022–2026
+        continue-on-error: true
+        run: python3 riksdag_aktivitet.py
       - name: Bygg allavalda.se
         run: python3 build_allavalda.py --out public_allavalda
       - name: Deploya till Netlify (allavalda.se)

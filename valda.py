@@ -107,7 +107,7 @@ def main():
                 andel = None
                 if v.get('partiroster'): andel = round(100.0 * (v.get('personroster') or 0) / v['partiroster'], 2)
                 pers.append(dict(valtyp=vt, valomrkod=omr_kod, valomrnamn=omr_namn, valkretskod=vk, parti=v['parti'], partibeteckning=v['partibeteckning'],
-                                 kandidatnummer=knr, namn=v.get('namn'), personroster=v.get('personroster'), personroster_totalt=pr_total(knr), andel_personroster=andel,
+                                 kandidatnummer=knr, namn=v.get('namn'), personroster=v.get('personroster'), personroster_totalt=pr_total(knr), andel_personroster=andel, partiroster=v.get('partiroster'),
                                  kvalificerad='Ja' if kval_in(vk, knr) is not None else 'Nej', invald='Nej'))
         # valda + ersättare
         got = False
