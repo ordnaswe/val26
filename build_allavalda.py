@@ -403,7 +403,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
  hits.innerHTML=r.map(x=>`<li><a href="${x.u}">${x.n}</a> <span class="m">${x.p} · ${x.v} · ${x.o}</span></li>`).join('')||'<li class="m">Inga träffar.</li>';});
 </script>"""
     body = body.replace('<h2>Statistik</h2><p class="lead"><a href="statistik/">Diagram över de valda</a>: partier, personröster, var riksdagsledamöterna bor.</p>', '')
-    body += f'''<h2>Utforska</h2><div class="cards"><a class="card" href="lan/"><b>Län och regioner →</b><span>Karta, regionfullmäktige och riksdagsledamöter per län.</span></a><a class="card" href="kommun/"><b>Alla 290 kommuner →</b><span>Kommunfullmäktige med ersättare, historik sedan 2010 och längst sittande.</span></a><a class="card" href="parti/"><b>Partier →</b><span>Alla valda per parti i riksdag, region och kommun.</span></a><a class="card" href="statistik/"><b>Statistik →</b><span>Kön, ålder, yrken, förnyelse, personval och riksdagserfarenhet.</span></a></div>'''
+    body += f'''<h2>Utforska</h2><div class="cards"><a class="card" href="lan/"><b>Län och regioner →</b><span>Karta, regionfullmäktige och riksdagsledamöter per län.</span></a><a class="card" href="kommun/"><b>Alla 290 kommuner →</b><span>Kommunfullmäktige med ersättare, styre, invånare och historik sedan 2010.</span></a><a class="card" href="parti/"><b>Partier →</b><span>Alla valda per parti i riksdag, region och kommun.</span></a><a class="card" href="statistik/"><b>Statistik →</b><span>Kön, ålder, yrken, förnyelse, personval och riksdagserfarenhet.</span></a></div>'''
     rdm = mand.get(('RD', '00'), {})
     if rdm:
         rv = sum(v for (vt, nv, k), v in [] ) if False else None
