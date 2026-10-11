@@ -100,7 +100,7 @@ details.omr{border-top:1px solid var(--line)} details.omr summary{cursor:pointer
 @media(max-width:640px){.wrap{padding:0 12px 48px} h1{font-size:1.5rem} table{font-size:.84rem;display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%} th,td{padding:6px 5px} .card table{display:table} .card{padding:12px}}
 """
 
-MENU = [('', 'Sök'), ('karta/', 'Karta'), ('lan/', 'Län'), ('kommun/', 'Kommuner'), ('parti/', 'Partier'), ('statistik/', 'Statistik')]
+MENU = [('', 'Sök'), ('riksdagen/', 'Riksdagen'), ('karta/', 'Karta'), ('lan/', 'Län'), ('kommun/', 'Kommuner'), ('parti/', 'Partier'), ('statistik/', 'Statistik')]
 def subnav(items, cur=None):
     """items: [(href, label)] – fastnar överst när man skrollar, scrollbar i sidled på mobil."""
     return '<nav class="subnav" aria-label="På sidan">' + ''.join(f'<a href="{h}"{" class=\"cur\"" if h == cur else ""}>{esc(l)}</a>' for h, l in items) + '</nav>'
@@ -368,9 +368,9 @@ def main():
         if not rows: return ''
         mx = mx or max(v for _, v, _ in rows) or 1
         return '<div class="sans" style="font-size:.86rem;margin:6px 0 12px">' + ''.join(
-            f'<div style="display:flex;align-items:center;gap:8px;margin:4px 0"><div style="width:{w_lab}px;flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{lab}</div>'
+            f'<div style="display:flex;align-items:center;gap:8px;margin:4px 0"><div style="width:{w_lab}px;max-width:42%;flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{lab}</div>'
             f'<div data-tip="{esc(re.sub("<[^>]+>", " ", lab).strip())}: {str(v).replace(".", ",")}{unit}" style="flex:1;background:var(--line);border-radius:5px;overflow:hidden;min-width:60px"><div style="width:{max(0, min(100, 100*v/mx)):.1f}%;height:15px;background:{c or "var(--acc)"}"></div></div>'
-            f'<div style="width:62px;text-align:right">{str(v).replace(".", ",")}{unit}</div></div>' for lab, v, c in rows) + '</div>'
+            f'<div style="flex:0 0 auto;min-width:44px;text-align:right;white-space:nowrap">{str(v).replace(".", ",")}{unit}</div></div>' for lab, v, c in rows) + '</div>'
     def stacked(rows, keys, colors, labels):
         """rows: [(etikett_html, {key: andel})] -> staplade 100 %-staplar med förklaring"""
         leg = '<div class="sans small muted" style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0">' + ''.join(f'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{colors[k]};margin-right:4px"></span>{labels[k]}</span>' for k in keys) + '</div>'
@@ -505,7 +505,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
  hits.innerHTML=r.map(x=>`<li><a href="${x.u}">${x.n}</a> <span class="m">${x.p} · ${x.v} · ${x.o}</span></li>`).join('')||'<li class="m">Inga träffar.</li>';});
 </script>"""
     body = body.replace('<h2>Statistik</h2><p class="lead"><a href="statistik/">Diagram över de valda</a>: partier, personröster, var riksdagsledamöterna bor.</p>', '')
-    body += f'''<h2>Utforska</h2><div class="cards"><a class="card" href="karta/"><b>Karta →</b><span>Kommunfullmäktige på kartan: kvinnor, ålder, nya och personvalda.</span></a><a class="card" href="lan/"><b>Län och regioner →</b><span>Karta, regionfullmäktige och riksdagsledamöter per län.</span></a><a class="card" href="kommun/"><b>Alla 290 kommuner →</b><span>Kommunfullmäktige med ersättare, styre, invånare och historik sedan 2010.</span></a><a class="card" href="parti/"><b>Partier →</b><span>Alla valda per parti i riksdag, region och kommun.</span></a><a class="card" href="statistik/"><b>Statistik →</b><span>Kön, ålder, yrken, förnyelse, personval och riksdagserfarenhet.</span></a></div>'''
+    body += f'''<h2>Utforska</h2><div class="cards"><a class="card" href="riksdagen/"><b>Riksdagen →</b><span>Alla 349 ledamöter, mandat per parti, erfarenhet, närvaro och anföranden.</span></a><a class="card" href="karta/"><b>Karta →</b><span>Kommunfullmäktige på kartan: kvinnor, ålder, nya och personvalda.</span></a><a class="card" href="lan/"><b>Län och regioner →</b><span>Karta, regionfullmäktige och riksdagsledamöter per län.</span></a><a class="card" href="kommun/"><b>Alla 290 kommuner →</b><span>Kommunfullmäktige med ersättare, styre, invånare och historik sedan 2010.</span></a><a class="card" href="parti/"><b>Partier →</b><span>Alla valda per parti i riksdag, region och kommun.</span></a><a class="card" href="statistik/"><b>Statistik →</b><span>Kön, ålder, yrken, förnyelse, personval och riksdagserfarenhet.</span></a></div>'''
     rdm = mand.get(('RD', '00'), {})
     if rdm:
         rv = sum(v for (vt, nv, k), v in [] ) if False else None
@@ -957,7 +957,6 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
             ('kandidater', 'Kandidater mot valda', 'Vilka som står på listorna jämfört med vilka som blir valda.', kmv),
             ('yrken', 'Yrken', 'Vad de valda jobbar med, jämfört med kandidaterna.', yrk),
             ('fornyelse', 'Förnyelse', 'Nya och omvalda, hur länge de suttit, avhopp och listklättrare.', fn),
-            ('riksdagen', 'Riksdagen', 'Erfarenhet i riksdagen enligt Riksdagens öppna data.', rd_html),
             ('personval', 'Mandat och personval', 'Mandat per parti, flest personröster och var riksdagsledamöterna bor.', per_val)]
     STAT = [s for s in STAT if s[3]]
     INTRO = {
@@ -986,6 +985,24 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
             f'<div class="kpis"><div class="kpi"><div class="v">{nr(kv26)} %</div><div class="l">kvinnor</div></div><div class="kpi"><div class="v">{nr(ma26)}</div><div class="l">medelålder</div></div><div class="kpi"><div class="v">{nr(ny26)} %</div><div class="l">nya sedan 2022</div></div><div class="kpi"><div class="v">{nr(pv26)} %</div><div class="l">invalda på personröster</div></div></div>'
             '<div class="cards"><a class="card" href="../karta/"><b>Karta →</b><span>Kommunfullmäktige på kartan, under Karta i menyn.</span></a>' + ''.join(f'<a class="card" href="{k}/"><b>{t} →</b><span>{d}</span></a>' for k, t, d, _ in STAT) + '</div>')
     write('statistik/index.html', page('Statistik', body, 1, '<a href="../">Sverige</a> › Statistik', built, section='statistik/').replace('__SCRIPT__', ''))
+    # ---------- Riksdagen: egen sida i huvudmenyn ----------
+    rdv_all = [r for r in valda if r['vt'] == 'RD']
+    if rdv_all:
+        rdm_ = mand.get(('RD', '00'), {})
+        byvk = defaultdict(list)
+        for r in rdv_all: byvk[r['omr'] or ''].append(r)
+        led = ''.join(f'<details class="omr"><summary>{esc(vk)} <span class="muted small">{len(rs)} ledamöter</span></summary>{seatbar(rs)}{party_lists(rs, 1, pref="vk-" + slugify(vk) + "-")}</details>' for vk, rs in sorted(byvk.items()))
+        rk = ('<h1>Riksdagen 2026–2030</h1>'
+              + subnav([('#mandat', 'Mandat'), ('#ledamoter', 'Ledamöter'), ('#vilka', 'Vilka är de?')] + ([('#erfarenhet', 'Erfarenhet')] if rd_html else []))
+              + '<p class="lead" style="max-width:none">De 349 ledamöterna som valdes till riksdagen den 13 september 2026, med mandat per parti, ledamöterna valkrets för valkrets och vilka de är. '
+              'Riksdagens 310 fasta valkretsmandat fördelas mellan 29 valkretsar och 39 utjämningsmandat jämnar ut fördelningen nationellt. Mandat och valda: Valmyndighetens fastställda resultat. Historik, närvaro och anföranden: Riksdagens öppna data.</p>'
+              + '<h2 id="mandat">Mandat per parti</h2>' + seatbar(rdv_all)
+              + (hbars([(pf(p_) + ' ' + esc(PN.get(p_, p_)) + f' <span class="small muted">({"+" if v[1]-v[0] > 0 else ""}{v[1]-v[0]} mot 2022)</span>', v[1], col(p_)) for p_, v in sorted(rdm_.items(), key=lambda x: -x[1][1]) if v[1]], ' mandat', w_lab=260) if rdm_ else '')
+              + f'<p class="small muted sans">Regeringsbildning och koalitionsräknare: <a href="https://www.valutfall.se/partianalys.html#regering">valutfall.se ↗</a></p>'
+              + '<h2 id="ledamoter">Ledamöterna per valkrets</h2><p class="small muted sans">Tryck på en valkrets för att se dess ledamöter i invalsordning per parti.</p>' + led
+              + '<h2 id="vilka">Vilka är de?</h2>' + people_charts(rdv_all)
+              + (('<h2 id="erfarenhet">Erfarenhet och arbete i riksdagen</h2>' + rd_html.replace('"../../person/', '"../person/').replace('"../../kommun/', '"../kommun/').replace('<h2>Erfarenhet i riksdagen</h2>', '<h3>Hur många perioder har de suttit?</h3>', 1)) if rd_html else ''))
+        write('riksdagen/index.html', page('Riksdagen 2026–2030', rk, 1, '<a href="../">Sverige</a> › Riksdagen', built, section='riksdagen/').replace('__SCRIPT__', ''))
     # ---------- Karta: egen sida i huvudmenyn ----------
     if karta:
         kb = ('<h1>Karta</h1><p class="lead">Alla 290 kommunfullmäktige på kartan. Välj vad kartan ska visa. Hovra eller tryck på en kommun för alla siffror, klicka (eller tryck igen) för att se dess valda.</p>'

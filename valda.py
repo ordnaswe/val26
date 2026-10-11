@@ -36,21 +36,44 @@ def walk_areas(root):
         yield vk.get('kod'), vk.get('namnValkrets'), vk
 
 def person_votes(obj):
-    """kandidatnummer -> antalPersonroster ur rostfordelning…partiRoster[].summeradePersonroster[]
-       (och listRoster[].personroster[] som reserv)."""
+    """kandidatnummer -> personröster i ett valområde/en valkrets.
+    Läser alla partiRoster under obj['rostfordelning'] (oavsett nivå) och tar för varje kandidat det STÖRSTA av
+    (a) summeradePersonroster och (b) summan över partiets listor (listRoster/… med antalPersonroster).
+    Partier med flera valsedlar i samma valkrets har personrösterna fördelade per lista – därför summeras listorna."""
     out = {}
-    pr = ((obj.get('rostfordelning') or {}).get('rosterPaverkaMandat') or {}).get('partiRoster') or []
-    for p in pr:
+    def parties(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k == 'partiRoster' and isinstance(v, list):
+                    for p in v:
+                        if isinstance(p, dict): yield p
+                else: yield from parties(v)
+        elif isinstance(o, list):
+            for x in o: yield from parties(x)
+    def cands(o, skip):
+        if isinstance(o, dict):
+            if ('kandidatnummer' in o or 'kandidatNummer' in o) and 'antalPersonroster' in o: yield o
+            for k, v in o.items():
+                if k not in skip: yield from cands(v, skip)
+        elif isinstance(o, list):
+            for x in o: yield from cands(x, skip)
+    for p in parties(obj.get('rostfordelning') or {}):
+        base = {'parti': abbr(p), 'partibeteckning': p.get('partibeteckning'), 'partiroster': p.get('antalRoster')}
+        summ = {}
         for s in p.get('summeradePersonroster') or []:
             k = s.get('kandidatnummer') or s.get('kandidatNummer')
-            if k is not None: out[k] = {'personroster': s.get('antalPersonroster'), 'parti': abbr(p), 'partibeteckning': p.get('partibeteckning'), 'namn': s.get('namn'), 'partiroster': p.get('antalRoster')}
-        if not p.get('summeradePersonroster'):
-            for l in p.get('listRoster') or []:
-                for s in l.get('personroster') or []:
-                    k = s.get('kandidatNummer') or s.get('kandidatnummer')
-                    if k is None: continue
-                    cur = out.setdefault(k, {'personroster': 0, 'parti': abbr(p), 'partibeteckning': p.get('partibeteckning'), 'namn': s.get('namn'), 'partiroster': p.get('antalRoster')})
-                    cur['personroster'] = (cur['personroster'] or 0) + (s.get('antalPersonroster') or 0)
+            if k is not None: summ[k] = (s.get('antalPersonroster') or 0, s.get('namn'))
+        lists = {}
+        for s in cands({k: v for k, v in p.items() if k != 'summeradePersonroster'}, {'summeradePersonroster'}):
+            k = s.get('kandidatnummer') or s.get('kandidatNummer')
+            n0, nm0 = lists.get(k, (0, s.get('namn')))
+            lists[k] = (n0 + (s.get('antalPersonroster') or 0), nm0 or s.get('namn'))
+        for k in set(summ) | set(lists):
+            a_, b_ = summ.get(k, (0, None)), lists.get(k, (0, None))
+            best = a_ if (a_[0] or 0) >= (b_[0] or 0) else b_
+            prev = out.get(k)
+            if prev is None or (best[0] or 0) > (prev['personroster'] or 0):
+                out[k] = dict(base, personroster=best[0], namn=best[1] or a_[1] or b_[1])
     return out
 
 def main():
@@ -74,6 +97,7 @@ def main():
                 names = [n for n in z.namelist() if 'mandatfordelning' in n and n.endswith('.json')]
                 if not names: continue
                 root = json.load(io.TextIOWrapper(z.open(names[0]), encoding='utf-8'))
+                extra_roots = [json.load(io.TextIOWrapper(z.open(n), encoding='utf-8')) for n in z.namelist() if 'rostfordelning' in n and n.endswith('.json')]
         except Exception as e:
             print(f'{zp}: kunde inte läsa ({e})', file=sys.stderr); continue
         n_files += 1
@@ -87,6 +111,12 @@ def main():
             for q in obj.get('kvalificeradeForPersonvalLista') or []:
                 kval[(key, q.get('kandidatnummer'))] = q.get('andelPersonroster')
             pv_vk[key] = person_votes(obj)
+        for er in extra_roots:                      # personröster ur röstfördelningsfilen, om den finns
+            for vkk, vkn, obj in walk_areas(er):
+                key = vkk or ''
+                for knr, d in person_votes(obj).items():
+                    cur = pv_vk.setdefault(key, {}).get(knr)
+                    if cur is None or (d['personroster'] or 0) > (cur['personroster'] or 0): pv_vk[key][knr] = d
         area_pv = pv_vk.get('', {}); vk_keys = [k for k in pv_vk if k]
         def pr_in(vk, knr):
             v = (pv_vk.get(vk or '', {}) or {}).get(knr) or area_pv.get(knr) or {}
@@ -153,6 +183,15 @@ def main():
             w = csv.DictWriter(f, fieldnames=list(rows[0].keys())); w.writeheader(); w.writerows(rows)
         print(f'Skrev {os.path.join(a.out_dir, name)}: {len(rows)} rader', file=sys.stderr)
     write('valda.csv', valda); write('ersattare.csv', ers); write('personroster.csv', pers)
+    from collections import Counter as _C
+    tot = _C(); prt = {}
+    for r in pers:
+        tot[(r['valtyp'], r['parti'])] += r['personroster'] or 0
+        prt[(r['valtyp'], r['valomrkod'], r['valkretskod'], r['parti'])] = r.get('partiroster') or 0
+    ptot = _C()
+    for (vt_, o_, vk_, p_), n_ in prt.items(): ptot[(vt_, p_)] += n_
+    for (vt_, p_), n_ in sorted(tot.items(), key=lambda x: (x[0][0], -x[1]))[:40]:
+        print(f'  personröster {vt_} {p_}: {n_} av {ptot[(vt_, p_)]} partiröster', file=sys.stderr)
     print(f'{n_files} filer lästa, {n_valda_areas} valområden med fastställda valda, '
           f'{len(valda)} ledamöter, {len(ers)} ersättare, {len(pers)} kandidater med personröster.', file=sys.stderr)
 
