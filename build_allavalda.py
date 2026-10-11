@@ -72,6 +72,9 @@ svg.map{width:100%;height:auto;display:block;background:var(--card);border:1px s
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px} .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 ol.led{margin:4px 0 10px;padding-left:24px;font-family:system-ui;font-size:.92rem} ol.led li{padding:2px 0} ol.led a{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;color:var(--ink)} ol.led a:hover{color:var(--acc2)} .ers{color:var(--ink3);font-size:.82rem;margin-left:6px}
 .bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line);margin:4px 0} .bar span{display:block;height:100%}
+.bar.seat{height:26px;border-radius:6px;margin:10px 0 0} .bar.seat span{border-right:2px solid var(--bg)} .bar.seat span:last-child{border-right:none}
+.seatlab{display:flex;font:600 .74rem/1.15 system-ui;color:var(--ink2);margin:3px 0 0} .seatlab span{display:block;text-align:center;overflow:visible;white-space:nowrap}
+.seatchips{display:flex;flex-wrap:wrap;gap:6px 12px;margin:8px 0 12px;font:.84rem system-ui;color:var(--ink2)} .seatchip{white-space:nowrap}
 .crumb{font:.8rem system-ui;color:var(--ink3);margin:8px 0 0} .crumb a{color:var(--ink3);text-decoration:none} .crumb a:hover{color:var(--acc2)}
 footer{padding-top:24px;margin-top:28px;border-top:1px solid var(--line);color:var(--ink3);font:.8rem system-ui}
 .pv{color:var(--acc2)} .zoom{font:.8rem system-ui;color:var(--ink3);margin:6px 0 0}
@@ -90,7 +93,7 @@ details.omr{border-top:1px solid var(--line)} details.omr summary{cursor:pointer
 @media(max-width:640px){.wrap{padding:0 12px 48px} h1{font-size:1.5rem} table{font-size:.84rem;display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%} th,td{padding:6px 5px} .card table{display:table} .card{padding:12px}}
 """
 
-MENU = [('', 'Sök'), ('lan/', 'Län'), ('kommun/', 'Kommuner'), ('parti/', 'Partier'), ('statistik/', 'Statistik')]
+MENU = [('', 'Sök'), ('karta/', 'Karta'), ('lan/', 'Län'), ('kommun/', 'Kommuner'), ('parti/', 'Partier'), ('statistik/', 'Statistik')]
 def subnav(items, cur=None):
     """items: [(href, label)] – fastnar överst när man skrollar, scrollbar i sidled på mobil."""
     return '<nav class="subnav" aria-label="På sidan">' + ''.join(f'<a href="{h}"{" class=\"cur\"" if h == cur else ""}>{esc(l)}</a>' for h, l in items) + '</nav>'
@@ -312,11 +315,17 @@ def main():
                 if names: html += f'<p class="small muted" style="margin:-4px 0 8px;font-family:system-ui">Ersättare: {esc(", ".join(names[:12]))}{" …" if len(names) > 12 else ""}</p>'
         return html
     def seatbar(rows):
+        """Mandatstapel: partibeteckning och antal direkt under respektive färg, plus färgade etiketter för smala partier."""
         c = Counter(r['p'] for r in rows); tot = sum(c.values()) or 1
         ps = [p for p in PIDS if c[p]] + sorted([p for p in c if p not in PIDS], key=lambda p: -c[p])
-        spans = ''.join('<span style="width:%.2f%%;background:%s" title="%s %d"></span>' % (100*c[p]/tot, col(p), esc(p), c[p]) for p in ps)
-        lab = ' · '.join('%s %d' % (p, c[p]) for p in ps)
-        return '<div class="bar">%s</div><p class="small muted" style="margin:2px 0 8px;font-family:system-ui">%s</p>' % (spans, lab)
+        seg = ''.join('<span style="width:%.3f%%;background:%s" title="%s %d"></span>' % (100*c[p]/tot, col(p), esc(p), c[p]) for p in ps)
+        def lab(p):
+            w = 100*c[p]/tot; short = p if len(p) <= 4 else p[:3] + '…'
+            inner = f'<b style="color:{col(p)}">{esc(short)}</b><br>{c[p]}' if w >= 6 else (f'{c[p]}' if w >= 3 else '')
+            return f'<span style="width:{w:.3f}%">{inner}</span>'
+        under = ''.join(lab(p) for p in ps)
+        chips = ' '.join(f'<span class="seatchip"><span class="pf" style="background:{col(p)}">{esc(p)}</span> {c[p]}</span>' for p in ps)
+        return f'<div class="bar seat">{seg}</div><div class="seatlab">{under}</div><div class="seatchips">{chips}</div>'
     def hbars(rows, unit='', mx=None, w_lab=150):
         """rows: [(etikett_html, värde, färg)] -> liggande staplar"""
         rows = [x for x in rows if x[1] is not None]
@@ -403,7 +412,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
  hits.innerHTML=r.map(x=>`<li><a href="${x.u}">${x.n}</a> <span class="m">${x.p} · ${x.v} · ${x.o}</span></li>`).join('')||'<li class="m">Inga träffar.</li>';});
 </script>"""
     body = body.replace('<h2>Statistik</h2><p class="lead"><a href="statistik/">Diagram över de valda</a>: partier, personröster, var riksdagsledamöterna bor.</p>', '')
-    body += f'''<h2>Utforska</h2><div class="cards"><a class="card" href="lan/"><b>Län och regioner →</b><span>Karta, regionfullmäktige och riksdagsledamöter per län.</span></a><a class="card" href="kommun/"><b>Alla 290 kommuner →</b><span>Kommunfullmäktige med ersättare, styre, invånare och historik sedan 2010.</span></a><a class="card" href="parti/"><b>Partier →</b><span>Alla valda per parti i riksdag, region och kommun.</span></a><a class="card" href="statistik/"><b>Statistik →</b><span>Kön, ålder, yrken, förnyelse, personval och riksdagserfarenhet.</span></a></div>'''
+    body += f'''<h2>Utforska</h2><div class="cards"><a class="card" href="karta/"><b>Karta →</b><span>Kommunfullmäktige på kartan: kvinnor, ålder, nya och personvalda.</span></a><a class="card" href="lan/"><b>Län och regioner →</b><span>Karta, regionfullmäktige och riksdagsledamöter per län.</span></a><a class="card" href="kommun/"><b>Alla 290 kommuner →</b><span>Kommunfullmäktige med ersättare, styre, invånare och historik sedan 2010.</span></a><a class="card" href="parti/"><b>Partier →</b><span>Alla valda per parti i riksdag, region och kommun.</span></a><a class="card" href="statistik/"><b>Statistik →</b><span>Kön, ålder, yrken, förnyelse, personval och riksdagserfarenhet.</span></a></div>'''
     rdm = mand.get(('RD', '00'), {})
     if rdm:
         rv = sum(v for (vt, nv, k), v in [] ) if False else None
@@ -710,8 +719,7 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
         if ex: tr += f'<h3>Före detta riksdagsledamöter i region- och kommunfullmäktige ({len(ex)})</h3><ol class="led">' + ''.join(f'<li><a href="../person/{r["id"]}/">{esc(r["namn"])}</a> <span class="ers">{pf(r["p"])} · {VTS[r["vt"]]} {esc(r["omr"] or "")} · riksdagen {r["rdp"]["perioder"][0]}–{r["rdp"]["perioder"][-1]+4}</span></li>' for r in sorted(ex, key=lambda r: -len(r["rdp"]["perioder"]))[:40]) + '</ol>'
         rd_html = tr
     per_val = sec
-    STAT = [('karta', 'Kartan', 'Kommunfullmäktige på karta: andel kvinnor, medelålder, nya och personvalda.', karta),
-            ('utveckling', 'Utveckling 2010–2026', 'Kvinnor, medelålder och personvalda val för val sedan 2010.', utv),
+    STAT = [            ('utveckling', 'Utveckling 2010–2026', 'Kvinnor, medelålder och personvalda val för val sedan 2010.', utv),
             ('kandidater', 'Kandidater mot valda', 'Vilka som står på listorna jämfört med vilka som blir valda.', kmv),
             ('yrken', 'Yrken', 'Vad de valda jobbar med, jämfört med kandidaterna.', yrk),
             ('fornyelse', 'Förnyelse', 'Nya och omvalda, hur länge de suttit, avhopp och listklättrare.', fn),
@@ -725,8 +733,14 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
     nr = lambda v: str(v).replace('.', ',') if v is not None else '–'
     body = (f'<h1>Statistik om de valda</h1>{stat_nav(None)}<p class="lead">Alla {fmtn(len(valda))} valda i de tre valen 2026: vilka de är, hur de skiljer sig från kandidaterna, hur många som är nya och hur det sett ut sedan 2010. Välj ett område.</p>'
             f'<div class="kpis"><div class="kpi"><div class="v">{nr(kv26)} %</div><div class="l">kvinnor</div></div><div class="kpi"><div class="v">{nr(ma26)}</div><div class="l">medelålder</div></div><div class="kpi"><div class="v">{nr(ny26)} %</div><div class="l">nya sedan 2022</div></div><div class="kpi"><div class="v">{nr(pv26)} %</div><div class="l">invalda på personröster</div></div></div>'
-            '<div class="cards">' + ''.join(f'<a class="card" href="{k}/"><b>{t} →</b><span>{d}</span></a>' for k, t, d, _ in STAT) + '</div>')
+            '<div class="cards"><a class="card" href="../karta/"><b>Karta →</b><span>Kommunfullmäktige på kartan, under Karta i menyn.</span></a>' + ''.join(f'<a class="card" href="{k}/"><b>{t} →</b><span>{d}</span></a>' for k, t, d, _ in STAT) + '</div>')
     write('statistik/index.html', page('Statistik', body, 1, '<a href="../">Sverige</a> › Statistik', built, section='statistik/').replace('__SCRIPT__', ''))
+    # ---------- Karta: egen sida i huvudmenyn ----------
+    if karta:
+        kb = ('<h1>Karta</h1><p class="lead">Alla 290 kommunfullmäktige på kartan. Välj vad kartan ska visa och klicka på en kommun för att se dess valda.</p>'
+              + karta.replace('<h2>Kommunfullmäktige på kartan</h2>', '', 1) +
+              '<p class="small muted sans">Andel nya = ledamöter som inte satt i samma fullmäktige efter valet 2022 (matchning på namn, parti och ålder). Källa: Valmyndigheten.</p>')
+        write('karta/index.html', page('Karta', kb, 1, '<a href="../">Sverige</a> › Karta', built, section='karta/').replace('__SCRIPT__', ''))
     for k, t, d, html in STAT:
         html = html.replace('"../person/', '"../../person/').replace('"../kommun/', '"../../kommun/').replace('`../kommun/', '`../../kommun/')
         sb = f'<h1>{t}</h1>{stat_nav(k)}<p class="lead">{d}</p>{html}'
