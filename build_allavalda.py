@@ -86,6 +86,13 @@ details.mnav .mlist a{display:block;padding:10px 12px;border-radius:8px;font:600
 .subnav{position:sticky;top:0;z-index:10;background:var(--bg);display:flex;gap:6px;overflow-x:auto;white-space:nowrap;padding:8px 0;margin:4px 0 6px;border-bottom:1px solid var(--line);scrollbar-width:none;-webkit-overflow-scrolling:touch} .subnav::-webkit-scrollbar{display:none}
 .subnav a{flex:0 0 auto;border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font:600 .82rem system-ui;color:var(--ink2);text-decoration:none} .subnav a:hover{border-color:var(--acc);color:var(--acc2)} .subnav a.cur{background:var(--acc);border-color:var(--acc);color:#fff}
 h2,h3{scroll-margin-top:60px}
+[data-tip]{cursor:pointer} #tip{position:fixed;z-index:30;pointer-events:none;background:var(--ink);color:var(--bg);font:600 .82rem/1.35 system-ui;padding:7px 10px;border-radius:8px;max-width:260px;box-shadow:var(--shadow);display:none;white-space:pre-line}
+@media(max-width:640px){
+ table.rt,table.rt thead,table.rt tbody,table.rt tr,table.rt td{display:block;width:100%} table.rt{overflow:visible} table.rt thead{display:none}
+ table.rt tr{border-top:1px solid var(--line);padding:6px 0} table.rt td{border:none;padding:2px 0;text-align:left!important;display:flex;justify-content:space-between;gap:10px}
+ table.rt td::before{content:attr(data-label);color:var(--ink3);font:600 .72rem system-ui;text-transform:uppercase;letter-spacing:.04em;flex:0 0 auto;max-width:55%}
+ table.rt td:first-child{font-weight:700} table.rt td:first-child::before{content:none}
+}
 .totop{position:fixed;right:14px;bottom:14px;z-index:15;border:1px solid var(--line);background:var(--card);border-radius:999px;width:44px;height:44px;display:none;align-items:center;justify-content:center;font:700 1.1rem system-ui;color:var(--ink2);text-decoration:none;box-shadow:var(--shadow)} .totop.on{display:flex}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:12px 0} .cards a.card{display:block;text-decoration:none;color:var(--ink);margin:0} .cards a.card:hover{border-color:var(--acc)} .cards a.card b{font:700 1.02rem system-ui;display:block;margin-bottom:4px} .cards a.card span{font:.86rem system-ui;color:var(--ink2)}
 details.omr{border-top:1px solid var(--line)} details.omr summary{cursor:pointer;padding:9px 0;font:600 .95rem system-ui;list-style:none} details.omr summary::-webkit-details-marker{display:none} details.omr summary::before{content:'▸ ';color:var(--ink3)} details.omr[open] summary::before{content:'▾ '}
@@ -118,6 +125,13 @@ def page(title, body, depth=0, crumb='', built='', section=None):
 {body}
 <footer><p>Källa: Valmyndighetens fastställda resultat för valen den 13 september 2026 (valda ledamöter, ersättare, valgrund, personröster) och Valmyndighetens kandidatfil (folkbokföringskommun). Ålder, kön och titel: Valmyndighetens kandidatfil 2026. Historik: Valmyndighetens filer över ursprungligt valda 2010–2022 (namnen gallrade av Valmyndigheten före 2022). Ny/omvald: matchning på namn, parti och ålder mot de valda 2022, en uppskattning. Roller 2022–2026: Plenum. {('Byggd '+esc(built)+'. ') if built else ''}<b>allavalda.se</b> är gjord av Influera Sveriges Sandro Wennberg med hjälp av AI (Anthropic). Valresultatet: <a href="https://www.valutfall.se/">valutfall.se</a>.</p></footer></div>
 <a href="#" class="totop" id="totop" aria-label="Till toppen">↑</a>
+<div id="tip" role="tooltip"></div>
+<script>(function(){{var tip=document.getElementById('tip'),cur=null;function show(el,x,y){{tip.textContent=el.getAttribute('data-tip');tip.style.display='block';var w=tip.offsetWidth,h=tip.offsetHeight;tip.style.left=Math.max(6,Math.min(innerWidth-w-6,x-w/2))+'px';tip.style.top=Math.max(6,y-h-12)+'px';cur=el}}function hide(){{tip.style.display='none';cur=null}}
+document.addEventListener('mouseover',function(e){{var el=e.target.closest&&e.target.closest('[data-tip]');if(el)show(el,e.clientX,e.clientY);else if(cur)hide()}});
+document.addEventListener('mousemove',function(e){{if(cur){{var w=tip.offsetWidth,h=tip.offsetHeight;tip.style.left=Math.max(6,Math.min(innerWidth-w-6,e.clientX-w/2))+'px';tip.style.top=Math.max(6,e.clientY-h-12)+'px'}}}});
+document.addEventListener('click',function(e){{var el=e.target.closest&&e.target.closest('[data-tip]');if(!el){{if(cur)hide();return}}var r=el.getBoundingClientRect(),inLink=el.closest('a');if(inLink){{if(!matchMedia('(hover:none)').matches||cur===el)return;e.preventDefault();show(el,e.clientX||r.left+r.width/2,e.clientY||r.top);return}}if(cur===el)hide();else show(el,e.clientX||r.left+r.width/2,e.clientY||r.top)}});
+addEventListener('scroll',function(){{if(cur)hide()}},{{passive:true}});
+document.querySelectorAll('table').forEach(function(t){{if(t.closest('.card'))return;var th=[].map.call(t.querySelectorAll('thead th'),function(x){{return x.textContent.trim()}});if(!th.length)return;t.classList.add('rt');t.querySelectorAll('tbody tr').forEach(function(tr){{[].forEach.call(tr.children,function(td,i){{if(th[i])td.setAttribute('data-label',th[i])}})}})}});}})();</script>
 <script>(function(){{var t=document.getElementById('totop');addEventListener('scroll',function(){{t.classList.toggle('on',scrollY>900)}},{{passive:true}});document.querySelectorAll('details.mnav .mlist a').forEach(function(a){{a.addEventListener('click',function(){{a.closest('details').open=false}})}});document.addEventListener('click',function(e){{var d=document.querySelector('details.mnav[open]');if(d&&!d.contains(e.target))d.open=false}});}})();</script>
 __SCRIPT__</body></html>"""
 
@@ -318,7 +332,7 @@ def main():
         """Mandatstapel: partibeteckning och antal direkt under respektive färg, plus färgade etiketter för smala partier."""
         c = Counter(r['p'] for r in rows); tot = sum(c.values()) or 1
         ps = [p for p in PIDS if c[p]] + sorted([p for p in c if p not in PIDS], key=lambda p: -c[p])
-        seg = ''.join('<span style="width:%.3f%%;background:%s" title="%s %d"></span>' % (100*c[p]/tot, col(p), esc(p), c[p]) for p in ps)
+        seg = ''.join('<span data-tip="%s: %d mandat (%s %%)" style="width:%.3f%%;background:%s"></span>' % (esc(PN.get(p, p)), c[p], str(round(100*c[p]/tot, 1)).replace('.', ','), 100*c[p]/tot, col(p)) for p in ps)
         def lab(p):
             w = 100*c[p]/tot; short = p if len(p) <= 4 else p[:3] + '…'
             inner = f'<b style="color:{col(p)}">{esc(short)}</b><br>{c[p]}' if w >= 6 else (f'{c[p]}' if w >= 3 else '')
@@ -333,14 +347,14 @@ def main():
         mx = mx or max(v for _, v, _ in rows) or 1
         return '<div class="sans" style="font-size:.86rem;margin:6px 0 12px">' + ''.join(
             f'<div style="display:flex;align-items:center;gap:8px;margin:4px 0"><div style="width:{w_lab}px;flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{lab}</div>'
-            f'<div style="flex:1;background:var(--line);border-radius:5px;overflow:hidden;min-width:60px"><div style="width:{max(0, min(100, 100*v/mx)):.1f}%;height:15px;background:{c or "var(--acc)"}"></div></div>'
+            f'<div data-tip="{esc(re.sub("<[^>]+>", " ", lab).strip())}: {str(v).replace(".", ",")}{unit}" style="flex:1;background:var(--line);border-radius:5px;overflow:hidden;min-width:60px"><div style="width:{max(0, min(100, 100*v/mx)):.1f}%;height:15px;background:{c or "var(--acc)"}"></div></div>'
             f'<div style="width:62px;text-align:right">{str(v).replace(".", ",")}{unit}</div></div>' for lab, v, c in rows) + '</div>'
     def stacked(rows, keys, colors, labels):
         """rows: [(etikett_html, {key: andel})] -> staplade 100 %-staplar med förklaring"""
         leg = '<div class="sans small muted" style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0">' + ''.join(f'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{colors[k]};margin-right:4px"></span>{labels[k]}</span>' for k in keys) + '</div>'
         return leg + '<div class="sans" style="font-size:.86rem;margin:4px 0 12px">' + ''.join(
             f'<div style="display:flex;align-items:center;gap:8px;margin:4px 0"><div style="width:110px;flex:0 0 auto">{lab}</div><div style="flex:1;display:flex;height:16px;border-radius:5px;overflow:hidden;background:var(--line)">' +
-            ''.join(f'<div title="{labels[k]} {round(d.get(k, 0))} %" style="width:{d.get(k, 0):.1f}%;background:{colors[k]}"></div>' for k in keys) + '</div></div>' for lab, d in rows) + '</div>'
+            ''.join(f'<div data-tip="{esc(re.sub("<[^>]+>", " ", lab).strip())} – {labels[k]}: {str(round(d.get(k, 0), 1)).replace(".", ",")} %" style="width:{d.get(k, 0):.1f}%;background:{colors[k]}"></div>' for k in keys) + '</div></div>' for lab, d in rows) + '</div>'
     def people_charts(rs):
         """kön + åldersgrupper för en grupp valda"""
         if not rs: return ''
@@ -593,7 +607,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
             pts = [(sx(i), sy(v)) for i, v in enumerate(s) if v is not None]
             if len(pts) < 2: continue
             c = COLS.get(lab, '#1f5f8b')
-            out += f'<path d="{"".join(("M" if j==0 else "L")+f"{x:.1f},{y:.1f}" for j,(x,y) in enumerate(pts))}" fill="none" stroke="{c}" stroke-width="2.4"/>' + ''.join(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{c}"/>' for x, y in pts)
+            out += f'<path d="{"".join(("M" if j==0 else "L")+f"{x:.1f},{y:.1f}" for j,(x,y) in enumerate(pts))}" fill="none" stroke="{c}" stroke-width="2.4"/>' + ''.join(f'<circle cx="{sx(i):.1f}" cy="{sy(v):.1f}" r="3" fill="{c}"/><circle data-tip="{esc(lab)} {years[i]}: {str(v).replace(".", ",")}{unit}" cx="{sx(i):.1f}" cy="{sy(v):.1f}" r="11" fill="transparent"/>' for i, v in enumerate(s) if v is not None)
             out += f'<text x="{pts[-1][0]+6:.1f}" y="{pts[-1][1]+4:.1f}" font-size="11" fill="{c}">{esc(lab.replace("fullmäktige","f."))} {str(s[-1]).replace(".",",") if s[-1] is not None else ""}{unit}</text>'
         return f'<svg viewBox="0 0 {W} {H}" width="100%" style="max-width:620px;font-family:system-ui">{out}</svg>'
     years = ['2010', '2014', '2018', '2022', '2026']
@@ -631,7 +645,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         kk_ = pct(sum(1 for k in ks if k.get('KÖN') == 'K'), sum(1 for k in ks if k.get('KÖN'))); vk = pct(sum(1 for r in vs if r['kon'] == 'K'), sum(1 for r in vs if r['kon']))
         kmv += f'<tr><td>{VT[vt]}</td><td class="r">{fmtn(len(ks))}</td><td class="r">{fmtn(len(vs))}</td><td class="r">{str(kk_).replace(".", ",") if kk_ is not None else "–"} % / {str(vk).replace(".", ",") if vk is not None else "–"} %</td><td class="r">{str(mean(ka)).replace(".", ",") if mean(ka) else "–"} / {str(mean([r["alder"] for r in vs])).replace(".", ",") if mean([r["alder"] for r in vs]) else "–"}</td></tr>'
         kc = Counter(agegrp(a) for a in ka if a); vc = Counter(agegrp(r['alder']) for r in vs if r['alder'])
-        agerows += f'<h3>{VT[vt]}: åldersgrupper</h3><div style="font-family:system-ui;font-size:.86rem">' + ''.join(f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><div style="width:60px">{lab}</div><div style="flex:1"><div style="height:10px;background:#b0313f;opacity:.55;width:{pct(kc[lab], sum(kc.values())) or 0}%;border-radius:4px"></div><div style="height:10px;background:var(--acc);width:{pct(vc[lab], sum(vc.values())) or 0}%;border-radius:4px;margin-top:2px"></div></div><div style="width:120px;text-align:right">{str(pct(kc[lab], sum(kc.values())) or 0).replace(".", ",")} % / {str(pct(vc[lab], sum(vc.values())) or 0).replace(".", ",")} %</div></div>' for lab, _, _ in AGEGRP) + '</div>'
+        agerows += f'<h3>{VT[vt]}: åldersgrupper</h3><div style="font-family:system-ui;font-size:.86rem">' + ''.join(f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><div style="width:60px">{lab}</div><div style="flex:1" data-tip="{VT[vt]} {lab} år\nKandidater: {str(pct(kc[lab], sum(kc.values())) or 0).replace('.', ',')} % ({kc[lab]} st)\nValda: {str(pct(vc[lab], sum(vc.values())) or 0).replace('.', ',')} % ({vc[lab]} st)"><div style="height:10px;background:#b0313f;opacity:.55;width:{pct(kc[lab], sum(kc.values())) or 0}%;border-radius:4px"></div><div style="height:10px;background:var(--acc);width:{pct(vc[lab], sum(vc.values())) or 0}%;border-radius:4px;margin-top:2px"></div></div><div style="width:120px;text-align:right">{str(pct(kc[lab], sum(kc.values())) or 0).replace(".", ",")} % / {str(pct(vc[lab], sum(vc.values())) or 0).replace(".", ",")} %</div></div>' for lab, _, _ in AGEGRP) + '</div>'
     kmv += '</tbody></table><p class="small muted sans">Kandidater räknas en gång per val, även om de står på flera listor eller valsedlar. Röd stapel = kandidater, blå = valda.</p><div class="grid3">' + agerows + '</div>'
     # titlar
     vt_t = Counter(r['titel'].lower() for r in valda if r['titel'])
@@ -685,7 +699,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         karta = f'''<h2>Kommunfullmäktige på kartan</h2><div class="chips sans" id="km"><button class="chip" data-m="kv">Andel kvinnor</button><button class="chip" data-m="ma">Medelålder</button><button class="chip" data-m="ny">Andel nya</button><button class="chip" data-m="pv">Andel personvalda</button></div>
 <div class="maprow"><div><svg class="map" id="kmap" viewBox="{x0:.0f} {y0:.0f} {x1-x0:.0f} {y1-y0:.0f}">{paths}</svg><p class="zoom" id="kleg"></p></div><div id="ktop" class="sans small"></div></div>
 <script>const KM={json.dumps(kmet, ensure_ascii=False, separators=(",", ":"))};const LAB={{kv:'Andel kvinnor (%)',ma:'Medelålder (år)',ny:'Andel nya jämfört med 2022 (%)',pv:'Andel invalda på personröster (%)'}};
-function km(m){{const v=Object.values(KM).map(x=>x[m]).filter(x=>x!=null);const lo=Math.min(...v),hi=Math.max(...v);document.querySelectorAll('#kmap path').forEach(p=>{{const x=KM[p.dataset.k];const t=x&&x[m]!=null?(x[m]-lo)/((hi-lo)||1):null;p.style.fill=t==null?'':`rgba(31,95,139,${{(0.12+0.88*t).toFixed(2)}})`;p.querySelector('title').textContent=x.n+': '+String(x[m]).replace('.',',');}});
+function km(m){{const v=Object.values(KM).map(x=>x[m]).filter(x=>x!=null);const lo=Math.min(...v),hi=Math.max(...v);document.querySelectorAll('#kmap path').forEach(p=>{{const x=KM[p.dataset.k];const t=x&&x[m]!=null?(x[m]-lo)/((hi-lo)||1):null;p.style.fill=t==null?'':`rgba(31,95,139,${{(0.12+0.88*t).toFixed(2)}})`;p.querySelector('title').textContent=x.n+': '+String(x[m]).replace('.',',');var f=v=>v==null?'–':String(v).replace('.',',');p.setAttribute('data-tip',x.n+'\\nKvinnor '+f(x.kv)+' %\\nMedelålder '+f(x.ma)+' år\\nNya '+f(x.ny)+' %\\nPersonvalda '+f(x.pv)+' %');}});
  document.getElementById('kleg').textContent=LAB[m]+': ljus '+String(lo).replace('.',',')+' – mörk '+String(hi).replace('.',',')+'. Klicka på en kommun.';
  const s=Object.values(KM).filter(x=>x[m]!=null).sort((a,b)=>b[m]-a[m]);document.getElementById('ktop').innerHTML='<h3 style="margin-top:0">Högst</h3>'+s.slice(0,8).map(x=>`<div><a href="../kommun/${{x.s}}/">${{x.n}}</a> ${{String(x[m]).replace('.',',')}}</div>`).join('')+'<h3>Lägst</h3>'+s.slice(-8).reverse().map(x=>`<div><a href="../kommun/${{x.s}}/">${{x.n}}</a> ${{String(x[m]).replace('.',',')}}</div>`).join('');
  document.querySelectorAll('#km .chip').forEach(c=>c.style.borderColor=c.dataset.m===m?'var(--acc)':'');}}
@@ -737,7 +751,7 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
     write('statistik/index.html', page('Statistik', body, 1, '<a href="../">Sverige</a> › Statistik', built, section='statistik/').replace('__SCRIPT__', ''))
     # ---------- Karta: egen sida i huvudmenyn ----------
     if karta:
-        kb = ('<h1>Karta</h1><p class="lead">Alla 290 kommunfullmäktige på kartan. Välj vad kartan ska visa och klicka på en kommun för att se dess valda.</p>'
+        kb = ('<h1>Karta</h1><p class="lead">Alla 290 kommunfullmäktige på kartan. Välj vad kartan ska visa. Hovra eller tryck på en kommun för alla siffror, klicka (eller tryck igen) för att se dess valda.</p>'
               + karta.replace('<h2>Kommunfullmäktige på kartan</h2>', '', 1) +
               '<p class="small muted sans">Andel nya = ledamöter som inte satt i samma fullmäktige efter valet 2022 (matchning på namn, parti och ålder). Källa: Valmyndigheten.</p>')
         write('karta/index.html', page('Karta', kb, 1, '<a href="../">Sverige</a> › Karta', built, section='karta/').replace('__SCRIPT__', ''))
