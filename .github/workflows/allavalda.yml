@@ -22,6 +22,9 @@ jobs:
         run: python3 hamta.py --force --live --pattern-rd "s/rd/" --pattern-rf "s/rf/" --pattern-kf "s/kf/"
       - name: Läs ut valda, ersättare och personröster
         run: python3 valda.py --zips .cache/zips --out-dir data
+      - name: Felsök personröster (skriver bara till loggen)
+        continue-on-error: true
+        run: python3 diagnos_personroster.py
       - name: Hämta riksdagens ledamotshistorik (data.riksdagen.se)
         continue-on-error: true
         run: python3 riksdag_historik.py

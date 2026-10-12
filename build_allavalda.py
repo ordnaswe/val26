@@ -941,6 +941,32 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
                + scatter(P(lambda k, v: fv(k, 'ma'), lambda k, v: v['ma_kf']), 'Medelålder i befolkningen', 'Medelålder i fullmäktige 2026', 'år', 'år'))
         gap = sorted([(v['ma_kf'] - fv(k, 'ma'), v) for k, v in kd.items() if v['ma_kf'] and fv(k, 'ma')], key=lambda x: -x[0])
         if gap: ks += f'<p class="small sans">I genomsnitt är fullmäktige <b>{fmt(sum(g for g, _ in gap)/len(gap))} år äldre</b> än befolkningen. Störst skillnad: ' + ', '.join(f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a> (+{fmt(g)})' for g, v in gap[:5]) + '. Minst: ' + ', '.join(f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a> ({"+" if g > 0 else ""}{fmt(g)})' for g, v in gap[-3:]) + '.</p>'
+        # tabell: ålder i befolkningen, bland kandidaterna och bland de valda, per kommun
+        kand_age = defaultdict(dict)
+        for c in allkand:
+            if c.get('VALTYP') == 'KF' and c.get('GILTIG', 'J') == 'J':
+                a_ = num(c.get('ÅLDER_PÅ_VALDAGEN'))
+                if a_: kand_age[c['VALOMRÅDESKOD']][c['KANDIDATNUMMER']] = a_
+        rows_a = []
+        for k, v in kd.items():
+            ka = list(kand_age.get(k, {}).values()); km = round(sum(ka)/len(ka), 1) if ka else None
+            rows_a.append((v, fv(k, 'ma'), km, v['ma_kf']))
+        rows_a.sort(key=lambda x: -((x[3] or 0) - (x[1] or 0)))
+        ks += ('<h3 id="aldertabell">Ålder per kommun: befolkning, kandidater och valda</h3><p class="small muted sans">Medelålder i hela befolkningen (Kolada N00959, inklusive barn), bland kommunvalets kandidater och bland de valda 2026 (Valmyndighetens kandidatfil). Sorterat efter största skillnad mellan valda och befolkning. Skriv i rutan för att hitta en kommun.</p>'
+               '<input class="filter" type="search" placeholder="Sök kommun…" oninput="var v=this.value.toLowerCase();document.querySelectorAll(\'#aldtab tbody tr\').forEach(function(t){t.style.display=!v||t.textContent.toLowerCase().indexOf(v)>=0?\'\':\'none\'})">'
+               '<details class="omr"><summary>Visa alla 290 kommuner</summary><table id="aldtab"><thead><tr><th>Kommun</th><th class="r">Befolkningen</th><th class="r">Kandidaterna</th><th class="r">De valda</th><th class="r">Valda − befolkning</th><th class="r">Valda − kandidater</th></tr></thead><tbody>'
+               + ''.join(f'<tr><td><a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a></td><td class="r">{fmt(b_)}</td><td class="r">{fmt(c_)}</td><td class="r">{fmt(d_)}</td><td class="r"><b>{("+" if (d_ or 0) - (b_ or 0) > 0 else "") + fmt((d_ or 0) - (b_ or 0)) if d_ and b_ else "–"}</b></td><td class="r">{("+" if (d_ or 0) - (c_ or 0) > 0 else "") + fmt((d_ or 0) - (c_ or 0)) if d_ and c_ else "–"}</td></tr>' for v, b_, c_, d_ in rows_a)
+               + '</tbody></table></details>')
+        # per parti: kandidater mot valda (kommunvalet)
+        pa_rows = []
+        for p in PIDS:
+            ka = list({c['KANDIDATNUMMER']: num(c.get('ÅLDER_PÅ_VALDAGEN')) for c in allkand if c.get('VALTYP') == 'KF' and c.get('PARTIFÖRKORTNING') in (p, 'FP' if p == 'L' else p) and num(c.get('ÅLDER_PÅ_VALDAGEN'))}.values())
+            va = [r['alder'] for r in valda if r['vt'] == 'KF' and r['p'] == p and r['alder']]
+            if ka and va: pa_rows.append((p, round(sum(ka)/len(ka), 1), round(sum(va)/len(va), 1)))
+        if pa_rows:
+            ks += ('<h3>Ålder per parti i kommunvalet: kandidater och valda</h3><table><thead><tr><th>Parti</th><th class="r">Kandidaterna</th><th class="r">De valda</th><th class="r">Skillnad</th></tr></thead><tbody>'
+                   + ''.join(f'<tr><td>{pf(p)} <span class="pn">{esc(PN.get(p, p))}</span></td><td class="r">{fmt(k_)} år</td><td class="r">{fmt(v_)} år</td><td class="r"><b>{"+" if v_ - k_ > 0 else ""}{fmt(v_ - k_)}</b></td></tr>' for p, k_, v_ in pa_rows)
+                   + '</tbody></table><p class="small muted sans">Skillnaden visar om partiet valde in äldre eller yngre personer än det ställde upp. Listplacering och personröster avgör vilka som kommer in.</p>')
         dk = sorted([(v['kv'] - fv(k, 'kkf'), v) for k, v in kd.items() if v['kv'] is not None and fv(k, 'kkf') is not None], key=lambda x: -x[0])
         if dk:
             ks += ('<h2>Fler eller färre kvinnor än förra mandatperioden</h2><p class="lead">Andel kvinnor i kommunfullmäktige 2026 jämfört med 2022–2026 (Kolada). Förändring i procentenheter.</p><div class="grid2"><div><h3>Störst ökning</h3>'
