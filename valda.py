@@ -32,8 +32,16 @@ def walk_areas(root):
     """Ger (valkretskod, valkretsnamn, objekt) för valområdet och varje valkrets."""
     vo = root.get('valomrade') or {}
     yield None, None, vo
-    for vk in vo.get('valkretsLista') or []:
-        yield vk.get('kod'), vk.get('namnValkrets'), vk
+    for i, vk in enumerate(vo.get('valkretsLista') or []):
+        # Nyckelnamnen skiljer mellan filversioner (kod, valkretskod, kodValkrets …). Hittas ingen kod används
+        # ordningsnumret, så att varje valkrets får en egen nyckel och personrösterna inte skriver över varandra.
+        kod = next((str(vk[k]) for k in ('kod', 'valkretskod', 'kodValkrets', 'valkretsKod', 'kodvalkrets') if vk.get(k) not in (None, '')), None)
+        if kod is None:
+            kod = next((str(v) for k, v in vk.items() if 'kod' in k.lower() and isinstance(v, (str, int)) and v != ''), None)
+        namn = next((vk[k] for k in ('namnValkrets', 'namn', 'valkretsnamn', 'valkretsNamn') if vk.get(k)), None)
+        if namn is None:
+            namn = next((v for k, v in vk.items() if 'namn' in k.lower() and isinstance(v, str) and v), None)
+        yield (kod or f'vk{i+1}'), namn, vk
 
 def person_votes(obj):
     """kandidatnummer -> personröster i ett valområde/en valkrets.
@@ -118,6 +126,11 @@ def main():
                     cur = pv_vk.setdefault(key, {}).get(knr)
                     if cur is None or (d['personroster'] or 0) > (cur['personroster'] or 0): pv_vk[key][knr] = d
         area_pv = pv_vk.get('', {}); vk_keys = [k for k in pv_vk if k]
+        def vkey(led_vk, vkk):
+            # valkretsnyckeln i personröstdatan: i första hand valkretsen vi står i, annars ledamotens valkretskod
+            if vkk and vkk in pv_vk: return vkk
+            if led_vk and str(led_vk) in pv_vk: return str(led_vk)
+            return vkk or ''
         def pr_in(vk, knr):
             v = (pv_vk.get(vk or '', {}) or {}).get(knr) or area_pv.get(knr) or {}
             return v.get('personroster')
@@ -152,14 +165,14 @@ def main():
                         valkretskod=led.get('valkretskod') or vkk or omr_kod, valkretsnamn=led.get('valkretsnamn') or vkn or omr_namn,
                         parti=pa, partibeteckning=pl.get('partibeteckning'), kandidatnummer=knr, namn=led.get('namn'),
                         invalsordning=led.get('invalsordning'), valgrund=led.get('valgrundText'),
-                        personroster=pr_in(led.get('valkretskod') or vkk, knr), personroster_totalt=pr_total(knr),
-                        andel_personroster=kval_in(led.get('valkretskod') or vkk, knr),
-                        kvalificerad='Ja' if kval_in(led.get('valkretskod') or vkk, knr) is not None else 'Nej', tomma_stolar=pl.get('antalTommaStolar')))
+                        personroster=pr_in(vkey(led.get('valkretskod'), vkk), knr), personroster_totalt=pr_total(knr),
+                        andel_personroster=kval_in(vkey(led.get('valkretskod'), vkk), knr),
+                        kvalificerad='Ja' if kval_in(vkey(led.get('valkretskod'), vkk), knr) is not None else 'Nej', tomma_stolar=pl.get('antalTommaStolar')))
                     for e in led.get('ersattareList') or []:
                         ers.append(dict(valtyp=vt, valomrkod=omr_kod, valomrnamn=omr_namn, valkretskod=led.get('valkretskod') or vkk or omr_kod,
                             parti=pa, ledamot=led.get('namn'), ledamot_kandidatnummer=knr, ersattarordning=e.get('ersattarordning'),
                             kandidatnummer=e.get('kandidatnummer'), namn=e.get('namn'), valgrund=e.get('valgrundText'),
-                            personroster=pr_in(led.get('valkretskod') or vkk, e.get('kandidatnummer'))))
+                            personroster=pr_in(vkey(led.get('valkretskod'), vkk), e.get('kandidatnummer'))))
         if got: n_valda_areas += 1
     # Samma ledamot kan stå både på valområdesnivå och i valkretsLista (t.ex. riksdagen) -> en rad per mandat.
     # Behåll en rad per (val, valområde, kandidatnummer); valkretsnivåns uppgifter (valkretskod/-namn) vinner.
