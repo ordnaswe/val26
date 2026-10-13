@@ -28,11 +28,16 @@ def abbr(p):
     a = (p.get('partiforkortning') or '').strip()
     return ABBR_FIX.get(a, a) or (p.get('partibeteckning') or '').strip()
 
+_LOGGED = False
 def walk_areas(root):
     """Ger (valkretskod, valkretsnamn, objekt) för valområdet och varje valkrets."""
     vo = root.get('valomrade') or {}
     yield None, None, vo
+    seen = set()
+    global _LOGGED
     for i, vk in enumerate(vo.get('valkretsLista') or []):
+        if not _LOGGED and isinstance(vk, dict):
+            print(f'  valkretsobjektets nycklar: {[k for k in vk if not isinstance(vk[k], (list, dict))]}', file=sys.stderr); _LOGGED = True
         # Nyckelnamnen skiljer mellan filversioner (kod, valkretskod, kodValkrets …). Hittas ingen kod används
         # ordningsnumret, så att varje valkrets får en egen nyckel och personrösterna inte skriver över varandra.
         kod = next((str(vk[k]) for k in ('kod', 'valkretskod', 'kodValkrets', 'valkretsKod', 'kodvalkrets') if vk.get(k) not in (None, '')), None)
@@ -41,7 +46,10 @@ def walk_areas(root):
         namn = next((vk[k] for k in ('namnValkrets', 'namn', 'valkretsnamn', 'valkretsNamn') if vk.get(k)), None)
         if namn is None:
             namn = next((v for k, v in vk.items() if 'namn' in k.lower() and isinstance(v, str) and v), None)
-        yield (kod or f'vk{i+1}'), namn, vk
+        kod = kod or f'vk{i+1}'
+        if kod in seen: kod = f'{kod}-{i+1}'          # samma kod två gånger -> egen nyckel ändå
+        seen.add(kod)
+        yield kod, namn, vk
 
 def person_votes(obj):
     """kandidatnummer -> personröster i ett valområde/en valkrets.
@@ -84,6 +92,10 @@ def person_votes(obj):
                 out[k] = dict(base, personroster=best[0], namn=best[1] or a_[1] or b_[1])
     return out
 
+def _parties_area(vo):
+    rf = (vo.get('rostfordelning') or {}).get('rosterPaverkaMandat') or {}
+    return [p for p in (rf.get('partiRoster') or []) if isinstance(p, dict)]
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--zips', default='.cache/zips', help='mapp med Val_2026_slutlig_*.zip (hamta.py)')
@@ -94,7 +106,7 @@ def main():
     if not files:
         print(f'Inga slutliga zip-filer i {a.zips} – kör hamta.py med --pattern-rd s/rd/ --pattern-rf s/rf/ --pattern-kf s/kf/ först. Finns i cachen: {sorted(os.listdir(a.zips))[:10] if os.path.isdir(a.zips) else "ingen mapp"}', file=sys.stderr)
         sys.exit(1)
-    valda, ers, pers = [], [], []
+    valda, ers, pers, omr_rows = [], [], [], []
     n_files = 0; n_valda_areas = 0
     for zp in files:
         m = re.search(r'_([0-9A-Z]{2,4})_(RD|RF|KF)\.zip$', os.path.basename(zp))
@@ -125,7 +137,13 @@ def main():
                 for knr, d in person_votes(obj).items():
                     cur = pv_vk.setdefault(key, {}).get(knr)
                     if cur is None or (d['personroster'] or 0) > (cur['personroster'] or 0): pv_vk[key][knr] = d
-        area_pv = pv_vk.get('', {}); vk_keys = [k for k in pv_vk if k]
+        vo_ = root.get('valomrade') or {}
+        area_pv = person_votes(vo_) or pv_vk.get('', {})       # valområdets egna summerade personröster (t.ex. hela riket)
+        vk_keys = [k for k in pv_vk if k]
+        # partiröster och personröster per parti på valområdesnivå (för tabellen över andel som kryssade)
+        for p_ in _parties_area(vo_):
+            omr_rows.append(dict(valtyp=vt, valomrkod=omr_kod, valomrnamn=omr_namn, parti=abbr(p_), partibeteckning=p_.get('partibeteckning'),
+                                 partiroster=p_.get('antalRoster'), personroster=sum((s.get('antalPersonroster') or 0) for s in (p_.get('summeradePersonroster') or []))))
         def vkey(led_vk, vkk):
             # valkretsnyckeln i personröstdatan: i första hand valkretsen vi står i, annars ledamotens valkretskod
             if vkk and vkk in pv_vk: return vkk
@@ -135,6 +153,7 @@ def main():
             v = (pv_vk.get(vk or '', {}) or {}).get(knr) or area_pv.get(knr) or {}
             return v.get('personroster')
         def pr_total(knr):
+            if knr in area_pv: return area_pv[knr].get('personroster')    # valområdets summa (riket för riksdagen)
             if vk_keys:
                 vals = [pv_vk[k][knr]['personroster'] or 0 for k in vk_keys if knr in pv_vk[k]]
                 if vals: return sum(vals)
@@ -195,7 +214,7 @@ def main():
         with open(os.path.join(a.out_dir, name), 'w', newline='', encoding='utf-8') as f:
             w = csv.DictWriter(f, fieldnames=list(rows[0].keys())); w.writeheader(); w.writerows(rows)
         print(f'Skrev {os.path.join(a.out_dir, name)}: {len(rows)} rader', file=sys.stderr)
-    write('valda.csv', valda); write('ersattare.csv', ers); write('personroster.csv', pers)
+    write('valda.csv', valda); write('ersattare.csv', ers); write('personroster.csv', pers); write('personroster_omrade.csv', omr_rows)
     from collections import Counter as _C
     tot = _C(); prt = {}
     for r in pers:
