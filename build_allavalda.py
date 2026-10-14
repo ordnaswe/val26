@@ -507,11 +507,11 @@ def main():
         if r is None: return 'för få kommuner'
         a = abs(r); s = 'inget' if a < .1 else 'svagt' if a < .3 else 'tydligt' if a < .5 else 'starkt'
         return f'r = {str(round(r, 2)).replace(".", ",")} – {s} {"positivt" if r > 0 else "negativt"} samband' if a >= .1 else f'r = {str(round(r, 2)).replace(".", ",")} – inget tydligt samband'
-    def scatter(pts, xl, yl, xu='', yu='', depth=2):
+    def scatter(pts, xl, yl, xu='', yu='', depth=2, xshow=None, xord=None, yord=None):
         """pts: [(x, y, namn, slug)] – en prick per kommun, länkad och med tooltip, plus regressionslinje"""
         pts = [p for p in pts if p[0] is not None and p[1] is not None]
         if len(pts) < 8: return ''
-        W, H, L, B = 620, 340, 54, 40
+        W, H, L, B = 960, 430, 58, 42
         xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
         x0, x1 = min(xs), max(xs); y0, y1 = min(ys), max(ys); px = (x1-x0)*.04 or 1; py = (y1-y0)*.06 or 1
         x0 -= px; x1 += px; y0 -= py; y1 += py
@@ -524,7 +524,25 @@ def main():
             g += f'<line x1="{sx(x0):.1f}" y1="{sy(m0+k*x0):.1f}" x2="{sx(x1):.1f}" y2="{sy(m0+k*x1):.1f}" stroke="var(--neg)" stroke-width="2" opacity=".7"/>'
         dots = ''.join(f'<a href="{"../"*depth}kommun/{sl}/"><circle data-tip="{esc(nm)}&#10;{esc(xl)}: {fmt(x, xu)}&#10;{esc(yl)}: {fmt(y, yu)}" cx="{sx(x):.1f}" cy="{sy(y):.1f}" r="4" fill="var(--acc)" fill-opacity=".5" stroke="var(--acc)" stroke-width=".6"/></a>' for x, y, nm, sl in pts)
         lab = f'<text x="{(L+W)/2:.0f}" y="{H-4}" font-size="11" text-anchor="middle" fill="currentColor">{esc(xl)}</text><text x="12" y="{(H-B)/2:.0f}" font-size="11" text-anchor="middle" fill="currentColor" transform="rotate(-90 12 {(H-B)/2:.0f})">{esc(yl)}</text>'
-        return f'<svg viewBox="0 0 {W} {H}" width="100%" style="max-width:720px;font-family:system-ui;display:block">{g}{dots}{lab}</svg><p class="small muted sans" style="margin:2px 0 14px">{rtext(pearson(xs, ys))} · {n} kommuner · varje prick är en kommun, hovra eller tryck för siffror.</p>'
+        r_ = pearson(xs, ys)
+        xs_s = sorted(xs); q1, q3 = xs_s[len(xs_s)//4], xs_s[(3*len(xs_s))//4]
+        show = xshow or (lambda v: fmt(v, xu))
+        xo = xord or re.sub(r'\s*\(.*?\)', '', xl).lower(); yo = yord or re.sub(r'\s*\(.*?\)', '', yl).lower()
+        expl = ''
+        if sxx and r_ is not None:
+            y1_, y3_ = m0 + k*q1, m0 + k*q3
+            a = abs(r_)
+            styrka = ('Sambandet är svagt: linjen lutar, men prickarna sprider sig mycket och många kommuner följer inte mönstret.' if a < .3 else
+                      'Sambandet är tydligt: mönstret syns, men många kommuner ligger ändå långt från linjen.' if a < .5 else
+                      'Sambandet är starkt: de flesta kommuner ligger nära linjen.')
+            if a < .1:
+                expl = f'<b>Så läser du diagrammet:</b> varje prick är en kommun och den röda linjen visar genomsnittet. Linjen är nästan platt, alltså finns inget tydligt samband mellan {esc(xo)} och {esc(yo)}.'
+            else:
+                expl = (f'<b>Så läser du diagrammet:</b> varje prick är en kommun och den röda linjen visar genomsnittet. Linjen lutar {"uppåt" if k > 0 else "nedåt"}: '
+                        f'ju högre {esc(xo)}, desto {"högre" if k > 0 else "lägre"} {esc(yo)} i genomsnitt. '
+                        f'En kommun med {esc(xo)} runt {show(q1)} har enligt linjen ungefär {fmt(y1_, yu)}, en kommun runt {show(q3)} ungefär {fmt(y3_, yu)} – en skillnad på {fmt(abs(y3_ - y1_))}{" procentenheter" if yu == "%" else (" år" if yu == "år" else "")}. '
+                        f'{styrka} Prickar högt över linjen är kommuner där {esc(yo)} är högre än {esc(xo)} skulle förutsäga, prickar under är lägre. Samband är inte orsak.')
+        return f'<svg viewBox="0 0 {W} {H}" width="100%" style="font-family:system-ui;display:block">{g}{dots}{lab}</svg><p class="small muted sans" style="margin:2px 0 6px">{rtext(r_)} · {n} kommuner · hovra eller tryck på en prick för siffror.</p>' + (f'<p class="sans" style="font-size:.92rem;margin:0 0 16px;max-width:none">{expl}</p>' if expl else '')
     def rings_path(rings): return ''.join('M' + 'L'.join(f'{x:.1f},{y:.1f}' for x, y in r) + 'Z' for r in rings)
     def bbox(polys):
         pts = [pt for rings in polys for r in rings for pt in r]
@@ -785,7 +803,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         for k in range(1, len(labels)):
             if labels[k][0] - labels[k-1][0] < 14: labels[k][0] = labels[k-1][0] + 14
         out += ''.join(f'<text x="{x+8:.1f}" y="{y+4:.1f}" font-size="12" font-weight="600" fill="{c}">{esc(t)}</text>' for y, x, c, t in labels)
-        return f'<svg viewBox="0 0 {W} {H}" width="100%" style="max-width:640px;font-family:system-ui;overflow:visible">{out}</svg>'
+        return f'<svg viewBox="0 0 {W} {H}" width="100%" style="font-family:system-ui;overflow:visible">{out}</svg>'
     years = ['2010', '2014', '2018', '2022', '2026']
     def series(fn):
         out = {}
@@ -799,7 +817,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
     kv = series(lambda rs, ar: pct(sum(1 for r in rs if r['kon'] == 'K'), sum(1 for r in rs if r['kon'])))
     ma = series(lambda rs, ar: mean([r['alder'] if ar == '2026' else r['alder_i'] for r in rs]))
     pvs = series(lambda rs, ar: pct(sum(1 for r in rs if (r['pv'] if ar == '2026' else r['personvald'] == '1')), len(rs)))
-    utv = f'<div class="grid2"><div><h3>Andel kvinnor, %</h3>{svgline(kv, years)}</div><div><h3>Medelålder</h3>{svgline(ma, years)}</div></div><h3>Andel invalda på personröster, %</h3>{svgline(pvs, years)}'
+    utv = f'<h3>Andel kvinnor, %</h3>{svgline(kv, years)}<h3>Medelålder</h3>{svgline(ma, years)}<h3>Andel invalda på personröster, %</h3>{svgline(pvs, years)}'
     # parti-tabell KF
     pt = '<h3>Kommunfullmäktige per parti: andel kvinnor och medelålder</h3><table><thead><tr><th>Parti</th>' + ''.join(f'<th class="r">{y}</th>' for y in years) + '</tr></thead><tbody>'
     for p in PIDS:
@@ -987,7 +1005,7 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
     ks = ''
     if kd and FK:
         ks += ('<h2>Speglar fullmäktige befolkningen?</h2><p class="lead">Medelåldern i kommunfullmäktige 2026 jämfört med medelåldern i hela befolkningen (inklusive barn, som inte kan väljas). Den röda linjen visar trenden: kommuner med äldre befolkning har också äldre fullmäktige.</p>'
-               + scatter(P(lambda k, v: fv(k, 'ma'), lambda k, v: v['ma_kf']), 'Medelålder i befolkningen', 'Medelålder i fullmäktige 2026', 'år', 'år'))
+               + scatter(P(lambda k, v: fv(k, 'ma'), lambda k, v: v['ma_kf']), 'Medelålder i befolkningen', 'Medelålder i fullmäktige 2026', 'år', 'år', xord='medelålder i befolkningen', yord='medelålder i fullmäktige'))
         gap = sorted([(v['ma_kf'] - fv(k, 'ma'), v) for k, v in kd.items() if v['ma_kf'] and fv(k, 'ma')], key=lambda x: -x[0])
         if gap: ks += f'<p class="small sans">I genomsnitt är fullmäktige <b>{fmt(sum(g for g, _ in gap)/len(gap))} år äldre</b> än befolkningen. Störst skillnad: ' + ', '.join(f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a> (+{fmt(g)})' for g, v in gap[:5]) + '. Minst: ' + ', '.join(f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a> ({"+" if g > 0 else ""}{fmt(g)})' for g, v in gap[-3:]) + '.</p>'
         # tabell: ålder i befolkningen, bland kandidaterna och bland de valda, per kommun
@@ -1024,13 +1042,13 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
                    + f'<p class="small muted sans">Andel kvinnor ökade i {sum(1 for g, _ in dk if g > 0)} kommuner och minskade i {sum(1 for g, _ in dk if g < 0)}.</p>'
                    + data_table(['Kommun', 'Kvinnor 2022–26 %', 'Kvinnor 2026 %', 'Förändring, pe'], [[f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a>', fmt(v['kv'] - g), fmt(v['kv']), ("+" if g > 0 else "") + fmt(g)] for g, v in dk], label='Visa alla kommuner'))
         ks += ('<h2>Avhopp, hot och förnyelse</h2><p class="lead">Kommuner där många förtroendevalda hoppade av under 2018–2022 jämfört med hur stor andel av fullmäktige som är ny 2026.</p>'
-               + scatter(P(lambda k, v: fv(k, 'avh'), lambda k, v: v['ny']), 'Hoppade av fullmäktige 2018–2022 (%)', 'Andel nya i fullmäktige 2026 (%)', '%', '%')
+               + scatter(P(lambda k, v: fv(k, 'avh'), lambda k, v: v['ny']), 'Hoppade av fullmäktige 2018–2022 (%)', 'Andel nya i fullmäktige 2026 (%)', '%', '%', xord='andel avhopp 2018–2022', yord='andel nya 2026')
                + data_table(['Kommun', 'Avhopp 2018–22 %', 'Nya 2026 %'], sorted([[f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a>', fmt(fv(k, 'avh')), fmt(v['ny'])] for k, v in kd.items()], key=lambda r: r[0]), label='Visa alla kommuner'))
         rh = [(fv('00' + lk_, 'hot'), lanNamn.get(lk_, lk_)) for lk_ in lanNamn if fv('00' + lk_, 'hot') is not None]
         if rh: ks += '<h3>Förtroendevalda utsatta för trakasserier, hot eller våld, per län (2024)</h3>' + hbars([(f'<a href="../../regioner/{lk_}/">{esc(n_)}</a>', v_, '#b0313f') for (v_, n_), lk_ in sorted([((fv("00" + l_, "hot"), lanNamn.get(l_, l_)), l_) for l_ in lanNamn if fv("00" + l_, "hot") is not None], key=lambda x: -x[0][0])], ' %', mx=50, w_lab=170) + f'<p class="small muted sans">Riket: {fmt(fv("0000", "hot"), "%")}. Källa: Kolada N65900 (Politikernas trygghetsundersökning) via Faktadriven.</p>'
-        ks += ('<h2>Valdeltagande och ekonomi</h2><p class="lead">Valdeltagandet i kommunvalet 2026 jämfört med kommunens medianinkomst och andelen invånare med ekonomiskt bistånd.</p><div class="grid2"><div>'
-               + scatter(P(lambda k, v: fv(k, 'ink') and fv(k, 'ink')/1000, lambda k, v: v['vd']), 'Medianinkomst 20–64 år (tkr)', 'Valdeltagande kommunvalet 2026 (%)', '', '%') + '</div><div>'
-               + scatter(P(lambda k, v: fv(k, 'eb'), lambda k, v: v['vd']), 'Invånare med ekonomiskt bistånd (%)', 'Valdeltagande kommunvalet 2026 (%)', '%', '%') + '</div></div>')
+        ks += ('<h2>Valdeltagande och ekonomi</h2><p class="lead">Valdeltagandet i kommunvalet 2026 jämfört med kommunens medianinkomst och andelen invånare med ekonomiskt bistånd.</p><h3>Medianinkomst</h3>'
+               + scatter(P(lambda k, v: fv(k, 'ink') and fv(k, 'ink')/1000, lambda k, v: v['vd']), 'Medianinkomst 20–64 år (tkr)', 'Valdeltagande kommunvalet 2026 (%)', '', '%', xshow=lambda v: fmtn(v*1000) + ' kr', xord='medianinkomst', yord='valdeltagande') + '<h3>Ekonomiskt bistånd</h3>'
+               + scatter(P(lambda k, v: fv(k, 'eb'), lambda k, v: v['vd']), 'Invånare med ekonomiskt bistånd (%)', 'Valdeltagande kommunvalet 2026 (%)', '%', '%', xord='andel med ekonomiskt bistånd', yord='valdeltagande'))
         dv = sorted([(v['vd'] - fv(k, 'vd'), v) for k, v in kd.items() if v['vd'] is not None and fv(k, 'vd') is not None], key=lambda x: -x[0])
         ks += data_table(['Kommun', 'Valdeltagande 2026 %', '2022 %', 'Förändring', 'Medianinkomst', 'Ekonomiskt bistånd %'],
                          [[f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a>', fmt(v['vd']), fmt(fv(k, 'vd')), (("+" if (v['vd'] or 0) - (fv(k, 'vd') or 0) > 0 else "") + fmt((v['vd'] or 0) - (fv(k, 'vd') or 0))) if v['vd'] is not None and fv(k, 'vd') is not None else '–', fmt(fv(k, 'ink'), 'kr'), fmt(fv(k, 'eb'))] for k, v in sorted(kd.items(), key=lambda kv_: -(kv_[1]['vd'] or 0))], label='Visa alla kommuner')
@@ -1041,16 +1059,49 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
             if v['st'] in grp: grp[v['st']].append(k)
         def gm(keys, f):
             xs = [f(k) for k in keys]; xs = [x for x in xs if x is not None]; return round(sum(xs)/len(xs), 2) if xs else None
-        mets = [('Förändring arbetslöshet 2022–2024, procentenheter', lambda k: (fv(k, 'al') - fv(k, 'al22')) if fv(k, 'al') is not None and fv(k, 'al22') is not None else None),
-                ('Befolkningsförändring 2022–2024, %', lambda k: 100*(fv(k, 'p24')/fv(k, 'p22')-1) if fv(k, 'p22') and fv(k, 'p24') else None),
-                ('Förändring anmälda brott 2022–2025, %', lambda k: 100*(fv(k, 'br')/fv(k, 'br22')-1) if fv(k, 'br') and fv(k, 'br22') else None),
-                ('Kommunens resultat, snitt 2023–2025, % av skatt och bidrag', lambda k: fv(k, 'res3')),
-                ('Nettokostnadsavvikelse 2025, %', lambda k: fv(k, 'nka')),
-                ('Skattesats 2026, %', lambda k: fv(k, 'sk'))]
+        # (namn, funktion, enhet, vad som brukar ses som bättre: 'lag' = lägre, 'hog' = högre, None = varken eller)
+        mets = [('Arbetslöshetens förändring 2022–2024', lambda k: (fv(k, 'al') - fv(k, 'al22')) if fv(k, 'al') is not None and fv(k, 'al22') is not None else None, ' procentenheter', 'lag',
+                 'Hur mycket andelen arbetslösa 20–64 år ökade eller minskade.'),
+                ('Befolkningsförändring 2022–2024', lambda k: 100*(fv(k, 'p24')/fv(k, 'p22')-1) if fv(k, 'p22') and fv(k, 'p24') else None, ' %', 'hog',
+                 'Hur mycket folkmängden växte eller krympte.'),
+                ('Anmälda brotts förändring 2022–2025', lambda k: 100*(fv(k, 'br')/fv(k, 'br22')-1) if fv(k, 'br') and fv(k, 'br22') else None, ' %', 'lag',
+                 'Förändring i anmälda brott per 100 000 invånare.'),
+                ('Kommunens resultat 2023–2025', lambda k: fv(k, 'res3'), ' % av skatt och bidrag', 'hog',
+                 'Kommunens överskott i genomsnitt, i procent av skatteintäkter och generella statsbidrag.'),
+                ('Nettokostnadsavvikelse 2025', lambda k: fv(k, 'nka'), ' %', 'lag',
+                 'Hur mycket kommunens kostnader avviker från vad dess struktur motiverar. Plus = dyrare än förväntat.'),
+                ('Skattesats 2026', lambda k: fv(k, 'sk'), ' %', None,
+                 'Total kommunal skattesats inklusive region.')]
         if grp['behöll'] and grp['förlorade']:
-            ks += (f'<h2>Belönade väljarna styren i kommuner som gick bra?</h2><p class="lead">Kommuner där det sittande styret <b>behöll</b> majoriteten ({len(grp["behöll"])} st) jämfört med där styret <b>förlorade</b> den ({len(grp["förlorade"])} st), och hur kommunen utvecklades under mandatperioden. Medelvärden per grupp.</p><table><thead><tr><th>Mått</th><th class="r">Behöll</th><th class="r">Förlorade</th><th class="r">Skillnad</th></tr></thead><tbody>'
-                   + ''.join(f'<tr><td>{esc(lab)}</td><td class="r">{fmt(gm(grp["behöll"], f))}</td><td class="r">{fmt(gm(grp["förlorade"], f))}</td><td class="r"><b>{fmt((gm(grp["behöll"], f) or 0) - (gm(grp["förlorade"], f) or 0))}</b></td></tr>' for lab, f in mets)
-                   + '</tbody></table><p class="small muted sans">Styren med ett lokalt parti som avgör räknas inte. Skillnader mellan grupper visar samband, inte orsak: kommunernas storlek, läge och partifärg skiljer sig också. Styre 2022–2026: Faktadriven. Mandat 2026: Valmyndigheten.</p>')
+            def sd(keys, f):
+                xs = [f(k) for k in keys]; xs = [x for x in xs if x is not None]
+                if len(xs) < 3: return None
+                m = sum(xs)/len(xs); return (sum((x-m)**2 for x in xs)/(len(xs)-1))**.5
+            rows_b, eff = [], []
+            for lab, f, u, bättre, förkl in mets:
+                a_, c_ = gm(grp['behöll'], f), gm(grp['förlorade'], f)
+                if a_ is None or c_ is None: continue
+                d_ = a_ - c_; s_ = sd(grp['behöll'] + grp['förlorade'], f) or 1
+                e_ = abs(d_)/s_; eff.append((e_, lab))
+                if e_ < 0.15: tolk = 'ingen märkbar skillnad'
+                else:
+                    hög = 'högre' if d_ > 0 else 'lägre'
+                    bra = None if bättre is None else ((d_ < 0) if bättre == 'lag' else (d_ > 0))
+                    tolk = f'{hög} där styret behöll makten' + ('' if bra is None else (' – bättre utveckling' if bra else ' – sämre utveckling'))
+                suf = {' %': ' %', ' procentenheter': ' pe', ' % av skatt och bidrag': ' %'}.get(u, '')
+                rows_b.append(f'<tr><td><b>{esc(lab)}</b><br><span class="small muted">{esc(förkl)}</span></td><td class="r">{fmt(a_)}{suf}</td><td class="r">{fmt(c_)}{suf}</td><td class="r"><b>{"+" if d_ > 0 else ""}{fmt(d_)}{" pe" if suf.strip() in ("%", "pe") else ""}</b></td><td>{esc(tolk)}</td></tr>')
+            eff.sort(reverse=True)
+            tydl = [l for e, l in eff if e >= 0.15]
+            sammanf = (f'Tydligast skillnad syns i {esc(" och ".join(x.lower() for x in tydl[:2]))}.' if tydl else 'Skillnaderna mellan grupperna är små för alla mått.')
+            ks += (f'<h2>Belönade väljarna styren i kommuner som gick bra?</h2>'
+                   f'<p class="lead" style="max-width:none">Frågan är om styren i kommuner som utvecklades väl under mandatperioden oftare fick fortsatt majoritet. Kommunerna delas i två grupper: '
+                   f'<b>Behöll</b> = de {len(grp["behöll"])} kommuner där partierna som styrde 2022–2026 tillsammans har majoritet även efter valet 2026. '
+                   f'<b>Förlorade</b> = de {len(grp["förlorade"])} kommuner där de inte längre har det. För varje grupp visas medelvärdet av kommunernas utveckling. '
+                   f'<b>Skillnad</b> är Behöll minus Förlorade, och sista kolumnen säger vad skillnaden betyder. {sammanf}</p>'
+                   '<table><thead><tr><th>Mått</th><th class="r">Behöll</th><th class="r">Förlorade</th><th class="r">Skillnad</th><th>Vad betyder det?</th></tr></thead><tbody>' + ''.join(rows_b) + '</tbody></table>'
+                   '<p class="small muted sans">"Ingen märkbar skillnad" betyder att skillnaden är liten jämfört med hur mycket kommunerna varierar inom grupperna. '
+                   'Styren där ett lokalt parti avgör majoriteten räknas inte. Jämförelsen visar samband, inte orsak: kommuner som behöll sina styren kan skilja sig i storlek, läge och partifärg, och väljare röstar av många skäl. '
+                   'Styre 2022–2026: Faktadriven. Mandat 2026: Valmyndigheten. Nyckeltal: Kolada via Faktadriven.</p>')
         # partiernas styrka × kommunprofil
         ind = [('ink', 'Medianinkomst'), ('uf', 'Utrikes födda'), ('tg', 'Tätortsgrad'), ('ma', 'Medelålder'), ('al', 'Arbetslöshet'), ('eb', 'Ekonomiskt bistånd'), ('br', 'Anmälda brott'), ('mv', 'Meritvärde åk 9'), ('bf', 'Befolkningsförändring'), ('sk', 'Skattesats')]
         hm = '<h2>Partiernas styrka och kommunens profil</h2><p class="lead">Samband mellan partiernas andel av mandaten i kommunfullmäktige 2026 och kommunens nyckeltal, över alla kommuner. Blått = partiet är starkare där måttet är högt, orange = svagare. Hovra eller tryck för förklaring.</p><div style="overflow-x:auto"><table class="hm"><thead><tr><th></th>' + ''.join(f'<th class="r">{p}</th>' for p in PIDS) + '</tr></thead><tbody>'
@@ -1064,7 +1115,7 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
             hm += '</tr>'
         ks += hm + '</tbody></table></div><p class="small muted sans">Pearsons r. 0 = inget samband, ±0,3 tydligt, ±0,5 starkt. Samband är inte orsak.</p>'
         ks += ('<h2>Personval och kommunstorlek</h2><p class="lead">Andelen av fullmäktige som kom in på personröster jämfört med kommunens folkmängd.</p>'
-               + scatter(P(lambda k, v: (fv(k, 'p24') and __import__('math').log10(fv(k, 'p24'))), lambda k, v: v['pv']), 'Folkmängd (log10: 4 = 10 000, 5 = 100 000)', 'Invalda på personröster 2026 (%)', '', '%')
+               + scatter(P(lambda k, v: (fv(k, 'p24') and __import__('math').log10(fv(k, 'p24'))), lambda k, v: v['pv']), 'Folkmängd (log10: 4 = 10 000, 5 = 100 000)', 'Invalda på personröster 2026 (%)', '', '%', xshow=lambda v: fmtn(10**v) + ' invånare', xord='folkmängd', yord='andel personvalda')
                + data_table(['Kommun', 'Folkmängd', 'Personvalda %'], [[f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a>', fmtn(fv(k, 'p24')) if fv(k, 'p24') else '–', fmt(v['pv'])] for k, v in sorted(kd.items(), key=lambda kv_: -(kv_[1]['pv'] or 0))], label='Visa alla kommuner'))
     STAT = [('korskorningar', 'Korskörningar', 'Fullmäktige mot befolkningen, hot och avhopp, valdeltagande och ekonomi, väljarnas dom över styren och partiernas profil.', ks),            ('utveckling', 'Utveckling 2010–2026', 'Kvinnor, medelålder och personvalda val för val sedan 2010.', utv),
             ('kandidater', 'Kandidater mot valda', 'Vilka som står på listorna jämfört med vilka som blir valda.', kmv),
