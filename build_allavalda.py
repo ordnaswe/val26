@@ -393,6 +393,15 @@ def main():
             f'<div style="display:flex;align-items:center;gap:8px;margin:4px 0"><div style="width:{w_lab}px;max-width:42%;flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{lab}</div>'
             f'<div data-tip="{esc(re.sub("<[^>]+>", " ", lab).strip())}: {str(v).replace(".", ",")}{unit}" style="flex:1;background:var(--line);border-radius:5px;overflow:hidden;min-width:60px"><div style="width:{max(0, min(100, 100*v/mx)):.1f}%;height:15px;background:{c or "var(--acc)"}"></div></div>'
             f'<div style="flex:0 0 auto;min-width:44px;text-align:right;white-space:nowrap">{str(v).replace(".", ",")}{unit}</div></div>' for lab, v, c in rows) + '</div>'
+    def pair_bars(rows, la, lb, ca='#c06070', cb='var(--acc)', unit=' %', w_lab=90):
+        """rows: [(etikett, värde_a, värde_b)] – två staplar per rad i full bredd, skalade mot största värdet"""
+        rows = [r for r in rows if r[1] is not None or r[2] is not None]
+        if not rows: return ''
+        mx = max(max(r[1] or 0, r[2] or 0) for r in rows) or 1
+        leg = f'<div class="sans small muted" style="display:flex;gap:14px;margin:4px 0 6px"><span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{ca};margin-right:5px;vertical-align:-1px"></span>{esc(la)}</span><span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{cb};margin-right:5px;vertical-align:-1px"></span>{esc(lb)}</span></div>'
+        bar = lambda v, c, l: f'<div style="display:flex;align-items:center;gap:8px;margin:2px 0" data-tip="{esc(l)}: {str(v).replace(".", ",")}{unit}"><div style="flex:1;background:var(--line);border-radius:5px;overflow:hidden"><div style="width:{100*(v or 0)/mx:.1f}%;height:16px;background:{c}"></div></div><div style="width:64px;text-align:right">{str(v).replace(".", ",") if v is not None else "–"}{unit}</div></div>'
+        return leg + '<div class="sans" style="font-size:.9rem;margin:4px 0 16px">' + ''.join(
+            f'<div style="display:flex;align-items:center;gap:10px;margin:8px 0"><div style="width:{w_lab}px;flex:0 0 auto;font-weight:600">{esc(lab)}</div><div style="flex:1">{bar(a_, ca, la)}{bar(b_, cb, lb)}</div></div>' for lab, a_, b_ in rows) + '</div>'
     def stacked(rows, keys, colors, labels):
         """rows: [(etikett_html, {key: andel})] -> staplade 100 %-staplar med förklaring"""
         leg = '<div class="sans small muted" style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0">' + ''.join(f'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{colors[k]};margin-right:4px"></span>{labels[k]}</span>' for k in keys) + '</div>'
@@ -412,7 +421,7 @@ def main():
         """kön + åldersgrupper för en grupp valda"""
         if not rs: return ''
         nk = sum(1 for r in rs if r['kon'] == 'K'); nm = sum(1 for r in rs if r['kon'] == 'M'); ag = Counter(agegrp(r['alder']) for r in rs if r['alder']); na = sum(ag.values()) or 1
-        return ('<div class="grid2"><div><h3>Kön</h3>' + stacked([('Kvinnor/män', {'K': 100*nk/max(1, nk+nm), 'M': 100*nm/max(1, nk+nm)})], ['K', 'M'], {'K': '#e07b39', 'M': '#1f5f8b'}, {'K': f'kvinnor {nk} ({str(round(100*nk/max(1, nk+nm), 1)).replace(".", ",")} %)', 'M': f'män {nm} ({str(round(100*nm/max(1, nk+nm), 1)).replace(".", ",")} %)'}) +
+        return ('<div><div><h3>Kön</h3>' + stacked([('Kvinnor/män', {'K': 100*nk/max(1, nk+nm), 'M': 100*nm/max(1, nk+nm)})], ['K', 'M'], {'K': '#e07b39', 'M': '#1f5f8b'}, {'K': f'kvinnor {nk} ({str(round(100*nk/max(1, nk+nm), 1)).replace(".", ",")} %)', 'M': f'män {nm} ({str(round(100*nm/max(1, nk+nm), 1)).replace(".", ",")} %)'}) +
                 '</div><div><h3>Åldersgrupper</h3>' + hbars([(lab, round(100*ag[lab]/na, 1), '#2e7d5b') for lab, _, _ in AGEGRP], ' %', mx=100, w_lab=60) + '</div></div>')
     # ---- valutfall.se-underlag: styre 2022–26, folkmängd, valdeltagande, resultat, nyckelpolitiker ----
     styreK = {r['kommunkod']: r for r in read_csv('data/styre_kommun_2022.csv')}
@@ -658,7 +667,7 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         # fullmäktige över tid som diagram
         if hrows:
             yrs = [x[0] for x in hrows]
-            histhtml = ('<h2 id="historik">Fullmäktige över tid</h2><div class="grid2"><div><h3>Andel kvinnor, %</h3>' + hbars([(y, k, '#e07b39') for y, _, k, _, _ in hrows], ' %', mx=100, w_lab=50) +
+            histhtml = ('<h2 id="historik">Fullmäktige över tid</h2><div><div><h3>Andel kvinnor, %</h3>' + hbars([(y, k, '#e07b39') for y, _, k, _, _ in hrows], ' %', mx=100, w_lab=50) +
                         '</div><div><h3>Medelålder</h3>' + hbars([(y, m, '#1f5f8b') for y, _, _, m, _ in hrows], ' år', mx=80, w_lab=50) + '</div></div><h3>Andel invalda på personröster, %</h3>' +
                         hbars([(y, p_, '#2e7d5b') for y, _, _, _, p_ in hrows], ' %', mx=max([x[4] or 0 for x in hrows] + [1]), w_lab=50) +
                         f'<p class="small muted sans">2010–2022: ursprungligt valda enligt Valmyndigheten. {nya} av {len(kf)} ledamöter 2026 är nya jämfört med fullmäktige 2022 (uppskattning). {avg22} av ledamöterna som valdes 2022 lämnade sitt uppdrag under mandatperioden.</p>')
@@ -842,8 +851,8 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         kk_ = pct(sum(1 for k in ks if k.get('KÖN') == 'K'), sum(1 for k in ks if k.get('KÖN'))); vk = pct(sum(1 for r in vs if r['kon'] == 'K'), sum(1 for r in vs if r['kon']))
         kmv += f'<tr><td>{VT[vt]}</td><td class="r">{fmtn(len(ks))}</td><td class="r">{fmtn(len(vs))}</td><td class="r">{str(kk_).replace(".", ",") if kk_ is not None else "–"} % / {str(vk).replace(".", ",") if vk is not None else "–"} %</td><td class="r">{str(mean(ka)).replace(".", ",") if mean(ka) else "–"} / {str(mean([r["alder"] for r in vs])).replace(".", ",") if mean([r["alder"] for r in vs]) else "–"}</td></tr>'
         kc = Counter(agegrp(a) for a in ka if a); vc = Counter(agegrp(r['alder']) for r in vs if r['alder'])
-        agerows += f'<h3>{VT[vt]}: åldersgrupper</h3><div style="font-family:system-ui;font-size:.86rem">' + ''.join(f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><div style="width:60px">{lab}</div><div style="flex:1" data-tip="{VT[vt]} {lab} år\nKandidater: {str(pct(kc[lab], sum(kc.values())) or 0).replace('.', ',')} % ({kc[lab]} st)\nValda: {str(pct(vc[lab], sum(vc.values())) or 0).replace('.', ',')} % ({vc[lab]} st)"><div style="height:10px;background:#b0313f;opacity:.55;width:{pct(kc[lab], sum(kc.values())) or 0}%;border-radius:4px"></div><div style="height:10px;background:var(--acc);width:{pct(vc[lab], sum(vc.values())) or 0}%;border-radius:4px;margin-top:2px"></div></div><div style="width:120px;text-align:right">{str(pct(kc[lab], sum(kc.values())) or 0).replace(".", ",")} % / {str(pct(vc[lab], sum(vc.values())) or 0).replace(".", ",")} %</div></div>' for lab, _, _ in AGEGRP) + '</div>'
-    kmv += '</tbody></table><p class="small muted sans">Kandidater räknas en gång per val, även om de står på flera listor eller valsedlar. Röd stapel = kandidater, blå = valda.</p><div class="grid3">' + agerows + '</div>'
+        agerows += f'<h3>{VT[vt]}: åldersgrupper</h3>' + pair_bars([(lab, pct(kc[lab], sum(kc.values())), pct(vc[lab], sum(vc.values()))) for lab, _, _ in AGEGRP], 'Kandidater', 'Valda')
+    kmv += '</tbody></table><p class="small muted sans">Kandidater räknas en gång per val, även om de står på flera listor eller valsedlar.</p>' + agerows
     # titlar
     vt_t = Counter(r['titel'].lower() for r in valda if r['titel'])
     k_t = Counter(titel(k.get('VALSEDELSUPPGIFT')).lower() for k in {(k['VALTYP'], k['KANDIDATNUMMER']): k for k in allkand if k.get('GILTIG', 'J') == 'J' and k.get('VALSEDELSUPPGIFT')}.values())
@@ -873,8 +882,17 @@ q.addEventListener('input',async()=>{const v=fold(q.value.trim());if(v.length<2)
         vs = [r for r in valda if r['vt'] == vt and r['p'] == p]; return pct(sum(1 for r in vs if r.get('status22') != 'omvald'), len(vs)) if vs else None
     def avh_pct(vt, p):
         hs = [h for h in hist if h['ar'] == '2022' and h['valtyp'] == vt and h['ursprunglig'] == '1' and h['parti'] == p]; return pct(sum(1 for h in hs if h.get('avgang')), len(hs)) if hs else None
-    ch_ny = '<div class="grid3">' + ''.join(f'<div><h3>{VT[vt]}: andel nya</h3>' + hbars([(pf(p), ny_pct(vt, p), col(p)) for p in PIDS], ' %', mx=100, w_lab=40) + '</div>' for vt in ('RD', 'RF', 'KF')) + '</div>'
-    ch_av = '<div class="grid3">' + ''.join(f'<div><h3>{VT[vt]}: avhopp 2022–26</h3>' + hbars([(pf(p), avh_pct(vt, p), col(p)) for p in PIDS], ' %', mx=max([avh_pct(vt, q) or 0 for q in PIDS] + [1]), w_lab=40) + '</div>' for vt in ('RD', 'RF', 'KF')) + '</div>'
+    def tri_bars(f, mx=None):
+        rows = [(p, [f(vt, p) for vt in ('RD', 'RF', 'KF')]) for p in PIDS]
+        mx = mx or max([v for _, vs in rows for v in vs if v is not None] + [1])
+        cols = {'RD': '#1f5f8b', 'RF': '#e07b39', 'KF': '#2e7d5b'}
+        leg = '<div class="sans small muted" style="display:flex;gap:14px;margin:4px 0 6px">' + ''.join(f'<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{cols[vt]};margin-right:5px;vertical-align:-1px"></span>{VT[vt]}</span>' for vt in ('RD', 'RF', 'KF')) + '</div>'
+        return leg + '<div class="sans" style="font-size:.9rem;margin:4px 0 16px">' + ''.join(
+            f'<div style="display:flex;align-items:center;gap:10px;margin:10px 0"><div style="width:44px;flex:0 0 auto">{pf(p)}</div><div style="flex:1">' + ''.join(
+                f'<div style="display:flex;align-items:center;gap:8px;margin:2px 0" data-tip="{PN.get(p, p)}, {VT[vt]}: {str(v).replace(".", ",") if v is not None else "–"} %"><div style="flex:1;background:var(--line);border-radius:5px;overflow:hidden"><div style="width:{100*(v or 0)/mx:.1f}%;height:14px;background:{cols[vt]}"></div></div><div style="width:58px;text-align:right">{str(v).replace(".", ",") if v is not None else "–"} %</div></div>'
+                for vt, v in zip(('RD', 'RF', 'KF'), vs)) + '</div></div>' for p, vs in rows) + '</div>'
+    ch_ny = '<h3>Andel nya per parti och församling</h3>' + tri_bars(ny_pct, 100)
+    ch_av = '<h3>Avhopp 2022–2026 per parti och församling</h3>' + tri_bars(avh_pct)
     fn = fn.replace('</p><table><thead><tr><th>Parti</th>', '</p>' + ch_ny + '<details class="omr"><summary>Visa tabell</summary><table><thead><tr><th>Parti</th>', 1)
     fn = fn.replace('</tbody></table><h2>Avhopp', '</tbody></table></details><h2>Avhopp', 1)
     fn = fn.replace('enligt Valmyndighetens register.</p><table>', 'enligt Valmyndighetens register.</p>' + ch_av + '<details class="omr"><summary>Visa tabell</summary><table>', 1)
@@ -984,7 +1002,7 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
         kk_ = sorted([(pct(v[0], v[1]), k) for k, v in kr_kom.items() if v[1]], reverse=True)
         kr_tab = data_table(['Kommun', 'Partiernas röster', 'Personröster', 'Andel som kryssade %'], [[f'<a href="../../kommun/{slugify(kod2kom.get(k, k))}/">{esc(kod2kom.get(k, k))}</a>', fmtn(kr_kom[k][1]), fmtn(kr_kom[k][0]), fmt(v)] for v, k in kk_], label='Kommunvalet: alla kommuner')
         if kk_:
-            krh += ('<h3>Kommunvalet: var kryssade flest och färst?</h3><div class="grid2"><div>' + hbars([(f'<a href="../../kommun/{slugify(kod2kom.get(k, k))}/">{esc(kod2kom.get(k, k))}</a>', v, '#2e7d5b') for v, k in kk_[:10]], ' %', w_lab=130)
+            krh += ('<h3>Kommunvalet: var kryssade flest och färst?</h3><div><div>' + hbars([(f'<a href="../../kommun/{slugify(kod2kom.get(k, k))}/">{esc(kod2kom.get(k, k))}</a>', v, '#2e7d5b') for v, k in kk_[:10]], ' %', w_lab=130)
                     + '</div><div>' + hbars([(f'<a href="../../kommun/{slugify(kod2kom.get(k, k))}/">{esc(kod2kom.get(k, k))}</a>', v, '#b0313f') for v, k in kk_[-10:][::-1]], ' %', mx=kk_[0][0], w_lab=130) + '</div></div>' + kr_tab)
     per_val = krh + sec
     # ---------- korskörningar: valda/partier × Faktadriven ----------
@@ -1036,7 +1054,7 @@ document.querySelectorAll('#km .chip').forEach(c=>c.onclick=()=>km(c.dataset.m))
                    + '</tbody></table><p class="small muted sans">Skillnaden visar om partiet valde in äldre eller yngre personer än det ställde upp. Listplacering och personröster avgör vilka som kommer in.</p>')
         dk = sorted([(v['kv'] - fv(k, 'kkf'), v) for k, v in kd.items() if v['kv'] is not None and fv(k, 'kkf') is not None], key=lambda x: -x[0])
         if dk:
-            ks += ('<h2>Fler eller färre kvinnor än förra mandatperioden</h2><p class="lead">Andel kvinnor i kommunfullmäktige 2026 jämfört med 2022–2026 (Kolada). Förändring i procentenheter.</p><div class="grid2"><div><h3>Störst ökning</h3>'
+            ks += ('<h2>Fler eller färre kvinnor än förra mandatperioden</h2><p class="lead">Andel kvinnor i kommunfullmäktige 2026 jämfört med 2022–2026 (Kolada). Förändring i procentenheter.</p><div><div><h3>Störst ökning</h3>'
                    + hbars([(f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a>', round(g, 1), '#e07b39') for g, v in dk[:10]], ' pe', w_lab=130) + '</div><div><h3>Störst minskning</h3>'
                    + hbars([(f'<a href="../../kommun/{v["s"]}/">{esc(v["n"])}</a>', round(-g, 1), '#1f5f8b') for g, v in dk[-10:][::-1]], ' pe', w_lab=130) + '</div></div>'
                    + f'<p class="small muted sans">Andel kvinnor ökade i {sum(1 for g, _ in dk if g > 0)} kommuner och minskade i {sum(1 for g, _ in dk if g < 0)}.</p>'
